@@ -63,6 +63,6 @@ Voir [google/GUIDE-INSTALLATION.md](google/GUIDE-INSTALLATION.md). Une fois le s
 
 ## Charte
 
-Couleurs mesurées sur le logo Respir Outdoor : `#0A322A`, `#3A8376`, `#39564E`. Elles ne viennent pas d'une charte officielle. L'échelle RPE et ses couleurs viennent de l'image insérée dans l'onglet PLAN du classeur de l'entraîneur.
+Couleurs mesurées sur le logo Respir Outdoor : `#0A322A`, `#3A8376`, `#39564E`. Elles ne viennent pas d'une charte officielle. Les libellés de l'échelle RPE (1 très facile, 2 facile, 4 modéré, 7 difficile, 9 très difficile, 10 effort maximal) viennent de l'image insérée dans l'onglet PLAN du classeur de l'entraîneur. La saisie se fait sur une barre à glisser de 1 à 10, avec un dégradé bleu → vert → jaune → orange → rouge → violet → noir (`#4D83C3`, `#519C57`, `#EBC443`, `#E5913B`, `#C53A35`, `#7342AF`, `#111111`, couleurs relevées sur une capture fournie). Les niveaux intermédiaires sont interpolés, et le texte des pastilles passe en blanc ou en noir selon le contraste.
 
 Les protocoles sont la propriété de Respir Outdoor (« utilisation et reproduction interdites ») : ils ne sont pas inclus dans le code et n'arrivent que par l'import du classeur.

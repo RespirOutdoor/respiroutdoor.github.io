@@ -172,14 +172,14 @@
       '<div class="champs"><label>Distance (km)<input name="km" inputmode="decimal" value="' + (C.isNum(j.km) ? C.nombreFR(j.km, 3) : '') + '" placeholder="12,5"></label>' +
       '<label>Durée<input name="duree" inputmode="numeric" value="' + (C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '') + '" placeholder="1:15:45"></label>' +
       '<label>D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (C.isNum(j.dplus) ? Math.round(j.dplus) : '') + '" placeholder="150"></label></div>' +
-      '<fieldset><legend>Ressenti (RPE)</legend><div class="rpe-choix" role="radiogroup">' +
-      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) { var l = C.libelleRPE(n); return '<label style="--rpe:' + l.couleur + '"><input type="radio" name="rpe" value="' + n + '"' + (j.rpe === n ? ' checked' : '') + '><span><b>' + n + '</b>' + esc(l.libelle) + '</span></label>'; }).join('') +
-      '</div><p class="muet petit">À noter 30 min après la séance : 1 très facile → 10 effort maximal.</p></fieldset>' +
+      '<fieldset><legend>Ressenti (RPE)</legend>' + UI.htmlBarreRPE(j.rpe) +
+      '<p class="muet petit">À noter 30 min après la séance : 1 très facile → 10 effort maximal.</p></fieldset>' +
       '<label>Notes (ressenti, douleurs, conditions…)<textarea name="notes" maxlength="2000">' + esc(j.notes) + '</textarea></label>' +
       '<p class="alerte" id="erreurSaisie" hidden></p><div class="pied">' + (C.aRetour(j) ? '<button type="button" class="danger" data-x="effacer">Effacer ma saisie</button>' : '') +
       '<button type="button" class="sec" data-x="annuler">Annuler</button><button>Enregistrer</button></div></form>';
     boite.innerHTML = h; boite.showModal();
     var f = $('form', boite);
+    UI.brancherBarreRPE(f);
     $('[data-x="annuler"]', f).onclick = function () { boite.close(); };
     var ef = $('[data-x="effacer"]', f);
     if (ef) ef.onclick = function () {

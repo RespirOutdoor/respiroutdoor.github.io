@@ -14,9 +14,28 @@ var Core = (function () {
   // Échelle « Intensité de l'effort » de 1 à 10 : image insérée dans l'onglet PLAN du classeur (cellule O7).
   // Libellés et couleurs relevés sur cette image ; les niveaux sans libellé restent sans libellé.
   var ECHELLE_RPE = { 1: 'Très facile', 2: 'Facile', 4: 'Modéré', 7: 'Difficile', 9: 'Très difficile', 10: 'Effort maximal' };
-  var COULEURS_RPE = { 1: '#66CC00', 2: '#66CC44', 3: '#13BFF1', 4: '#5CADF6', 5: '#139AF2', 6: '#FEDF00', 7: '#FEC600', 8: '#FFA000', 9: '#FE4000', 10: '#FF0000' };
+  // Dégradé de la barre RPE (couleurs relevées sur la capture fournie) : bleu, vert, jaune, orange, rouge, violet, noir.
+  // Niveau n placé à (n − 1) / 9 du dégradé ; les niveaux entre deux couleurs sont interpolés.
+  var DEGRADE_RPE = ['#4D83C3', '#519C57', '#EBC443', '#E5913B', '#C53A35', '#7342AF', '#111111'];
+  function couleurDegrade(t) {
+    var n = DEGRADE_RPE.length - 1, x = Math.max(0, Math.min(1, t)) * n, i = Math.min(n - 1, Math.floor(x)), f = x - i;
+    var a = DEGRADE_RPE[i], b = DEGRADE_RPE[i + 1], s = '#';
+    for (var k = 1; k < 7; k += 2) {
+      var v = Math.round(parseInt(a.substr(k, 2), 16) * (1 - f) + parseInt(b.substr(k, 2), 16) * f);
+      s += (v < 16 ? '0' : '') + v.toString(16).toUpperCase();
+    }
+    return s;
+  }
+  // Texte lisible sur une couleur : blanc ou noir selon le contraste le plus fort (WCAG)
+  function texteSur(hex) {
+    var c = [1, 3, 5].map(function (k) { var v = parseInt(hex.substr(k, 2), 16) / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    var L = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    return (1.05) / (L + 0.05) >= (L + 0.05) / 0.05 ? '#FFFFFF' : '#000000';
+  }
+  var COULEURS_RPE = {};
+  for (var nr = 1; nr <= 10; nr++) COULEURS_RPE[nr] = couleurDegrade((nr - 1) / 9);
   // Libellé du niveau entier le plus proche (6,5 -> niveau 7) ; null hors échelle
-  function libelleRPE(v) { if (!isNum(v) || v < 1 || v > 10) return null; var n = Math.round(v); return { niveau: n, libelle: ECHELLE_RPE[n] || '', couleur: COULEURS_RPE[n] }; }
+  function libelleRPE(v) { if (!isNum(v) || v < 1 || v > 10) return null; var n = Math.round(v); return { niveau: n, libelle: ECHELLE_RPE[n] || '', couleur: COULEURS_RPE[n], texte: texteSur(COULEURS_RPE[n]) }; }
 
   function pad2(n) { n = String(n); return n.length < 2 ? '0' + n : n; }
   function isNum(x) { return typeof x === 'number' && isFinite(x); }
@@ -884,6 +903,11 @@ var Core = (function () {
         a.jours['2026-08-03'].type === 'VMAC' && a.jours['2026-08-03'].eveil === '20' && a.jours['2026-08-05'].dureeSec === 3725 && a.jours['2026-08-05'].km === 12.3 &&
         a.jours['2026-08-05'].notes === 'bien' && a.semaines[82].cycle === 'AS' && a.id === 'DUPONT_JEAN';
     }],
+    ['Dégradé RPE : 1 = bleu #4D83C3, 4 = jaune #EBC443, 7 = rouge #C53A35, 10 = noir #111111 (texte blanc), 2 interpolé', function () {
+      // 2 -> t = 1/9 -> 2/3 du chemin bleu -> vert : 77 + (81−77)×2/3 = 79,7 -> 80 (0x50) ; 131 + (156−131)×2/3 = 147,7 -> 148 (0x94) ; 195 + (87−195)×2/3 = 123 (0x7B)
+      return libelleRPE(1).couleur === '#4D83C3' && libelleRPE(4).couleur === '#EBC443' && libelleRPE(7).couleur === '#C53A35' &&
+        libelleRPE(10).couleur === '#111111' && libelleRPE(10).texte === '#FFFFFF' && libelleRPE(4).texte === '#000000' && libelleRPE(2).couleur === '#50947B';
+    }],
     ['Échelle RPE : 1 = Très facile, 4 = Modéré, 10 = Effort maximal ; 3 sans libellé ; 6,5 -> niveau 7 ; 0 et 11 hors échelle', function () {
       return libelleRPE(1).libelle === 'Très facile' && libelleRPE(4).libelle === 'Modéré' && libelleRPE(10).libelle === 'Effort maximal' && libelleRPE(3).libelle === '' &&
         libelleRPE(6.5).niveau === 7 && libelleRPE(0) === null && libelleRPE(11) === null;
@@ -902,7 +926,7 @@ var Core = (function () {
     TZ: TZ, SCHEMA_VERSION: SCHEMA_VERSION, JOURS: JOURS, JOURS_LONGS: JOURS_LONGS, CHAMPS_COACH: CHAMPS_COACH, CHAMPS_ATHLETE: CHAMPS_ATHLETE,
     ZONES_DEFAUT: ZONES_DEFAUT, CHAMP_REACTION: CHAMP_REACTION, aDonneesAthlete: aDonneesAthlete, periodes: periodes, bilanPeriode: bilanPeriode,
     estPrevue: estPrevue, estFaite: estFaite, records: records, derniereSaisie: derniereSaisie, resumeCoach: resumeCoach, competitionsAVenir: competitionsAVenir,
-    genererCode: genererCode, slugNom: slugNom, lienAthlete: lienAthlete, codeDepuisLien: codeDepuisLien, ECHELLE_RPE: ECHELLE_RPE, libelleRPE: libelleRPE, pad2: pad2, isNum: isNum, texte: texte, parseNumberFR: parseNumberFR, nombreFR: nombreFR,
+    genererCode: genererCode, slugNom: slugNom, lienAthlete: lienAthlete, codeDepuisLien: codeDepuisLien, ECHELLE_RPE: ECHELLE_RPE, DEGRADE_RPE: DEGRADE_RPE, libelleRPE: libelleRPE, pad2: pad2, isNum: isNum, texte: texte, parseNumberFR: parseNumberFR, nombreFR: nombreFR,
     isValidISODate: isValidISODate, parseDateFR: parseDateFR, formatDateFR: formatDateFR, addDays: addDays, daysBetween: daysBetween,
     dayOfWeek: dayOfWeek, weekStart: weekStart, todayParis: todayParis, excelSerialToISO: excelSerialToISO,
     numSemaine: numSemaine, lundiSemaine: lundiSemaine, formatDuree: formatDuree, parseDuree: parseDuree, formatTemps: formatTemps,

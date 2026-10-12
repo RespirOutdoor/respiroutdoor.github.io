@@ -127,7 +127,7 @@ legend { font-weight: 700; padding: 0 6px; }
 .repere b { color: var(--sapin); }
 .retour { margin-top: 8px; border-top: 1px dashed var(--bord); padding-top: 8px; display: flex; gap: 6px 14px; flex-wrap: wrap; align-items: center; font-size: .9rem; }
 .retour .note { flex-basis: 100%; font-style: italic; color: var(--texte-2); white-space: pre-wrap; }
-.rpe { display: inline-block; min-width: 26px; text-align: center; border-radius: 6px; padding: 0 6px; font-weight: 700; color: #000; background: var(--rpe, var(--dragon)); }
+.rpe { display: inline-block; min-width: 26px; text-align: center; border-radius: 6px; padding: 0 6px; font-weight: 700; color: var(--rpe-t, #fff); background: var(--rpe, var(--dragon)); }
 details.def { margin-top: 6px; font-size: .82rem; color: var(--texte-2); }
 details.def summary { cursor: pointer; min-height: 28px; }
 .bilan { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
@@ -212,15 +212,27 @@ ul.liste { margin: 0; padding-left: 18px; }
 .lien-athlete { word-break: break-all; background: var(--vert-clair); border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; }
 .emojis { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .emojis label { margin: 0; }
-.emojis input, .rpe-choix input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.emojis input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .emojis span { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; font-size: 1.6rem; border: 2px solid var(--bord); border-radius: 12px; cursor: pointer; }
 .emojis input:checked + span { border-color: var(--vert-fonce); background: var(--vert-clair); }
-.emojis input:focus-visible + span, .rpe-choix input:focus-visible + span { outline: 3px solid var(--vert); outline-offset: 2px; }
-.rpe-choix { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-.rpe-choix label { margin: 0; color: #000; }
-.rpe-choix span { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 56px; border-radius: 8px; background: var(--rpe); font-size: .62rem; font-weight: 600; line-height: 1.1; text-align: center; padding: 4px 2px; cursor: pointer; border: 3px solid transparent; opacity: .75; }
-.rpe-choix span b { font-size: 1.1rem; }
-.rpe-choix input:checked + span { border-color: var(--texte); opacity: 1; box-shadow: 0 0 0 2px var(--carte) inset; }
+.emojis input:focus-visible + span { outline: 3px solid var(--vert); outline-offset: 2px; }
 .echelle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-.echelle span { background: var(--rpe); color: #000; border-radius: 8px; padding: 6px 4px; text-align: center; font-size: .7rem; font-weight: 600; min-height: 52px; display: flex; flex-direction: column; justify-content: center; }
+.echelle span { background: var(--rpe); color: var(--rpe-t, #000); border-radius: 8px; padding: 6px 4px; text-align: center; font-size: .7rem; font-weight: 600; min-height: 52px; display: flex; flex-direction: column; justify-content: center; }
 .echelle b { font-size: 1.05rem; }
+
+/* Barre RPE à glisser (dégradé bleu → noir) */
+.barre-rpe { --rpe: var(--bord); --rpe-t: var(--texte); }
+.rpe-tete { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.rpe-tete .visage { width: 52px; height: 52px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 1.45rem; background: var(--rpe); box-shadow: inset 0 0 0 3px rgba(255,255,255,.35); transition: background .15s; flex: none; }
+.rpe-tete .rpe-texte { flex: 1; display: flex; flex-direction: column; }
+.rpe-tete .rpe-texte b { font-size: 1.6rem; line-height: 1.1; }
+.barre-rpe.vide .rpe-texte span { color: var(--texte-2); }
+.barre-rpe input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.barre-rpe input[type="range"]::-webkit-slider-runnable-track { height: 14px; border-radius: 99px; background: var(--degrade); }
+.barre-rpe input[type="range"]::-moz-range-track { height: 14px; border-radius: 99px; background: var(--degrade); }
+.barre-rpe input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; margin-top: -8px; border-radius: 50%; background: #fff; border: 4px solid var(--rpe); box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+.barre-rpe input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 4px solid var(--rpe); box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+.barre-rpe.vide input[type="range"]::-webkit-slider-thumb { border-color: var(--bord); opacity: .8; }
+.barre-rpe.vide input[type="range"]::-moz-range-thumb { border-color: var(--bord); opacity: .8; }
+.barre-rpe .graduations { display: flex; justify-content: space-between; padding: 0 8px; font-size: .75rem; color: var(--texte-2); }
+.barre-rpe .graduations span { width: 14px; text-align: center; }

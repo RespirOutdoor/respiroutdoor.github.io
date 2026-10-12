@@ -36,3 +36,4 @@ Toutes reprennent les formules de l'onglet ALLURES ou PLAN du classeur de l'entr
 | ⚠ sans retour | Au moins 2 séances prévues des 14 derniers jours, après la dernière saisie, sans saisie | convention de l'outil, modifiable |
 | Records | Plus longue sortie, plus longue durée, plus gros D+, plus grosse semaine (lundi → dimanche), meilleure allure moyenne de séance (≥ 10 km, ≥ 5 km), meilleure allure en compétition (type COMP) | définition, calculée sur les seules saisies |
 | Fusion des données | La partie entraîneur vient de l'entraîneur ; la partie athlète vient de l'athlète ; entre deux saisies, la plus récente (horodatage) gagne | convention de l'outil |
+| Couleur RPE | Niveau n placé à (n − 1) / 9 du dégradé à 7 couleurs, interpolation linéaire en RVB ; texte blanc ou noir selon le meilleur contraste WCAG | convention de l'outil |

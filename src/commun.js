@@ -30,7 +30,7 @@ var UI = (function () {
   function minutes(v) { var t = C.texte(v); return /^\d+([.,]\d+)?$/.test(t) ? t + ' min' : t; }
   function badgeRPE(v) {
     var l = C.libelleRPE(v);
-    return '<span class="rpe"' + (l ? ' style="--rpe:' + l.couleur + '"' : '') + '>' + C.nombreFR(v, 1) + '</span>' + (l && l.libelle ? ' <span class="petit muet">' + esc(l.libelle) + '</span>' : '');
+    return '<span class="rpe"' + (l ? ' style="--rpe:' + l.couleur + ';--rpe-t:' + l.texte + '"' : '') + '>' + C.nombreFR(v, 1) + '</span>' + (l && l.libelle ? ' <span class="petit muet">' + esc(l.libelle) + '</span>' : '');
   }
   function jourCourt(iso) { return C.JOURS_LONGS[C.dayOfWeek(iso)].slice(0, 3) + '. ' + C.formatDateFR(iso, true); }
   function semaineDe(a, iso) { return a.debut ? C.numSemaine(a.debut, iso) : null; }
@@ -276,7 +276,7 @@ var UI = (function () {
       }).join('') +
       (q ? '' : '<p class="muet petit" style="margin-top:14px">Les familles reprennent les regroupements de la colonne H de l\'onglet LEGENDE. « COMP » (compétition) et « PROTO » sont utilisés dans le plan mais ne figurent pas dans la légende.</p>') + '</section>';
     h += '<section class="carte"><h3>Échelle RPE</h3><p class="muet petit">Niveau d\'intensité perçu de la séance, à noter 30 min après la séance.</p><div class="echelle">' +
-      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) { var l = C.libelleRPE(n); return '<span style="--rpe:' + l.couleur + '"><b>' + n + '</b>' + esc(l.libelle) + '</span>'; }).join('') + '</div></section>';
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) { var l = C.libelleRPE(n); return '<span style="--rpe:' + l.couleur + ';--rpe-t:' + l.texte + '"><b>' + n + '</b>' + esc(l.libelle) + '</span>'; }).join('') + '</div></section>';
     main.innerHTML = h;
     var r = $('#rechLeg');
     r.oninput = function () { rechercheLegende = r.value; var pos = r.selectionStart; vueLegende(main); var n = $('#rechLeg'); n.focus(); n.setSelectionRange(pos, pos); };
@@ -371,6 +371,40 @@ var UI = (function () {
     main.innerHTML = h;
   }
 
+  /* ---------- Barre RPE (saisie) ---------- */
+  var VISAGES = { 1: '😌', 2: '😌', 3: '🙂', 4: '🙂', 5: '😐', 6: '😐', 7: '😣', 8: '😣', 9: '🥵', 10: '😵' };
+  function degradeCSS() {
+    var d = C.DEGRADE_RPE;
+    return 'linear-gradient(90deg,' + d.map(function (c, i) { return c + ' ' + Math.round(i / (d.length - 1) * 100) + '%'; }).join(',') + ')';
+  }
+  function htmlBarreRPE(valeur) {
+    var v = C.isNum(valeur) ? Math.round(valeur) : null;
+    return '<div class="barre-rpe' + (v ? '' : ' vide') + '" id="barreRPE">' +
+      '<div class="rpe-tete"><span class="visage" aria-hidden="true">' + (v ? VISAGES[v] : '😶') + '</span>' +
+      '<span class="rpe-texte"><b id="rpeNombre">' + (v || '–') + '</b><span id="rpeLibelle">' + (v ? esc(C.libelleRPE(v).libelle || 'Niveau ' + v) : 'Glisse pour indiquer ton ressenti') + '</span></span>' +
+      '<button type="button" class="discret" id="rpeEffacer"' + (v ? '' : ' hidden') + '>Effacer</button></div>' +
+      '<input type="range" id="rpeCurseur" min="1" max="10" step="1" value="' + (v || 5) + '" aria-label="Ressenti RPE de 1 (très facile) à 10 (effort maximal)" style="--degrade:' + degradeCSS() + '">' +
+      '<div class="graduations" aria-hidden="true">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) { return '<span>' + n + '</span>'; }).join('') + '</div>' +
+      '<input type="hidden" name="rpe" value="' + (v || '') + '"></div>';
+  }
+  function brancherBarreRPE(form) {
+    var z = $('#barreRPE', form), cur = $('#rpeCurseur', z), cache = $('input[name="rpe"]', z), eff = $('#rpeEffacer', z);
+    function maj(v) {
+      cache.value = v || '';
+      z.classList.toggle('vide', !v);
+      $('.visage', z).textContent = v ? VISAGES[v] : '😶';
+      $('#rpeNombre', z).textContent = v || '–';
+      var l = v ? C.libelleRPE(v) : null;
+      $('#rpeLibelle', z).textContent = v ? (l.libelle || 'Niveau ' + v) : 'Glisse pour indiquer ton ressenti';
+      if (l) { z.style.setProperty('--rpe', l.couleur); z.style.setProperty('--rpe-t', l.texte); cur.setAttribute('aria-valuetext', v + (l.libelle ? ' : ' + l.libelle : '')); }
+      eff.hidden = !v;
+    }
+    cur.addEventListener('input', function () { maj(Number(cur.value)); });
+    cur.addEventListener('pointerdown', function () { if (!cache.value) maj(Number(cur.value)); });
+    eff.onclick = function () { maj(null); };
+    if (cache.value) maj(Number(cache.value));
+  }
+
   /* ---------- Thème ---------- */
   function appliquerTheme(theme) { if (theme) document.documentElement.setAttribute('data-theme', theme); else document.documentElement.removeAttribute('data-theme'); }
 
@@ -380,6 +414,6 @@ var UI = (function () {
     famille: famille, couleurFam: couleurFam, badgeRPE: badgeRPE, jourCourt: jourCourt, semaineDe: semaineDe, lundiDe: lundiDe, ilYa: ilYa, ecart: ecart,
     creerStore: creerStore, chargerConfig: chargerConfig, appelService: appelService,
     carteJour: carteJour, htmlFiche: htmlFiche, htmlSemaine: htmlSemaine, htmlEnsemble: htmlEnsemble, brancherGraph: brancherGraph,
-    vueLegende: vueLegende, vueAllures: vueAllures, vueProtos: vueProtos, appliquerTheme: appliquerTheme
+    vueLegende: vueLegende, vueAllures: vueAllures, htmlBarreRPE: htmlBarreRPE, brancherBarreRPE: brancherBarreRPE, vueProtos: vueProtos, appliquerTheme: appliquerTheme
   };
 })();
