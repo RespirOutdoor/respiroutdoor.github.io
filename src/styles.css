@@ -221,12 +221,7 @@ ul.liste { margin: 0; padding-left: 18px; }
 .echelle b { font-size: 1.05rem; }
 
 /* Barre RPE à glisser (dégradé bleu → noir) */
-.barre-rpe { --rpe: var(--bord); --rpe-t: var(--texte); }
-.rpe-tete { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-.rpe-tete .visage { width: 52px; height: 52px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 1.45rem; background: var(--rpe); box-shadow: inset 0 0 0 3px rgba(255,255,255,.35); transition: background .15s; flex: none; }
-.rpe-tete .rpe-texte { flex: 1; display: flex; flex-direction: column; }
-.rpe-tete .rpe-texte b { font-size: 1.6rem; line-height: 1.1; }
-.barre-rpe.vide .rpe-texte span { color: var(--texte-2); }
+.barre-rpe { --rpe: var(--bord); }
 .barre-rpe input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .barre-rpe input[type="range"]::-webkit-slider-runnable-track { height: 14px; border-radius: 99px; background: var(--degrade); }
 .barre-rpe input[type="range"]::-moz-range-track { height: 14px; border-radius: 99px; background: var(--degrade); }
@@ -235,4 +230,5 @@ ul.liste { margin: 0; padding-left: 18px; }
 .barre-rpe.vide input[type="range"]::-webkit-slider-thumb { border-color: var(--bord); opacity: .8; }
 .barre-rpe.vide input[type="range"]::-moz-range-thumb { border-color: var(--bord); opacity: .8; }
 .barre-rpe .graduations { display: flex; justify-content: space-between; padding: 0 8px; font-size: .75rem; color: var(--texte-2); }
-.barre-rpe .graduations span { width: 14px; text-align: center; }
+.barre-rpe .graduations span { width: 22px; text-align: center; font-size: .85rem; }
+.barre-rpe .graduations span.choisi { font-weight: 800; color: var(--texte); font-size: 1.05rem; }

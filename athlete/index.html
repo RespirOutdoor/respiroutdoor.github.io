@@ -233,12 +233,7 @@ ul.liste { margin: 0; padding-left: 18px; }
 .echelle b { font-size: 1.05rem; }
 
 /* Barre RPE à glisser (dégradé bleu → noir) */
-.barre-rpe { --rpe: var(--bord); --rpe-t: var(--texte); }
-.rpe-tete { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-.rpe-tete .visage { width: 52px; height: 52px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 1.45rem; background: var(--rpe); box-shadow: inset 0 0 0 3px rgba(255,255,255,.35); transition: background .15s; flex: none; }
-.rpe-tete .rpe-texte { flex: 1; display: flex; flex-direction: column; }
-.rpe-tete .rpe-texte b { font-size: 1.6rem; line-height: 1.1; }
-.barre-rpe.vide .rpe-texte span { color: var(--texte-2); }
+.barre-rpe { --rpe: var(--bord); }
 .barre-rpe input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .barre-rpe input[type="range"]::-webkit-slider-runnable-track { height: 14px; border-radius: 99px; background: var(--degrade); }
 .barre-rpe input[type="range"]::-moz-range-track { height: 14px; border-radius: 99px; background: var(--degrade); }
@@ -247,7 +242,8 @@ ul.liste { margin: 0; padding-left: 18px; }
 .barre-rpe.vide input[type="range"]::-webkit-slider-thumb { border-color: var(--bord); opacity: .8; }
 .barre-rpe.vide input[type="range"]::-moz-range-thumb { border-color: var(--bord); opacity: .8; }
 .barre-rpe .graduations { display: flex; justify-content: space-between; padding: 0 8px; font-size: .75rem; color: var(--texte-2); }
-.barre-rpe .graduations span { width: 14px; text-align: center; }
+.barre-rpe .graduations span { width: 22px; text-align: center; font-size: .85rem; }
+.barre-rpe .graduations span.choisi { font-weight: 800; color: var(--texte); font-size: 1.05rem; }
 </style>
 </head>
 <body class="athlete">
@@ -1587,8 +1583,7 @@ var UI = (function () {
     main.innerHTML = h;
   }
 
-  /* ---------- Barre RPE (saisie) ---------- */
-  var VISAGES = { 1: '😌', 2: '😌', 3: '🙂', 4: '🙂', 5: '😐', 6: '😐', 7: '😣', 8: '😣', 9: '🥵', 10: '😵' };
+  /* ---------- Barre RPE (saisie) : la barre et les chiffres ---------- */
   function degradeCSS() {
     var d = C.DEGRADE_RPE;
     return 'linear-gradient(90deg,' + d.map(function (c, i) { return c + ' ' + Math.round(i / (d.length - 1) * 100) + '%'; }).join(',') + ')';
@@ -1596,11 +1591,9 @@ var UI = (function () {
   function htmlBarreRPE(valeur) {
     var v = C.isNum(valeur) ? Math.round(valeur) : null;
     return '<div class="barre-rpe' + (v ? '' : ' vide') + '" id="barreRPE">' +
-      '<div class="rpe-tete"><span class="visage" aria-hidden="true">' + (v ? VISAGES[v] : '😶') + '</span>' +
-      '<span class="rpe-texte"><b id="rpeNombre">' + (v || '–') + '</b><span id="rpeLibelle">' + (v ? esc(C.libelleRPE(v).libelle || 'Niveau ' + v) : 'Glisse pour indiquer ton ressenti') + '</span></span>' +
-      '<button type="button" class="discret" id="rpeEffacer"' + (v ? '' : ' hidden') + '>Effacer</button></div>' +
       '<input type="range" id="rpeCurseur" min="1" max="10" step="1" value="' + (v || 5) + '" aria-label="Ressenti RPE de 1 (très facile) à 10 (effort maximal)" style="--degrade:' + degradeCSS() + '">' +
-      '<div class="graduations" aria-hidden="true">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) { return '<span>' + n + '</span>'; }).join('') + '</div>' +
+      '<div class="graduations" aria-hidden="true">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) { return '<span' + (n === v ? ' class="choisi"' : '') + '>' + n + '</span>'; }).join('') + '</div>' +
+      '<div class="ligne" style="justify-content:flex-end"><button type="button" class="discret" id="rpeEffacer"' + (v ? '' : ' hidden') + '>Effacer le RPE</button></div>' +
       '<input type="hidden" name="rpe" value="' + (v || '') + '"></div>';
   }
   function brancherBarreRPE(form) {
@@ -1608,11 +1601,9 @@ var UI = (function () {
     function maj(v) {
       cache.value = v || '';
       z.classList.toggle('vide', !v);
-      $('.visage', z).textContent = v ? VISAGES[v] : '😶';
-      $('#rpeNombre', z).textContent = v || '–';
+      $$('.graduations span', z).forEach(function (s, i) { s.classList.toggle('choisi', i + 1 === v); });
       var l = v ? C.libelleRPE(v) : null;
-      $('#rpeLibelle', z).textContent = v ? (l.libelle || 'Niveau ' + v) : 'Glisse pour indiquer ton ressenti';
-      if (l) { z.style.setProperty('--rpe', l.couleur); z.style.setProperty('--rpe-t', l.texte); cur.setAttribute('aria-valuetext', v + (l.libelle ? ' : ' + l.libelle : '')); }
+      if (l) { z.style.setProperty('--rpe', l.couleur); cur.setAttribute('aria-valuetext', v + (l.libelle ? ' : ' + l.libelle : '')); }
       eff.hidden = !v;
     }
     cur.addEventListener('input', function () { maj(Number(cur.value)); });
