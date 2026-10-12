@@ -1,7 +1,7 @@
 {
-  "name": "Respir Outdoor — Plans d'entraînement course à pied",
-  "short_name": "Respir Outdoor",
-  "description": "Plans d'entraînement course à pied : plan, légende, allures et protocoles de l'entraîneur Respir Outdoor. Données stockées sur l'appareil.",
+  "name": "Respir Outdoor Coach",
+  "short_name": "Respir Coach",
+  "description": "Espace entraîneur Respir Outdoor : plans de course à pied et suivi des athlètes.",
   "lang": "fr",
   "start_url": "./index.html",
   "scope": "./",

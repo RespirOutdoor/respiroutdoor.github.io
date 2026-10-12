@@ -23,3 +23,16 @@ Toutes reprennent les formules de l'onglet ALLURES ou PLAN du classeur de l'entr
 - **Repères dans une séance** : seuls les motifs écrits explicitement sont reconnus (`Z1.3`, `800M 95%`, `SPE10` / `SPE1/2` / `SPE MAR` avec un chrono renseigné). « 4x1500M Z4 » donne la zone Z4, pas de temps par 1500 m (aucun % écrit). Rien n'est deviné.
 - **RPE** : échelle « Intensité de l'effort » de 1 à 10, relevée sur l'image insérée dans l'onglet PLAN (sous « ECHELLE RPE* ») : 1 très facile, 2 facile, 4 modéré, 7 difficile, 9 très difficile, 10 effort maximal ; 3, 5, 6 et 8 n'ont pas de libellé sur l'image. Couleurs des pastilles relevées sur la même image (1-2 vert, 3-5 bleu, 6-8 jaune-orange, 9-10 rouge). Définition reprise de la légende : « niveau d'intensité perçu de la séance, à noter 30 min après la séance ».
 - **Date du jour** : calendrier Europe/Paris.
+
+## Tableau de bord, suivi et records
+
+| Grandeur | Règle | Statut |
+|---|---|---|
+| Périodes | Semaine (lundi → dimanche), mois, année civile, en heure de Paris | convention de l'outil |
+| Écart | Période en cours jusqu'à aujourd'hui, comparée à la même durée écoulée de la période précédente (ex. lundi 12/10 comparé au lundi 05/10) | convention de l'outil |
+| Séance prévue | Jour avec une partie entraîneur qui n'est pas « REPOS » | convention de l'outil |
+| Séance réalisée | Jour avec une distance ou une durée saisie | convention de l'outil |
+| Plan suivi | Séances prévues réalisées / séances prévues jusqu'à aujourd'hui | convention de l'outil |
+| ⚠ sans retour | Au moins 2 séances prévues des 14 derniers jours, après la dernière saisie, sans saisie | convention de l'outil, modifiable |
+| Records | Plus longue sortie, plus longue durée, plus gros D+, plus grosse semaine (lundi → dimanche), meilleure allure moyenne de séance (≥ 10 km, ≥ 5 km), meilleure allure en compétition (type COMP) | définition, calculée sur les seules saisies |
+| Fusion des données | La partie entraîneur vient de l'entraîneur ; la partie athlète vient de l'athlète ; entre deux saisies, la plus récente (horodatage) gagne | convention de l'outil |

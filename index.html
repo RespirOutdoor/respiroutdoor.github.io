@@ -4,8 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0A322A">
-<meta name="description" content="Plans d'entraînement course à pied Respir Outdoor : plan, légende, allures et protocoles. Données stockées sur l'appareil.">
-<title>Respir Outdoor — Plans d'entraînement course à pied</title>
+<meta name="description" content="Espace entraîneur Respir Outdoor : plans de course à pied, suivi des athlètes, légende, allures et protocoles.">
+<meta name="apple-mobile-web-app-title" content="Respir Coach">
+<title>Respir Outdoor Coach</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
@@ -191,23 +192,68 @@ dialog .pied { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wr
   body { background: #fff; padding: 0; }
   .carte, .jour { break-inside: avoid; }
 }
+
+/* ---------- Synchronisation, tableau de bord, athlète ---------- */
+header.app .statut { font: inherit; font-size: .75rem; font-weight: 500; min-height: 32px; padding: 4px 10px; border-radius: 99px; border: 0; background: rgba(255,255,255,.15); color: #fff; cursor: pointer; max-width: 100%; text-align: left; }
+header.app .statut.attention { background: #FDE68A; color: #3B2F00; }
+body.athlete header.app .titre span { font-size: .95rem; opacity: 1; }
+nav.onglets button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: none; border: 0; border-radius: 0; color: var(--texte-2); font-size: .75rem; font-weight: 600; min-width: 0; padding: 0; min-height: 0; }
+nav.onglets button svg { width: 22px; height: 22px; }
+nav.onglets button[aria-current="page"] { color: var(--vert-fonce); box-shadow: inset 0 3px 0 var(--vert); }
+nav.onglets[hidden] { display: none; }
+@media (min-width: 900px) {
+  nav.onglets button { flex: 0 0 auto; flex-direction: row; padding: 12px 20px; font-size: .9rem; gap: 8px; }
+  nav.onglets button[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--vert); }
+}
+@media (max-width: 420px) { nav.onglets a, nav.onglets button { font-size: .68rem; } }
+.titre-section { font-size: 1.1rem; margin: 18px 0 10px; }
+.kpis2 { grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 760px) { .kpis2 { grid-template-columns: repeat(4, 1fr); } }
+.kpi .etiq { display: block; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--texte-2); }
+.kpi .ecart { display: block; font-size: .8rem; color: var(--texte-2); }
+.mot { border-left: 5px solid var(--vert); }
+.mot p { margin: 6px 0 0; white-space: pre-wrap; }
+.compet { display: flex; gap: 14px; align-items: center; }
+.compet .jx { font-size: 1.4rem; font-weight: 800; color: var(--fond); background: var(--sapin); border-radius: 10px; padding: 8px 12px; white-space: nowrap; }
+ul.records { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+ul.records li { display: grid; grid-template-columns: 1fr auto; gap: 0 10px; border-bottom: 1px solid var(--bord); padding-bottom: 6px; }
+ul.records li .petit { grid-column: 1 / -1; }
+ul.liste { margin: 0; padding-left: 18px; }
+.voyant { color: var(--alerte); font-weight: 800; }
+.reaction { flex-basis: 100%; font-weight: 600; color: var(--vert-fonce); }
+.lien-athlete { word-break: break-all; background: var(--vert-clair); border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; }
+.emojis { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.emojis label { margin: 0; }
+.emojis input, .rpe-choix input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.emojis span { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; font-size: 1.6rem; border: 2px solid var(--bord); border-radius: 12px; cursor: pointer; }
+.emojis input:checked + span { border-color: var(--vert-fonce); background: var(--vert-clair); }
+.emojis input:focus-visible + span, .rpe-choix input:focus-visible + span { outline: 3px solid var(--vert); outline-offset: 2px; }
+.rpe-choix { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.rpe-choix label { margin: 0; color: #000; }
+.rpe-choix span { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 56px; border-radius: 8px; background: var(--rpe); font-size: .62rem; font-weight: 600; line-height: 1.1; text-align: center; padding: 4px 2px; cursor: pointer; border: 3px solid transparent; opacity: .75; }
+.rpe-choix span b { font-size: 1.1rem; }
+.rpe-choix input:checked + span { border-color: var(--texte); opacity: 1; box-shadow: 0 0 0 2px var(--carte) inset; }
+.echelle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.echelle span { background: var(--rpe); color: #000; border-radius: 8px; padding: 6px 4px; text-align: center; font-size: .7rem; font-weight: 600; min-height: 52px; display: flex; flex-direction: column; justify-content: center; }
+.echelle b { font-size: 1.05rem; }
 </style>
 </head>
-<body>
+<body class="coach">
 <a class="lien-evitement" href="#contenu">Aller au contenu</a>
 <header class="app">
   <div class="logo"><img src="data:image/png;base64,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" alt="Respir Outdoor coaching"></div>
-  <div class="titre"><strong>RESPIR OUTDOOR</strong><span>Plans d'entraînement course à pied</span></div>
+  <div class="titre"><strong>RESPIR OUTDOOR</strong><span>Espace entraîneur</span></div>
   <label class="sr" for="choixAthlete">Athlète</label>
   <select id="choixAthlete"></select>
-  <span class="badge-role" id="badgeRole"></span>
+  <button type="button" class="statut" id="statutSync" data-act="sync" title="Synchroniser maintenant"></button>
 </header>
 <nav class="onglets" aria-label="Onglets">
+  <a href="#/athletes" data-v="athletes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c2.4 0 4 1.5 4.6 4.5"/></svg>Athlètes</a>
   <a href="#/plan" data-v="plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Plan</a>
-  <a href="#/legende" data-v="legende"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Légende</a>
   <a href="#/allures" data-v="allures"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 13l4-3M10 2h4"/></svg>Allures</a>
+  <a href="#/legende" data-v="legende"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Légende</a>
   <a href="#/protos" data-v="protos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 20l6-12 4 7 3-4 5 9z"/></svg>Protos</a>
-  <a href="#/donnees" data-v="donnees"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>Données</a>
+  <a href="#/reglages" data-v="reglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Réglages</a>
 </nav>
 <main id="contenu" tabindex="-1"></main>
 <dialog id="boite"></dialog>
@@ -222,7 +268,11 @@ var Core = (function () {
   var JOURS_LONGS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
   // Colonnes « partie entraîneur » et « partie athlète » du tableau PLAN
   var CHAMPS_COACH = ['eveil', 'educ', 'corps', 'rac', 'profil', 'type', 'consignes'];
-  var CHAMPS_ATHLETE = ['km', 'dureeSec', 'rpe', 'notes'];
+  var CHAMPS_ATHLETE = ['km', 'dureeSec', 'dplus', 'rpe', 'notes'];
+  // Réaction de l'entraîneur à une séance saisie : écrite par l'entraîneur, conservée lors d'un import Excel
+  var CHAMP_REACTION = 'reaction';
+  // Champs de la fiche gardés côté entraîneur quand un classeur Excel est réimporté
+  var CLES_LOCALES = ['code', 'motCoach'];
   // Échelle « Intensité de l'effort » de 1 à 10 : image insérée dans l'onglet PLAN du classeur (cellule O7).
   // Libellés et couleurs relevés sur cette image ; les niveaux sans libellé restent sans libellé.
   var ECHELLE_RPE = { 1: 'Très facile', 2: 'Facile', 4: 'Modéré', 7: 'Difficile', 9: 'Très difficile', 10: 'Effort maximal' };
@@ -415,7 +465,7 @@ var Core = (function () {
   /* ---------- Bilans ---------- */
   function estRepos(j) { return /^REPOS\b/i.test(texte(j && j.corps)); }
   function aContenuCoach(j) { return !!j && CHAMPS_COACH.some(function (k) { return texte(j[k]) !== ''; }); }
-  function aRetour(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec) || isNum(j.rpe) || texte(j.notes) !== ''); }
+  function aRetour(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec) || isNum(j.rpe) || isNum(j.dplus) || texte(j.notes) !== ''); }
   // Somme des km et durées, moyenne des RPE renseignés (comme =SUM et =AVERAGE du tableau)
   function bilanJours(jours) {
     var r = { km: 0, dureeSec: 0, rpeMoy: null, nbRpe: 0, prevues: 0, faites: 0 }, sRpe = 0;
@@ -482,39 +532,182 @@ var Core = (function () {
   }
   function nettoyerJour(j) {
     var r = {};
-    CHAMPS_COACH.concat(CHAMPS_ATHLETE).forEach(function (k) {
+    CHAMPS_COACH.concat([CHAMP_REACTION], CHAMPS_ATHLETE).forEach(function (k) {
       var v = j[k];
-      if (k === 'km' || k === 'dureeSec' || k === 'rpe') { if (isNum(v)) r[k] = v; }
+      if (k === 'km' || k === 'dureeSec' || k === 'rpe' || k === 'dplus') { if (isNum(v)) r[k] = v; }
       else if (texte(v) !== '') r[k] = texte(v);
     });
+    if (texte(j.majA) !== '') r.majA = texte(j.majA);
     return r;
   }
 
-  /* ---------- Échange coach <-> athlète ---------- */
-  // mode « plan » : prend la partie entraîneur du fichier, garde les retours locaux
-  // mode « retours » : prend la partie athlète du fichier, garde le plan local
-  // mode « remplacer » : prend tout le fichier
-  function fusionner(local, recu, mode) {
-    if (mode === 'remplacer' || !local) return JSON.parse(JSON.stringify(recu));
-    var res = JSON.parse(JSON.stringify(local)), garder = mode === 'plan' ? CHAMPS_ATHLETE : CHAMPS_COACH;
-    if (mode === 'plan') {
+  /* ---------- Fusion : chaque information a un seul propriétaire ---------- */
+  // Partie entraîneur : CHAMPS_COACH (+ réaction). Partie athlète : CHAMPS_ATHLETE + majA (horodatage de la saisie).
+  function clone(x) { return x === undefined ? undefined : JSON.parse(JSON.stringify(x)); }
+  function partie(j, champs) {
+    var r = {};
+    champs.forEach(function (k) { if (j && j[k] !== undefined && j[k] !== null && j[k] !== '') r[k] = j[k]; });
+    return r;
+  }
+  function aDonneesAthlete(j) { return Object.keys(partie(j, CHAMPS_ATHLETE)).length > 0; }
+  function partieAthlete(j) { var r = partie(j, CHAMPS_ATHLETE); if (j && j.majA) r.majA = j.majA; return r; }
+  // La saisie la plus récente gagne (majA au format ISO, comparable comme texte)
+  function plusRecente(l, r) { return String((r && r.majA) || '') > String((l && l.majA) || '') ? r : l; }
+
+  // Modes :
+  // « excel »     : entraîneur, nouveau classeur sur un athlète existant. Plan et fiche du classeur ;
+  //                 saisies de l'athlète, réactions, code du lien et mot du coach conservés ;
+  //                 les valeurs athlète du classeur ne remplissent que les jours encore vides.
+  // « serveur »   : athlète, état reçu en ligne. Plan, fiche et réactions du serveur ; pour les saisies,
+  //                 la plus récente gagne, et une saisie locale pas encore envoyée (opts.enAttente) est toujours gardée.
+  // « retours »   : entraîneur, saisies reçues en ligne. Plan local conservé ; la saisie la plus récente gagne.
+  // « remplacer » : tout le contenu reçu.
+  function fusionner(local, recu, mode, opts) {
+    if (mode === 'remplacer' || !local) return clone(recu);
+    opts = opts || {};
+    var enAttente = opts.enAttente || {};
+    var res = clone(local);
+    if (mode === 'excel' || mode === 'serveur') {
       Object.keys(recu).forEach(function (k) {
-        if (k !== 'jours' && k !== 'id') res[k] = JSON.parse(JSON.stringify(recu[k]));
+        if (k === 'jours' || k === 'id') return;
+        if (mode === 'excel' && CLES_LOCALES.indexOf(k) >= 0 && !recu[k]) return;
+        res[k] = clone(recu[k]);
       });
     }
     var dates = {};
     Object.keys(local.jours || {}).concat(Object.keys(recu.jours || {})).forEach(function (d) { dates[d] = 1; });
     res.jours = {};
     Object.keys(dates).forEach(function (d) {
-      var l = (local.jours || {})[d] || {}, r = (recu.jours || {})[d] || {}, j = {};
-      CHAMPS_COACH.concat(CHAMPS_ATHLETE).forEach(function (k) {
-        var src = garder.indexOf(k) >= 0 ? l : r;
-        if (src[k] !== undefined) j[k] = src[k];
-      });
+      var l = (local.jours || {})[d] || {}, r = (recu.jours || {})[d] || {};
+      var coach = mode === 'retours' ? partie(l, CHAMPS_COACH) : partie(r, CHAMPS_COACH);
+      var reaction = mode === 'serveur' ? r[CHAMP_REACTION] : l[CHAMP_REACTION];
+      var ath;
+      if (mode === 'excel') ath = aDonneesAthlete(l) || l.majA ? partieAthlete(l) : partieAthlete(r);
+      else if (mode === 'serveur' && enAttente[d]) ath = partieAthlete(l);
+      else ath = partieAthlete(plusRecente(l, r));
+      var j = Object.assign({}, coach, ath);
+      if (reaction) j[CHAMP_REACTION] = reaction;
       j = nettoyerJour(j);
       if (Object.keys(j).length) res.jours[d] = j;
     });
     return res;
+  }
+
+  /* ---------- Périodes et bilans (tableau de bord) ---------- */
+  function joursDansMois(iso) { var p = iso.split('-').map(Number); return new Date(Date.UTC(p[0], p[1], 0)).getUTCDate(); }
+  function debutMois(iso) { return iso.slice(0, 8) + '01'; }
+  function finMois(iso) { return iso.slice(0, 8) + pad2(joursDansMois(iso)); }
+  function moisPrecedent(iso) { var p = iso.split('-').map(Number), y = p[1] === 1 ? p[0] - 1 : p[0], m = p[1] === 1 ? 12 : p[1] - 1; return y + '-' + pad2(m) + '-01'; }
+  // Période en cours et même durée écoulée de la période précédente (comparaison « à date »)
+  function periodes(auj) {
+    var lun = weekStart(auj), dm = debutMois(auj), an = auj.slice(0, 4), mp = moisPrecedent(auj);
+    var jour = Number(auj.slice(8, 10)), anP = String(Number(an) - 1), memeJourAnP = anP + auj.slice(4, 10);
+    if (!isValidISODate(memeJourAnP)) memeJourAnP = anP + '-02-28';
+    return {
+      semaine: { du: lun, au: addDays(lun, 6), precDu: addDays(lun, -7), precAu: addDays(lun, -7 + dayOfWeek(auj)) },
+      mois: { du: dm, au: finMois(auj), precDu: mp, precAu: mp.slice(0, 8) + pad2(Math.min(jour, joursDansMois(mp))) },
+      annee: { du: an + '-01-01', au: an + '-12-31', precDu: anP + '-01-01', precAu: memeJourAnP }
+    };
+  }
+  function estPrevue(j) { return aContenuCoach(j) && !estRepos(j); }
+  function estFaite(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec)); }
+  // Bilan du « du » au « au » inclus ; « auj » sert à compter les séances prévues déjà passées
+  function bilanPeriode(athlete, du, au, auj) {
+    var r = { km: 0, dureeSec: 0, dplus: 0, seances: 0, prevues: 0, prevuesADate: 0, prevuesFaites: 0 };
+    Object.keys(athlete.jours || {}).forEach(function (d) {
+      if (d < du || d > au) return;
+      var j = athlete.jours[d], p = estPrevue(j);
+      if (p) { r.prevues++; if (!auj || d <= auj) r.prevuesADate++; }
+      if (estFaite(j)) {
+        r.seances++;
+        if (p) r.prevuesFaites++;
+        if (isNum(j.km)) r.km += j.km;
+        if (isNum(j.dureeSec)) r.dureeSec += j.dureeSec;
+        if (isNum(j.dplus)) r.dplus += j.dplus;
+      }
+    });
+    r.km = Math.round(r.km * 1000) / 1000;
+    return r;
+  }
+
+  /* ---------- Records (calculés uniquement sur les séances saisies) ---------- */
+  function records(athlete) {
+    var dates = Object.keys(athlete.jours || {}).sort(), out = [], semaines = {};
+    function max(cle, libelle, f, format) {
+      var best = null;
+      dates.forEach(function (d) { var v = f(athlete.jours[d]); if (isNum(v) && v > 0 && (!best || v > best.v)) best = { v: v, date: d }; });
+      if (best) out.push({ cle: cle, libelle: libelle, valeur: best.v, texte: format(best.v), date: best.date });
+    }
+    function allure(cle, libelle, filtre) {
+      var best = null;
+      dates.forEach(function (d) {
+        var j = athlete.jours[d];
+        if (!filtre(j)) return;
+        var a = allureMoyenne(j.dureeSec, j.km);
+        if (a && (!best || a < best.v)) best = { v: a, date: d, km: j.km };
+      });
+      if (best) out.push({ cle: cle, libelle: libelle, valeur: best.v, texte: formatAllure(best.v) + ' sur ' + nombreFR(best.km, 2) + ' km', date: best.date });
+    }
+    max('distance', 'Plus longue sortie', function (j) { return j.km; }, function (v) { return nombreFR(v, 2) + ' km'; });
+    max('duree', 'Plus longue durée', function (j) { return j.dureeSec; }, formatDuree);
+    max('dplus', 'Plus gros D+', function (j) { return j.dplus; }, function (v) { return Math.round(v) + ' m'; });
+    dates.forEach(function (d) { var j = athlete.jours[d]; if (isNum(j.km)) { var l = weekStart(d); semaines[l] = (semaines[l] || 0) + j.km; } });
+    var bs = null;
+    Object.keys(semaines).forEach(function (l) { if (!bs || semaines[l] > bs.v) bs = { v: semaines[l], date: l }; });
+    if (bs && bs.v > 0) out.push({ cle: 'semaine', libelle: 'Plus grosse semaine', valeur: bs.v, texte: nombreFR(bs.v, 2) + ' km', date: bs.date });
+    allure('compet', 'Meilleure allure en compétition', function (j) { return normCode(j.type) === 'COMP'; });
+    allure('allure10', 'Meilleure allure moyenne (séance de 10 km ou plus)', function (j) { return isNum(j.km) && j.km >= 10; });
+    allure('allure5', 'Meilleure allure moyenne (séance de 5 km ou plus)', function (j) { return isNum(j.km) && j.km >= 5; });
+    // Même séance que le record « 10 km ou plus » : inutile de l'afficher deux fois
+    var a10 = out.filter(function (r) { return r.cle === 'allure10'; })[0];
+    return out.filter(function (r) { return !(r.cle === 'allure5' && a10 && a10.date === r.date); });
+  }
+
+  /* ---------- Suivi entraîneur ---------- */
+  function derniereSaisie(athlete, auj) {
+    var ds = Object.keys(athlete.jours || {}).filter(function (d) { return (!auj || d <= auj) && aRetour(athlete.jours[d]); }).sort();
+    return ds.length ? ds[ds.length - 1] : null;
+  }
+  // Séances prévues des 14 derniers jours (avant aujourd'hui) restées sans retour depuis la dernière saisie
+  function resumeCoach(athlete, auj) {
+    var lun = weekStart(auj), b = bilanPeriode(athlete, lun, addDays(lun, 6), auj), der = derniereSaisie(athlete, auj);
+    var depuis = addDays(auj, -14), manquees = Object.keys(athlete.jours || {}).filter(function (d) {
+      var j = athlete.jours[d];
+      return d < auj && d >= depuis && (!der || d > der) && estPrevue(j) && !aRetour(j);
+    }).sort();
+    var rpe = bilanJours(Object.keys(athlete.jours || {}).filter(function (d) { return d >= lun && d <= addDays(lun, 6); }).map(function (d) { return athlete.jours[d]; })).rpeMoy;
+    return { semaine: b, rpeMoy: rpe, derniere: der, sansRetour: manquees, alerte: manquees.length >= 2 };
+  }
+  function competitionsAVenir(athletes, auj, nbJours) {
+    var fin = addDays(auj, nbJours), out = [];
+    (athletes || []).forEach(function (a) {
+      Object.keys(a.jours || {}).forEach(function (d) {
+        if (d >= auj && d <= fin && normCode(a.jours[d].type) === 'COMP') out.push({ id: a.id, prenom: a.prenom, nom: a.nom, date: d, corps: a.jours[d].corps || '' });
+      });
+    });
+    return out.sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : 0; });
+  }
+
+  /* ---------- Lien personnel de l'athlète ---------- */
+  var ALPHABET_CODE = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 32 signes, sans 0/O ni 1/I
+  // Code secret de 6 signes (32^6 ≈ 1,07 milliard de possibilités) ; « hasard » renvoie des entiers 0..255
+  function genererCode(hasard) {
+    var o = hasard ? hasard(6) : (function () { var a = new Uint8Array(6); crypto.getRandomValues(a); return a; })(), s = '';
+    for (var i = 0; i < 6; i++) s += ALPHABET_CODE[o[i] % 32];
+    return s;
+  }
+  function slugNom(s) {
+    return texte(s).normalize('NFD').replace(/[̀-ͯ]/g, '').split(/[^A-Za-z0-9]+/).filter(Boolean)
+      .map(function (m) { return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase(); }).join('-');
+  }
+  function lienAthlete(base, a) {
+    var nom = [slugNom(a.prenom), slugNom(a.nom)].filter(Boolean).join('-');
+    return base.replace(/\/?$/, '/') + 'athlete/#RespirOutdoor-' + (nom ? nom + '-' : '') + a.code;
+  }
+  // Accepte le lien complet, « RespirOutdoor-Prénom-Nom-CODE » ou le code seul
+  function codeDepuisLien(s) {
+    var t = texte(s).toUpperCase(), m = /(?:^|[-#\/\s])([A-HJ-NP-Z2-9]{6})\s*$/.exec(t);
+    return m ? m[1] : null;
   }
 
   /* ---------- ZIP et XLSX (lecture seule, sans dépendance ; repris de l'outil de suivi trail) ---------- */
@@ -870,17 +1063,70 @@ var Core = (function () {
       var p = regrouperVertical(c);
       return p.length === 2 && p[0].texte === 'REMISE EN CHARGE' && p[0].debut === 20 && p[0].fin === 35 && p[1].texte === 'ASSIMIL';
     }],
-    ['Échange « plan » : prend la séance du coach, garde les km et notes de l\'athlète', function () {
-      var loc = { nom: 'X', jours: { '2026-10-13': { corps: 'ancien', km: 10, notes: 'ok' } } };
-      var recu = { nom: 'X', objectif: 'Cross', jours: { '2026-10-13': { corps: 'nouveau', km: 99 }, '2026-10-14': { corps: 'REPOS' } } };
-      var r = fusionner(loc, recu, 'plan');
-      return r.objectif === 'Cross' && r.jours['2026-10-13'].corps === 'nouveau' && r.jours['2026-10-13'].km === 10 && r.jours['2026-10-13'].notes === 'ok' && r.jours['2026-10-14'].corps === 'REPOS';
+    ['Fusion « excel » : nouveau plan du classeur ; km, réaction, code et mot du coach conservés ; jour vide complété', function () {
+      var loc = { code: 'ABC234', motCoach: 'Go', jours: { '2026-10-13': { corps: 'ancien', reaction: '👍', km: 10, majA: '2026-10-13T20:00:00Z' }, '2026-10-14': { corps: 'retiré' } } };
+      var recu = { code: '', objectif: 'Cross', jours: { '2026-10-13': { corps: 'nouveau', km: 99 }, '2026-10-15': { corps: 'EF', km: 8 } } };
+      var r = fusionner(loc, recu, 'excel'), j = r.jours['2026-10-13'];
+      return r.code === 'ABC234' && r.motCoach === 'Go' && r.objectif === 'Cross' && j.corps === 'nouveau' && j.km === 10 && j.reaction === '👍' &&
+        !r.jours['2026-10-14'] && r.jours['2026-10-15'].km === 8;
     }],
-    ['Échange « retours » : prend km, durée, RPE, notes de l\'athlète, garde le plan du coach', function () {
-      var loc = { objectif: 'A', jours: { '2026-10-13': { corps: 'plan coach' } } };
-      var recu = { objectif: 'B', jours: { '2026-10-13': { corps: 'modifié', km: 12.5, rpe: 6, notes: 'dur' } } };
-      var r = fusionner(loc, recu, 'retours');
-      return r.objectif === 'A' && r.jours['2026-10-13'].corps === 'plan coach' && r.jours['2026-10-13'].km === 12.5 && r.jours['2026-10-13'].rpe === 6;
+    ['Fusion « serveur » (athlète) : plan et réaction du serveur ; la saisie la plus récente gagne ; saisie en attente gardée', function () {
+      var loc = { jours: { '2026-10-13': { corps: 'a', km: 10, majA: '2026-10-13T10:00:00Z' }, '2026-10-14': { km: 5, majA: '2026-10-14T08:00:00Z' }, '2026-10-15': { km: 6, majA: '2026-10-15T08:00:00Z' } } };
+      var recu = { jours: { '2026-10-13': { corps: 'b', km: 12, majA: '2026-10-13T09:00:00Z', reaction: '💪' }, '2026-10-14': { corps: 'EF', km: 7, majA: '2026-10-14T09:00:00Z' }, '2026-10-15': { km: 9, majA: '2026-10-15T09:00:00Z' } } };
+      var r = fusionner(loc, recu, 'serveur', { enAttente: { '2026-10-14': true } });
+      return r.jours['2026-10-13'].corps === 'b' && r.jours['2026-10-13'].km === 10 && r.jours['2026-10-13'].reaction === '💪' &&
+        r.jours['2026-10-14'].km === 5 && r.jours['2026-10-14'].corps === 'EF' && r.jours['2026-10-15'].km === 9;
+    }],
+    ['Fusion « retours » (entraîneur) : plan et réaction locaux gardés ; saisies de l\'athlète reçues', function () {
+      var loc = { objectif: 'A', jours: { '2026-10-13': { corps: 'plan coach', reaction: '👍' } } };
+      var recu = { objectif: 'B', jours: { '2026-10-13': { corps: 'modifié', km: 12.5, rpe: 6, dplus: 120, notes: 'dur', majA: '2026-10-13T19:00:00Z' } } };
+      var r = fusionner(loc, recu, 'retours'), j = r.jours['2026-10-13'];
+      return r.objectif === 'A' && j.corps === 'plan coach' && j.reaction === '👍' && j.km === 12.5 && j.rpe === 6 && j.dplus === 120 && j.majA === '2026-10-13T19:00:00Z';
+    }],
+    ['Fusion : une saisie effacée plus récente (champs vides) remplace l\'ancienne', function () {
+      var loc = { jours: { '2026-10-13': { corps: 'EF', km: 10, majA: '2026-10-13T10:00:00Z' } } };
+      var recu = { jours: { '2026-10-13': { corps: 'EF', majA: '2026-10-13T11:00:00Z' } } };
+      var j = fusionner(loc, recu, 'retours').jours['2026-10-13'];
+      return j.km === undefined && j.corps === 'EF';
+    }],
+    ['Périodes au lundi 12/10/2026 : semaine 12→18/10, comparée au lun. 05/10 ; mois comparé du 01/09 au 12/09', function () {
+      var p = periodes('2026-10-12');
+      return p.semaine.du === '2026-10-12' && p.semaine.au === '2026-10-18' && p.semaine.precDu === '2026-10-05' && p.semaine.precAu === '2026-10-05' &&
+        p.mois.precDu === '2026-09-01' && p.mois.precAu === '2026-09-12' && p.annee.precAu === '2025-10-12';
+    }],
+    ['Bilan de période : 3 séances prévues (REPOS exclu), 2 faites dont 1 prévue, 1 sortie libre ; 22 km, D+ 150', function () {
+      var a = { jours: { '2026-10-12': { corps: 'REPOS' }, '2026-10-13': { corps: 'EF', km: 10, dureeSec: 3000, dplus: 150 }, '2026-10-14': { corps: 'VMA' }, '2026-10-16': { corps: 'SL' }, '2026-10-17': { km: 12, dureeSec: 3600 } } };
+      var b = bilanPeriode(a, '2026-10-12', '2026-10-18', '2026-10-15');
+      return b.prevues === 3 && b.prevuesADate === 2 && b.seances === 2 && b.prevuesFaites === 1 && b.km === 22 && b.dureeSec === 6600 && b.dplus === 150;
+    }],
+    ['Records : plus longue sortie 21,1 km ; plus grosse semaine 31,1 km ; meilleure allure ≥ 10 km = 10 km en 40:00 (4:00 /km)', function () {
+      var a = { jours: { '2026-10-12': { km: 10, dureeSec: 2400 }, '2026-10-14': { km: 21.1, dureeSec: 6330 }, '2026-10-20': { km: 5, dureeSec: 1150, type: 'COMP' } } };
+      var r = {}; records(a).forEach(function (x) { r[x.cle] = x; });
+      return r.distance.valeur === 21.1 && near(r.semaine.valeur, 31.1, 1e-9) && r.semaine.date === '2026-10-12' && r.allure10.valeur === 240 && r.allure10.date === '2026-10-12' &&
+        r.compet.valeur === 230 && r.allure5.valeur === 230 && !r.dplus;
+    }],
+    ['Records : la meilleure allure ≥ 5 km n\'est pas répétée quand c\'est la même séance que ≥ 10 km', function () {
+      var cles = records({ jours: { '2026-10-12': { km: 12, dureeSec: 2880 }, '2026-10-14': { km: 6, dureeSec: 1800 } } }).map(function (x) { return x.cle; });
+      return cles.indexOf('allure10') >= 0 && cles.indexOf('allure5') < 0;
+    }],
+    ['Suivi entraîneur : dernière saisie 12/10 ; 13 et 14/10 prévues sans retour -> alerte ; REPOS ignoré', function () {
+      var a = { jours: { '2026-10-12': { corps: 'EF', km: 8 }, '2026-10-13': { corps: 'VMA' }, '2026-10-14': { corps: 'EF' }, '2026-10-15': { corps: 'REPOS' }, '2026-10-17': { corps: 'SL' } } };
+      var r = resumeCoach(a, '2026-10-16');
+      return r.derniere === '2026-10-12' && r.sansRetour.length === 2 && r.alerte === true && r.semaine.prevues === 4;
+    }],
+    ['Compétitions des 7 prochains jours, triées par date', function () {
+      var l = competitionsAVenir([{ id: 'A', jours: { '2026-10-20': { type: 'COMP', corps: '10 km' }, '2026-11-30': { type: 'COMP' } } }, { id: 'B', jours: { '2026-10-17': { type: 'COMP', corps: 'Cross' } } }], '2026-10-15', 7);
+      return l.length === 2 && l[0].id === 'B' && l[1].date === '2026-10-20';
+    }],
+    ['Lien : « RespirOutdoor-Sylvain-Morera-K7Q2XA » ; code relu depuis le lien, l\'identifiant ou le code seul', function () {
+      var a = { prenom: 'SYLVAIN', nom: 'MORERA', code: 'K7Q2XA' }, l = lienAthlete('https://respiroutdoor.github.io', a);
+      return l === 'https://respiroutdoor.github.io/athlete/#RespirOutdoor-Sylvain-Morera-K7Q2XA' && codeDepuisLien(l) === 'K7Q2XA' &&
+        codeDepuisLien('RespirOutdoor-Sylvain-Morera-K7Q2XA') === 'K7Q2XA' && codeDepuisLien(' k7q2xa ') === 'K7Q2XA' && codeDepuisLien('Sylvain') === null &&
+        slugNom('Hélène  de la Tour') === 'Helene-De-La-Tour';
+    }],
+    ['Code secret : 6 signes de l\'alphabet sans 0, O, 1, I', function () {
+      var c = genererCode(function (n) { var a = []; for (var i = 0; i < n; i++) a.push(i * 37 + 5); return a; });
+      return c.length === 6 && /^[A-HJ-NP-Z2-9]{6}$/.test(c);
     }],
     ['Import : classeur minimal (en-tête, zones, 2 jours, cycle vertical) relu correctement', function () {
       var L = [];
@@ -916,7 +1162,9 @@ var Core = (function () {
 
   return {
     TZ: TZ, SCHEMA_VERSION: SCHEMA_VERSION, JOURS: JOURS, JOURS_LONGS: JOURS_LONGS, CHAMPS_COACH: CHAMPS_COACH, CHAMPS_ATHLETE: CHAMPS_ATHLETE,
-    ZONES_DEFAUT: ZONES_DEFAUT, ECHELLE_RPE: ECHELLE_RPE, libelleRPE: libelleRPE, pad2: pad2, isNum: isNum, texte: texte, parseNumberFR: parseNumberFR, nombreFR: nombreFR,
+    ZONES_DEFAUT: ZONES_DEFAUT, CHAMP_REACTION: CHAMP_REACTION, aDonneesAthlete: aDonneesAthlete, periodes: periodes, bilanPeriode: bilanPeriode,
+    estPrevue: estPrevue, estFaite: estFaite, records: records, derniereSaisie: derniereSaisie, resumeCoach: resumeCoach, competitionsAVenir: competitionsAVenir,
+    genererCode: genererCode, slugNom: slugNom, lienAthlete: lienAthlete, codeDepuisLien: codeDepuisLien, ECHELLE_RPE: ECHELLE_RPE, libelleRPE: libelleRPE, pad2: pad2, isNum: isNum, texte: texte, parseNumberFR: parseNumberFR, nombreFR: nombreFR,
     isValidISODate: isValidISODate, parseDateFR: parseDateFR, formatDateFR: formatDateFR, addDays: addDays, daysBetween: daysBetween,
     dayOfWeek: dayOfWeek, weekStart: weekStart, todayParis: todayParis, excelSerialToISO: excelSerialToISO,
     numSemaine: numSemaine, lundiSemaine: lundiSemaine, formatDuree: formatDuree, parseDuree: parseDuree, formatTemps: formatTemps,
@@ -928,64 +1176,24 @@ var Core = (function () {
     lireXLSX: lireXLSX, importerClasseur: importerClasseur, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();
-if (typeof module !== 'undefined') module.exports = Core;
 </script>
-
 <script>
-var DEFAUTS = {"legende": {"principes": ["Ne perdons jamais de vue qu'un \"bon\" plan n'est pas figé et que les contraintes de la vie nous amènent régulièrement à l'adapter", "Le plaisir de l'entraînement (effort) et l'entraînement (effort) dans le plaisir", "Des hauts et des bas vont rythmer cette planif, n'oublie jamais pourquoi et pour qui tu fais tout cela … ça pourra toujours te servir !", "\"Bonne planification d'entraînement à toi ... qui nous aménera, espérons le, vers notre objectif dans les meilleures conditions possibles\""], "colonnes": [{"code": "EVEIL", "desc": "ECHAUFFEMENT / EVEIL MUSCULAIRE"}, {"code": "EDUC", "desc": "EDUCATIFS / GAMMES ATHLETIQUES"}, {"code": "SEANCE", "desc": "CORPS DE SEANCE"}, {"code": "RAC", "desc": "RETOUR AU CALME"}, {"code": "PROFIL", "desc": "TERRAIN/SURFACE/DENIV"}, {"code": "TYPE", "desc": "TYPE DE SEANCE"}, {"code": "SP", "desc": "SITUATION PLANIF"}, {"code": "CYCLE", "desc": "TYPE DE CYCLE D'ENTRAÎNEMENT"}, {"code": "RPE", "desc": "RPE=niveau d'intensité perçu de la séance  / à noter 30min après la séance / Evaluation subjective basée sur son propre ressenti"}], "profils": [{"code": "PLAT", "desc": "TERRAIN TRES PLAT - BILLARD+"}, {"code": "ROULANT", "desc": "TERRAIN A DOMINANTE PLATE - LEGERES VARIATIONS AU COURS DU PARCOURS"}, {"code": "NATURE", "desc": "SEANCE NATURE AVEC ALTERNANCE COTES/DESCENTES/PLAT"}, {"code": "FAUX-PLAT", "desc": "COTE LEGERE 5% MAX"}, {"code": "COTE", "desc": "COTE 5-10%"}, {"code": "MONT", "desc": "MONTEE 10% MINIMUM"}, {"code": "DENIV+/-", "desc": "PARCOURS AVEC FORTS DENIVELEES POUR RDT"}, {"code": "PISTE", "desc": "SEANCE SUR PISTE"}, {"code": "AU CHOIX", "desc": "LIBRE POUR UNE SEANCE D'AUTONOMIE"}], "types": [{"code": "FOOT", "desc": "FOOTING RECUP OU POST COMPET TRES FACILE - AISANCE DE FOULEE ET RESPIRATOIRE", "famille": "Aérobie"}, {"code": "FOOTR", "desc": "FOOTING DE RENFORCEMENT - ATELIERS RENFO EN COURS DE FOOTING", "famille": "Aérobie"}, {"code": "EF", "desc": "ENDURANCE FONDAMENTALE - AISANCE RESPIRATOIRE <1H00-1H15 MAX", "famille": "Aérobie"}, {"code": "EF Q", "desc": "EF + 15MN TRAVAIL DE PIED/GAMMES SUR PELOUSE OU SURFACE SOUPLE", "famille": "Aérobie"}, {"code": "EFM", "desc": "ENDURANCE MUSCULAIRE (COMBINAISON PPG EN PRE-FATIGUE + ENDURANCE)", "famille": "Aérobie"}, {"code": "EFF", "desc": "ENDURANCE DE FORCE (RESISTANCE EN COTE)", "famille": "Aérobie"}, {"code": "EFR", "desc": "ENDURANCE DE RENFORCEMENT - ATELIERS RENFO EN COURS DE SORTIE", "famille": "Aérobie"}, {"code": "SL", "desc": "SORTIE LONGUE = SEANCE AEROBIE >1H15", "famille": "Aérobie"}, {"code": "RDT", "desc": "RANDO TRAIL — ALTERNANCE DE TEMPS DE COURSE ET TEMPS DE MARCHE SELON TERRAIN, SUR UNE RANDO LONGUE", "famille": "Aérobie"}, {"code": "DVPT", "desc": "DEVELOPPEMENT AEROBIE = SEANCE AEROBIE+", "famille": "Aérobie"}, {"code": "RM", "desc": "RECUPERATION PASSIVE MARCHE", "famille": "Récupérations"}, {"code": "RMT", "desc": "RECUPERATION INCOMPLETE MARCHE/TROT", "famille": "Récupérations"}, {"code": "RT", "desc": "RECUPERATION AU PETIT TROT", "famille": "Récupérations"}, {"code": "RTDESC", "desc": "RECUPERATION AU TROT EN DESCENTE (SEANCE DE COTE)", "famille": "Récupérations"}, {"code": "RTACT", "desc": "RECUPERATION AU TROT ACTIF EN DESCENTE (SEANCE DE COTE) — TECHNIQUE COURSE EN DESCENTE (APPUIS) ET RENFO MUSCULAIRE (EXCENTRIQUE) +", "famille": "Récupérations"}, {"code": "VMA C", "desc": "VMA COURTE", "famille": "VMA"}, {"code": "VMA L", "desc": "VMA LONGUE", "famille": "VMA"}, {"code": "PAL", "desc": "PUISSANCE ANAEROBIE LACTIQUE - HAUT POURCENTAGES DE VMA", "famille": "VMA"}, {"code": "VMA V", "desc": "VMA VARIEE", "famille": "VMA"}, {"code": "PMA", "desc": "PUISSANCE MAXIMUM AEROBIE", "famille": "VMA"}, {"code": "FART", "desc": "FARTLEK = JEU DE COURSE HORS STADE — BUT= VARIER ALLURE/TERRAIN/PROFIL", "famille": "Fartlek"}, {"code": "JERK", "desc": "SEANCE TYPE JERK — NIVEAU D'EFFORT LIBRE MAIS IDENTIQUE SUR LES ALLERS-RETOURS EN COTE / DIMINUTION DU TEMPS DE RECUP EN DESCENTE", "famille": "Fartlek"}, {"code": "COTE", "desc": "SEANCE SUR COTE 5-10% — TRAVAIL DE TECHNIQUE DE COURSE (FOULEE/PLACEMENT/BRAS)", "famille": "Côtes"}, {"code": "MONT", "desc": "SEANCE EN MONTEE SUR COTE DE 10-15% MAX — TRAVAIL DE RENFORCEMENT MUSCULAIRE (PUISSANCE) ET TECHNIQUE SPECIFIQUE (BÂTONS OU COTE AVEC MAINS SUR CUISSES)", "famille": "Côtes"}, {"code": "EXC", "desc": "TRAVAIL EXCENTRIQUE (DESCENTE) VIGILANCE SUR L'ECHAUFFEMENT EN PROGRESSIF ET PPS AVANT SEANCE", "famille": "Côtes"}, {"code": "CON/EXC", "desc": "TRAVAIL CONCENCTRIQUE (COTE) PUIS EXCENTRIQUE (DESCENTE)", "famille": "Côtes"}, {"code": "SPRINT", "desc": "SPRINT (COURT OU LONG) EN COTE", "famille": "Côtes"}, {"code": "NAV", "desc": "SEANCE EN NAVETTE - Trouver un spot spécifique (type côte …) et travailler en aller retour", "famille": "Côtes"}, {"code": "PYR", "desc": "SEANCE PYRAMIDALE - COTE/DESC/PLAT OU COTE/PLAT/DESC OU DESC/COTE/PLAT …", "famille": "Côtes"}, {"code": "MYO", "desc": "SEANCE MYO CROSS MAX - SOLLICITER DAVANTAGE LES FIBRES MUSCULAIRES", "famille": "Côtes"}, {"code": "SPE10", "desc": "ALLURE SPECFIQUE 10KM", "famille": "Spécifique / allures"}, {"code": "SPE1/2", "desc": "ALLURE SPECFIQUE SEMI MARATHON", "famille": "Spécifique / allures"}, {"code": "SPE MAR", "desc": "ALLURE SPECIFIQUE MARATHON", "famille": "Spécifique / allures"}, {"code": "SPE V", "desc": "ALLURE SPECIFIQUE AVEC VARIATIONS D'ALLURES", "famille": "Spécifique / allures"}, {"code": "PF", "desc": "SEANCE DE PRE-FATIGUE", "famille": "Spécifique / allures"}, {"code": "ALL V", "desc": "ALLURES VARIEES", "famille": "Spécifique / allures"}, {"code": "TEMPO", "desc": "TRAVAIL DE RYTHME SELON ZONE D'ALLURES", "famille": "Spécifique / allures"}, {"code": "SV", "desc": "SEANCE VARIEE", "famille": "Divers"}, {"code": "AUTO", "desc": "SEANCE D'AUTONOMIE — GESTION DES DIVERS CRITERES DE SEANCES (TERRAIN/ALLURES/DUREE D'EFFORT et RECUP…) SELON ENVIES ET SENSATIONS", "famille": "Divers"}, {"code": "RENFO", "desc": "RENFORCEMENT MUSCULAIRE", "famille": "Renfo"}, {"code": "PPG", "desc": "PREPARATION PHYSIQUE GENERALE", "famille": "Renfo"}, {"code": "PPS", "desc": "PREPARATION PHYSIQUE SPECIFIQUE", "famille": "Renfo"}, {"code": "RSP", "desc": "TRAVAIL RESPIRATOIRE (YOGA/5 TIBETAINS/ COHERENCE CARDIAQUE/GESTION MENTALE...)", "famille": "Respiration"}, {"code": "COCA", "desc": "COHERENCE CARDIAQUE", "famille": "Respiration"}, {"code": "5T", "desc": "5 TIBETAINS", "famille": "Respiration"}]}, "protos": []};
+var DEFAUTS = {"legende":{"principes":["Ne perdons jamais de vue qu'un \"bon\" plan n'est pas figé et que les contraintes de la vie nous amènent régulièrement à l'adapter","Le plaisir de l'entraînement (effort) et l'entraînement (effort) dans le plaisir","Des hauts et des bas vont rythmer cette planif, n'oublie jamais pourquoi et pour qui tu fais tout cela … ça pourra toujours te servir !","\"Bonne planification d'entraînement à toi ... qui nous aménera, espérons le, vers notre objectif dans les meilleures conditions possibles\""],"colonnes":[{"code":"EVEIL","desc":"ECHAUFFEMENT / EVEIL MUSCULAIRE"},{"code":"EDUC","desc":"EDUCATIFS / GAMMES ATHLETIQUES"},{"code":"SEANCE","desc":"CORPS DE SEANCE"},{"code":"RAC","desc":"RETOUR AU CALME"},{"code":"PROFIL","desc":"TERRAIN/SURFACE/DENIV"},{"code":"TYPE","desc":"TYPE DE SEANCE"},{"code":"SP","desc":"SITUATION PLANIF"},{"code":"CYCLE","desc":"TYPE DE CYCLE D'ENTRAÎNEMENT"},{"code":"RPE","desc":"RPE=niveau d'intensité perçu de la séance  / à noter 30min après la séance / Evaluation subjective basée sur son propre ressenti"}],"profils":[{"code":"PLAT","desc":"TERRAIN TRES PLAT - BILLARD+"},{"code":"ROULANT","desc":"TERRAIN A DOMINANTE PLATE - LEGERES VARIATIONS AU COURS DU PARCOURS"},{"code":"NATURE","desc":"SEANCE NATURE AVEC ALTERNANCE COTES/DESCENTES/PLAT"},{"code":"FAUX-PLAT","desc":"COTE LEGERE 5% MAX"},{"code":"COTE","desc":"COTE 5-10%"},{"code":"MONT","desc":"MONTEE 10% MINIMUM"},{"code":"DENIV+/-","desc":"PARCOURS AVEC FORTS DENIVELEES POUR RDT"},{"code":"PISTE","desc":"SEANCE SUR PISTE"},{"code":"AU CHOIX","desc":"LIBRE POUR UNE SEANCE D'AUTONOMIE"}],"types":[{"code":"FOOT","desc":"FOOTING RECUP OU POST COMPET TRES FACILE - AISANCE DE FOULEE ET RESPIRATOIRE","famille":"Aérobie"},{"code":"FOOTR","desc":"FOOTING DE RENFORCEMENT - ATELIERS RENFO EN COURS DE FOOTING","famille":"Aérobie"},{"code":"EF","desc":"ENDURANCE FONDAMENTALE - AISANCE RESPIRATOIRE <1H00-1H15 MAX","famille":"Aérobie"},{"code":"EF Q","desc":"EF + 15MN TRAVAIL DE PIED/GAMMES SUR PELOUSE OU SURFACE SOUPLE","famille":"Aérobie"},{"code":"EFM","desc":"ENDURANCE MUSCULAIRE (COMBINAISON PPG EN PRE-FATIGUE + ENDURANCE)","famille":"Aérobie"},{"code":"EFF","desc":"ENDURANCE DE FORCE (RESISTANCE EN COTE)","famille":"Aérobie"},{"code":"EFR","desc":"ENDURANCE DE RENFORCEMENT - ATELIERS RENFO EN COURS DE SORTIE","famille":"Aérobie"},{"code":"SL","desc":"SORTIE LONGUE = SEANCE AEROBIE >1H15","famille":"Aérobie"},{"code":"RDT","desc":"RANDO TRAIL — ALTERNANCE DE TEMPS DE COURSE ET TEMPS DE MARCHE SELON TERRAIN, SUR UNE RANDO LONGUE","famille":"Aérobie"},{"code":"DVPT","desc":"DEVELOPPEMENT AEROBIE = SEANCE AEROBIE+","famille":"Aérobie"},{"code":"RM","desc":"RECUPERATION PASSIVE MARCHE","famille":"Récupérations"},{"code":"RMT","desc":"RECUPERATION INCOMPLETE MARCHE/TROT","famille":"Récupérations"},{"code":"RT","desc":"RECUPERATION AU PETIT TROT","famille":"Récupérations"},{"code":"RTDESC","desc":"RECUPERATION AU TROT EN DESCENTE (SEANCE DE COTE)","famille":"Récupérations"},{"code":"RTACT","desc":"RECUPERATION AU TROT ACTIF EN DESCENTE (SEANCE DE COTE) — TECHNIQUE COURSE EN DESCENTE (APPUIS) ET RENFO MUSCULAIRE (EXCENTRIQUE) +","famille":"Récupérations"},{"code":"VMA C","desc":"VMA COURTE","famille":"VMA"},{"code":"VMA L","desc":"VMA LONGUE","famille":"VMA"},{"code":"PAL","desc":"PUISSANCE ANAEROBIE LACTIQUE - HAUT POURCENTAGES DE VMA","famille":"VMA"},{"code":"VMA V","desc":"VMA VARIEE","famille":"VMA"},{"code":"PMA","desc":"PUISSANCE MAXIMUM AEROBIE","famille":"VMA"},{"code":"FART","desc":"FARTLEK = JEU DE COURSE HORS STADE — BUT= VARIER ALLURE/TERRAIN/PROFIL","famille":"Fartlek"},{"code":"JERK","desc":"SEANCE TYPE JERK — NIVEAU D'EFFORT LIBRE MAIS IDENTIQUE SUR LES ALLERS-RETOURS EN COTE / DIMINUTION DU TEMPS DE RECUP EN DESCENTE","famille":"Fartlek"},{"code":"COTE","desc":"SEANCE SUR COTE 5-10% — TRAVAIL DE TECHNIQUE DE COURSE (FOULEE/PLACEMENT/BRAS)","famille":"Côtes"},{"code":"MONT","desc":"SEANCE EN MONTEE SUR COTE DE 10-15% MAX — TRAVAIL DE RENFORCEMENT MUSCULAIRE (PUISSANCE) ET TECHNIQUE SPECIFIQUE (BÂTONS OU COTE AVEC MAINS SUR CUISSES)","famille":"Côtes"},{"code":"EXC","desc":"TRAVAIL EXCENTRIQUE (DESCENTE) VIGILANCE SUR L'ECHAUFFEMENT EN PROGRESSIF ET PPS AVANT SEANCE","famille":"Côtes"},{"code":"CON/EXC","desc":"TRAVAIL CONCENCTRIQUE (COTE) PUIS EXCENTRIQUE (DESCENTE)","famille":"Côtes"},{"code":"SPRINT","desc":"SPRINT (COURT OU LONG) EN COTE","famille":"Côtes"},{"code":"NAV","desc":"SEANCE EN NAVETTE - Trouver un spot spécifique (type côte …) et travailler en aller retour","famille":"Côtes"},{"code":"PYR","desc":"SEANCE PYRAMIDALE - COTE/DESC/PLAT OU COTE/PLAT/DESC OU DESC/COTE/PLAT …","famille":"Côtes"},{"code":"MYO","desc":"SEANCE MYO CROSS MAX - SOLLICITER DAVANTAGE LES FIBRES MUSCULAIRES","famille":"Côtes"},{"code":"SPE10","desc":"ALLURE SPECFIQUE 10KM","famille":"Spécifique / allures"},{"code":"SPE1/2","desc":"ALLURE SPECFIQUE SEMI MARATHON","famille":"Spécifique / allures"},{"code":"SPE MAR","desc":"ALLURE SPECIFIQUE MARATHON","famille":"Spécifique / allures"},{"code":"SPE V","desc":"ALLURE SPECIFIQUE AVEC VARIATIONS D'ALLURES","famille":"Spécifique / allures"},{"code":"PF","desc":"SEANCE DE PRE-FATIGUE","famille":"Spécifique / allures"},{"code":"ALL V","desc":"ALLURES VARIEES","famille":"Spécifique / allures"},{"code":"TEMPO","desc":"TRAVAIL DE RYTHME SELON ZONE D'ALLURES","famille":"Spécifique / allures"},{"code":"SV","desc":"SEANCE VARIEE","famille":"Divers"},{"code":"AUTO","desc":"SEANCE D'AUTONOMIE — GESTION DES DIVERS CRITERES DE SEANCES (TERRAIN/ALLURES/DUREE D'EFFORT et RECUP…) SELON ENVIES ET SENSATIONS","famille":"Divers"},{"code":"RENFO","desc":"RENFORCEMENT MUSCULAIRE","famille":"Renfo"},{"code":"PPG","desc":"PREPARATION PHYSIQUE GENERALE","famille":"Renfo"},{"code":"PPS","desc":"PREPARATION PHYSIQUE SPECIFIQUE","famille":"Renfo"},{"code":"RSP","desc":"TRAVAIL RESPIRATOIRE (YOGA/5 TIBETAINS/ COHERENCE CARDIAQUE/GESTION MENTALE...)","famille":"Respiration"},{"code":"COCA","desc":"COHERENCE CARDIAQUE","famille":"Respiration"},{"code":"5T","desc":"5 TIBETAINS","famille":"Respiration"}]},"protos":[]};
 </script>
-
 <script>
 /* ======================================================================
-   STOCKAGE : un seul enregistrement « etat » dans IndexedDB
-   (repli localStorage, puis mémoire). Les données restent sur l'appareil.
+   Briques communes aux deux applications (entraîneur et athlète) :
+   stockage local, service en ligne, rendu du plan, légende, allures, protos.
    ====================================================================== */
-var Store = (function () {
-  'use strict';
-  var NOM = 'respir-outdoor', LS = 'respir-outdoor-v1', db = null, api = { mode: null };
-  function ouvrir() {
-    return new Promise(function (ok, ko) {
-      if (!window.indexedDB) return ko(new Error('IndexedDB indisponible'));
-      var r = indexedDB.open(NOM, 1);
-      r.onupgradeneeded = function () { r.result.createObjectStore('kv'); };
-      r.onsuccess = function () { ok(r.result); };
-      r.onerror = function () { ko(r.error); };
-    });
-  }
-  api.charger = function () {
-    return ouvrir().then(function (d) {
-      db = d; api.mode = 'IndexedDB';
-      return new Promise(function (ok, ko) { var q = db.transaction('kv').objectStore('kv').get('etat'); q.onsuccess = function () { ok(q.result || null); }; q.onerror = function () { ko(q.error); }; });
-    }).catch(function () {
-      try { api.mode = 'localStorage'; var b = localStorage.getItem(LS); return b ? JSON.parse(b) : null; }
-      catch (e) { api.mode = 'mémoire (non enregistré)'; return null; }
-    });
-  };
-  api.enregistrer = function (etat) {
-    if (api.mode === 'IndexedDB') return new Promise(function (ok, ko) {
-      var t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(JSON.parse(JSON.stringify(etat)), 'etat');
-      t.oncomplete = function () { ok(); }; t.onerror = function () { ko(t.error); };
-    });
-    if (api.mode === 'localStorage') { try { localStorage.setItem(LS, JSON.stringify(etat)); } catch (e) { return Promise.reject(e); } }
-    return Promise.resolve();
-  };
-  return api;
-})();
-
-/* ======================================================================
-   APPLICATION
-   ====================================================================== */
-(function () {
+var UI = (function () {
   'use strict';
   var C = Core;
   var FAMILLES = {
     'Aérobie': '#3A8376', 'Récupérations': '#7AA59C', 'VMA': '#B5443A', 'Fartlek': '#C2702E', 'Côtes': '#8A5A2B',
     'Spécifique / allures': '#6B4FA0', 'Divers': '#5B6B73', 'Renfo': '#3D5A80', 'Respiration': '#4E8FB0', 'Compétition': '#0A322A'
   };
-  var ROLES = { coach: 'Entraîneur', athlete: 'Athlète' };
-  var E = { athletes: [], courant: null, legende: DEFAUTS.legende, protos: [], reglages: { role: 'coach' }, version: C.SCHEMA_VERSION };
-  var vue = 'plan', semaineAffichee = null, rechercheLegende = '';
-  var main = document.getElementById('contenu'), boite = document.getElementById('boite');
+  var REACTIONS = ['👍', '💪', '🔥', '👏', '❤️', '😮'];
+  var ctx = { legende: function () { return null; }, protos: function () { return []; } };
 
   /* ---------- Utilitaires ---------- */
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -993,26 +1201,12 @@ var Store = (function () {
   function $$(sel, el) { return Array.prototype.slice.call((el || document).querySelectorAll(sel)); }
   function toast(t) { var x = $('#toast'); x.textContent = t; x.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(function () { x.style.display = 'none'; }, 3500); }
   function auj() { return C.todayParis(); }
-  function athlete() { return E.athletes.filter(function (a) { return a.id === E.courant; })[0] || null; }
-  function estCoach() { return E.reglages.role === 'coach'; }
-  function sauver() {
-    return Store.enregistrer(E).catch(function (e) { toast('Enregistrement impossible : ' + e.message); });
-  }
-  function telecharger(nom, contenu, type) {
-    var blob = new Blob([contenu], { type: type });
-    var f = typeof File === 'function' ? new File([blob], nom, { type: type }) : null;
-    // Partage natif sur mobile (mail, messagerie…) si disponible, sinon téléchargement
-    if (f && navigator.canShare && navigator.canShare({ files: [f] }) && /Android|iPhone|iPad/i.test(navigator.userAgent)) {
-      return navigator.share({ files: [f], title: nom }).catch(function () {});
-    }
-    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nom;
-    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-  }
-  function horodatage() { return auj().replace(/-/g, ''); }
+  function maintenant() { return new Date().toISOString(); }
   function nomComplet(a) { return [a.prenom, a.nom].filter(Boolean).join(' ') || 'Athlète sans nom'; }
+  function prenom(a) { var p = C.texte(a.prenom); return p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : ''; }
   function famille(code) {
     if (C.normCode(code) === 'COMP' || C.normCode(code) === 'PROTO') return 'Compétition';
-    var r = C.chercherCode(E.legende && E.legende.types, code);
+    var r = C.chercherCode((ctx.legende() || {}).types, code);
     return r && r.entree.famille ? r.entree.famille : null;
   }
   function couleurFam(code) { var f = famille(code); return f ? FAMILLES[f] : null; }
@@ -1024,91 +1218,76 @@ var Store = (function () {
   function jourCourt(iso) { return C.JOURS_LONGS[C.dayOfWeek(iso)].slice(0, 3) + '. ' + C.formatDateFR(iso, true); }
   function semaineDe(a, iso) { return a.debut ? C.numSemaine(a.debut, iso) : null; }
   function lundiDe(a, n) { return C.lundiSemaine(a.debut, n); }
-
-  /* ---------- Rendu général ---------- */
-  function rendreEntete() {
-    var s = $('#choixAthlete');
-    s.innerHTML = E.athletes.length
-      ? E.athletes.map(function (a) { return '<option value="' + esc(a.id) + '"' + (a.id === E.courant ? ' selected' : '') + '>' + esc(nomComplet(a)) + '</option>'; }).join('')
-      : '<option value="">Aucun athlète</option>';
-    $('#badgeRole').textContent = 'Mode ' + ROLES[E.reglages.role].toLowerCase();
+  function ilYa(iso) {
+    if (!iso) return 'jamais';
+    var s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+    if (!isFinite(s)) return '—';
+    if (s < 60) return 'à l\'instant';
+    if (s < 3600) return 'il y a ' + Math.round(s / 60) + ' min';
+    if (s < 86400) return 'il y a ' + Math.round(s / 3600) + ' h';
+    return 'le ' + C.formatDateFR(C.todayParis(new Date(iso)));
   }
-  function rendre() {
-    rendreEntete();
-    $$('nav.onglets a').forEach(function (a) { if (a.dataset.v === vue) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
-    ({ plan: vuePlan, legende: vueLegende, allures: vueAllures, protos: vueProtos, donnees: vueDonnees, tests: vueTests }[vue] || vuePlan)();
-  }
-  function route() {
-    var h = (location.hash || '#/plan').slice(2).split('/');
-    vue = h[0] || 'plan';
-    rendre();
+  function ecart(v, prec, format) {
+    var d = v - prec;
+    if (!d) return '<span class="ecart">= période préc.</span>';
+    return '<span class="ecart">' + (d > 0 ? '+' : '−') + format(Math.abs(d)) + '</span>';
   }
 
-  function vueVide() {
-    return '<div class="carte vide"><img src="' + $('header.app img').src + '" alt=""><h2>Bienvenue</h2>' +
-      '<p class="muet">Importe le classeur Excel de l\'entraîneur (onglets PLAN, LEGENDE, ALLURES, PROTOS) ou crée un athlète.</p>' +
-      '<div class="ligne" style="justify-content:center"><button data-act="importXlsx">Importer un classeur Excel</button>' +
-      '<button class="sec" data-act="importJson">Ouvrir un fichier d\'échange</button><button class="sec" data-act="nouvelAthlete">Créer un athlète</button></div></div>';
+  /* ---------- Stockage local : IndexedDB, repli localStorage puis mémoire ---------- */
+  function creerStore(nom) {
+    var db = null, api = { mode: null };
+    function ouvrir() {
+      return new Promise(function (ok, ko) {
+        if (!window.indexedDB) return ko(new Error('IndexedDB indisponible'));
+        var r = indexedDB.open(nom, 1);
+        r.onupgradeneeded = function () { r.result.createObjectStore('kv'); };
+        r.onsuccess = function () { ok(r.result); };
+        r.onerror = function () { ko(r.error); };
+      });
+    }
+    api.charger = function () {
+      return ouvrir().then(function (d) {
+        db = d; api.mode = 'IndexedDB';
+        return new Promise(function (ok, ko) { var q = db.transaction('kv').objectStore('kv').get('etat'); q.onsuccess = function () { ok(q.result || null); }; q.onerror = function () { ko(q.error); }; });
+      }).catch(function () {
+        try { api.mode = 'localStorage'; var b = localStorage.getItem(nom); return b ? JSON.parse(b) : null; }
+        catch (e) { api.mode = 'mémoire (non enregistré)'; return null; }
+      });
+    };
+    api.enregistrer = function (etat) {
+      if (api.mode === 'IndexedDB') return new Promise(function (ok, ko) {
+        var t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(JSON.parse(JSON.stringify(etat)), 'etat');
+        t.oncomplete = function () { ok(); }; t.onerror = function () { ko(t.error); };
+      });
+      if (api.mode === 'localStorage') { try { localStorage.setItem(nom, JSON.stringify(etat)); } catch (e) { return Promise.reject(e); } }
+      return Promise.resolve();
+    };
+    return api;
   }
 
-  /* ---------- PLAN ---------- */
-  function vuePlan() {
-    var a = athlete();
-    if (!a) { main.innerHTML = vueVide(); return; }
-    var aj = auj();
-    if (!a.debut) a.debut = C.weekStart(aj);
-    if (semaineAffichee === null) semaineAffichee = Math.max(1, semaineDe(a, aj));
-    var n = semaineAffichee, lundi = lundiDe(a, n), dim = C.addDays(lundi, 6);
-    var sNow = semaineDe(a, aj), compet = C.prochaineCompet(a, aj), info = a.semaines[n] || {};
-    var jours = C.joursSemaine(a, lundi), bil = C.bilanJours(jours.map(function (x) { return x.jour; }));
-    var dispo = [['L', 'L'], ['M1', 'M'], ['M2', 'M'], ['J', 'J'], ['V', 'V'], ['S', 'S'], ['D', 'D']];
-    var h = '';
-    h += '<section class="carte fiche"><div class="ligne"><div class="espace"><h2>' + esc(nomComplet(a)) + '</h2>' +
-      (a.objectif ? '<div class="objectif">' + esc(a.objectif) + '</div>' : '') +
-      (a.objectif2 ? '<div class="muet petit">' + esc(a.objectif2) + '</div>' : '') + '</div>' +
-      (estCoach() ? '<button class="sec noprint" data-act="ficheAthlete">Modifier la fiche</button>' : '') + '</div>' +
-      '<div class="kpis">' +
-      '<div class="kpi"><b>' + (sNow ? 'S' + sNow : '—') + (a.contratSemaines ? ' / ' + a.contratSemaines : '') + '</b><span>Semaine du contrat' + (a.fin ? ' (fin ' + C.formatDateFR(a.fin) + ')' : '') + '</span></div>' +
-      '<div class="kpi"><b>' + (C.isNum(a.vma) ? C.nombreFR(a.vma) + ' km/h' : '—') + '</b><span>VMA de référence</span></div>' +
-      '<div class="kpi"><b>' + esc(a.hebdo || '—') + '</b><span>Séances par semaine</span></div>' +
-      '<div class="kpi"><b>' + (compet ? (compet.dans === 0 ? 'Aujourd\'hui' : 'J-' + compet.dans) : '—') + '</b><span>' + (compet ? esc(compet.jour.corps) + ' · ' + C.formatDateFR(compet.date) : 'Prochaine compétition') + '</span></div>' +
-      '</div>' +
-      '<div class="ligne petit muet" style="margin-top:10px"><span>Dispos :</span><span class="dispos">' + dispo.map(function (d) { return '<span class="' + (a.dispos[d[0]] ? 'oui' : '') + '" title="' + C.JOURS_LONGS[dispo.indexOf(d)] + (a.dispos[d[0]] ? ' : disponible' : ' : non') + '">' + d[1] + '</span>'; }).join('') + '</span>' +
-      (a.contraintes ? '<span>· Contraintes : ' + esc(a.contraintes) + '</span>' : '') + (a.terrains ? '<span>· Terrains : ' + esc(a.terrains) + '</span>' : '') + '</div>' +
-      '</section>';
-
-    h += '<section class="carte"><div class="nav-semaine">' +
-      '<button class="sec" data-act="semPrec" aria-label="Semaine précédente">◀</button>' +
-      '<h2>S' + n + '<small>du ' + C.formatDateFR(lundi) + ' au ' + C.formatDateFR(dim) + '</small></h2>' +
-      '<button class="sec" data-act="semSuiv" aria-label="Semaine suivante">▶</button></div>' +
-      '<div class="ligne noprint" style="justify-content:center;margin-top:8px">' +
-      '<button class="discret" data-act="semAuj">Cette semaine</button>' +
-      '<button class="discret" data-act="imprimer">Imprimer</button>' +
-      (estCoach() ? '<button class="discret" data-act="semInfo">Cycle / phase</button><button class="discret" data-act="semCopier">Copier vers…</button>' : '') + '</div>' +
-      ((info.phase || info.cycle) ? '<div class="ruban">' + (info.phase ? '<span title="Situation planif">' + esc(info.phase) + '</span>' : '') + (info.cycle ? '<span class="cycle" title="Type de cycle">' + esc(info.cycle) + '</span>' : '') + '</div>' : '') +
-      '</section>';
-
-    h += '<section class="jours" aria-label="Séances de la semaine">' + jours.map(function (x) { return carteJour(a, x.date, x.jour, aj); }).join('') + '</section>';
-
-    h += '<section class="carte" style="margin-top:14px"><h3>Bilan S' + n + '</h3><div class="bilan">' +
-      '<div class="kpi"><b>' + C.nombreFR(bil.km, 2) + ' km</b><span>KM hebdo</span></div>' +
-      '<div class="kpi"><b>' + (bil.dureeSec ? C.formatDuree(bil.dureeSec) : '—') + '</b><span>Durée</span></div>' +
-      '<div class="kpi"><b>' + (bil.rpeMoy !== null ? C.nombreFR(bil.rpeMoy, 1) : '—') + '</b><span>RPE moyen' + (bil.nbRpe ? ' (' + bil.nbRpe + ' séance' + (bil.nbRpe > 1 ? 's' : '') + ')' : '') + '</span></div>' +
-      '<div class="kpi"><b>' + bil.faites + ' / ' + bil.prevues + '</b><span>Séances renseignées / prévues</span></div>' +
-      '</div></section>';
-
-    h += vueEnsemble(a, n);
-    main.innerHTML = h;
-    brancherGraph(a);
+  /* ---------- Service en ligne (script Google de l'entraîneur) ---------- */
+  // Adresse du service : fichier config.json publié avec l'application (modifiable dans les réglages entraîneur)
+  function chargerConfig(chemin) {
+    return fetch(chemin, { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; });
+  }
+  // Requête « simple » (texte brut) : pas de requête préalable CORS, acceptée par Google Apps Script
+  function appelService(url, corps) {
+    if (!url) return Promise.reject(new Error('service en ligne non configuré'));
+    return fetch(url, { method: 'POST', body: JSON.stringify(corps), redirect: 'follow' })
+      .then(function (r) { if (!r.ok) throw new Error('service injoignable (' + r.status + ')'); return r.json(); })
+      .then(function (d) { if (!d || !d.ok) throw new Error((d && d.erreur) || 'réponse inattendue du service'); return d; });
   }
 
-  function carteJour(a, date, j, aj) {
+  /* ---------- Carte d'un jour ---------- */
+  // opts.role : 'coach' ou 'athlete'
+  function carteJour(a, date, j, aj, opts) {
+    var lg = ctx.legende() || {}, role = opts.role;
     var repos = C.estRepos(j), vide = !C.aContenuCoach(j), coul = couleurFam(j.type);
-    var lp = C.chercherCode(E.legende && E.legende.profils, j.profil), lt = C.chercherCode(E.legende && E.legende.types, j.type);
+    var lp = C.chercherCode(lg.profils, j.profil), lt = C.chercherCode(lg.types, j.type);
     var rep = C.reperesSeance(j, { vma: a.vma, zones: a.zones, allures: a.allures });
     var allure = C.allureMoyenne(j.dureeSec, j.km);
-    var h = '<article class="jour' + (repos || vide ? ' repos' : '') + (date === aj ? ' auj' : '') + '"' + (coul ? ' style="--fam:' + coul + '"' : '') + '>';
-    h += '<div class="tete"><span class="date">' + jourCourt(date) + '</span><span class="corps">' + (vide ? '<span class="muet">—</span>' : esc(j.corps || '')) + '</span></div>';
+    var h = '<article class="jour' + (repos || vide ? ' repos' : '') + (date === aj ? ' auj' : '') + '"' + (coul ? ' style="--fam:' + coul + '"' : '') + ' id="j-' + date + '">';
+    h += '<div class="tete"><span class="date">' + (date === aj ? 'Aujourd\'hui' : jourCourt(date)) + '</span><span class="corps">' + (vide ? '<span class="muet">' + (role === 'athlete' ? 'Pas de séance prévue' : '—') + '</span>' : esc(j.corps || '')) + '</span></div>';
     var puces = [];
     if (j.eveil) puces.push('<span class="puce" title="Échauffement / éveil musculaire">Éveil ' + esc(minutes(j.eveil)) + '</span>');
     if (j.educ) puces.push('<span class="puce" title="Éducatifs / gammes athlétiques">Éduc ' + esc(minutes(j.educ)) + '</span>');
@@ -1123,44 +1302,94 @@ var Store = (function () {
         (lt ? '<div><b>' + esc(lt.entree.code) + '</b>' + (lt.variante ? ' (variante « ' + esc(j.type) + ' »)' : '') + ' : ' + esc(lt.entree.desc) + '</div>' : '') +
         (lp ? '<div><b>' + esc(lp.entree.code) + '</b> : ' + esc(lp.entree.desc) + '</div>' : '') + '</details>';
     }
-    var aRet = C.aRetour(j);
+    var aRet = C.aRetour(j), passe = date <= aj;
     if (aRet || (!repos && !vide)) {
       h += '<div class="retour">';
       if (aRet) {
         h += (C.isNum(j.km) ? '<span><b>' + C.nombreFR(j.km, 2) + '</b> km</span>' : '') +
           (C.isNum(j.dureeSec) ? '<span><b>' + C.formatDuree(j.dureeSec) + '</b></span>' : '') +
           (allure ? '<span>' + C.formatAllure(allure) + '</span>' : '') +
+          (C.isNum(j.dplus) ? '<span>D+ ' + Math.round(j.dplus) + ' m</span>' : '') +
           (C.isNum(j.rpe) ? '<span>RPE ' + badgeRPE(j.rpe) + '</span>' : '');
-      } else h += '<span class="muet petit">Pas encore de retour</span>';
+      } else h += '<span class="muet petit">' + (role === 'athlete' ? (passe ? 'Pas encore saisie' : 'À venir') : 'Pas encore de retour') + '</span>';
       h += '<span class="espace"></span>';
-      h += '<button class="discret noprint" data-act="editJour" data-date="' + date + '">' + (estCoach() ? 'Modifier' : (aRet ? 'Modifier mon retour' : 'Saisir mon retour')) + '</button>';
+      if (role === 'coach') {
+        if (aRet) h += '<button class="discret noprint" data-act="reagir" data-date="' + date + '">' + (j.reaction ? 'Ma réaction' : 'Réagir') + '</button>';
+        h += '<button class="discret noprint" data-act="editJour" data-date="' + date + '">Modifier</button>';
+      } else if (passe || aRet) {
+        h += '<button class="discret noprint" data-act="saisir" data-date="' + date + '">' + (aRet ? 'Modifier ma saisie' : 'Saisir ma séance') + '</button>';
+      }
       if (j.notes) h += '<div class="note">« ' + esc(j.notes) + ' »</div>';
+      if (j.reaction) h += '<div class="reaction">' + (role === 'coach' ? 'Ta réaction' : 'Ton entraîneur') + ' : ' + esc(j.reaction) + '</div>';
       h += '</div>';
-    } else if (estCoach()) {
+    } else if (role === 'coach') {
       h += '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="editJour" data-date="' + date + '">' + (vide ? 'Ajouter une séance' : 'Modifier') + '</button></div>';
+    } else if (passe) {
+      h += '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="saisir" data-date="' + date + '">Ajouter une sortie</button></div>';
     }
     return h + '</article>';
   }
 
-  // Vue d'ensemble : km par semaine (graphique + tableau)
+  /* ---------- Fiche (en-tête du plan) ---------- */
+  function htmlFiche(a, aj, boutons) {
+    var sNow = semaineDe(a, aj), compet = C.prochaineCompet(a, aj);
+    var dispo = [['L', 'L'], ['M1', 'M'], ['M2', 'M'], ['J', 'J'], ['V', 'V'], ['S', 'S'], ['D', 'D']];
+    return '<section class="carte fiche"><div class="ligne"><div class="espace"><h2>' + esc(nomComplet(a)) + '</h2>' +
+      (a.objectif ? '<div class="objectif">' + esc(a.objectif) + '</div>' : '') +
+      (a.objectif2 ? '<div class="muet petit">' + esc(a.objectif2) + '</div>' : '') + '</div>' + (boutons || '') + '</div>' +
+      '<div class="kpis">' +
+      '<div class="kpi"><b>' + (sNow ? 'S' + sNow : '—') + (a.contratSemaines ? ' / ' + a.contratSemaines : '') + '</b><span>Semaine du contrat' + (a.fin ? ' (fin ' + C.formatDateFR(a.fin) + ')' : '') + '</span></div>' +
+      '<div class="kpi"><b>' + (C.isNum(a.vma) ? C.nombreFR(a.vma) + ' km/h' : '—') + '</b><span>VMA de référence</span></div>' +
+      '<div class="kpi"><b>' + esc(a.hebdo || '—') + '</b><span>Séances par semaine</span></div>' +
+      '<div class="kpi"><b>' + (compet ? (compet.dans === 0 ? 'Aujourd\'hui' : 'J-' + compet.dans) : '—') + '</b><span>' + (compet ? esc(compet.jour.corps) + ' · ' + C.formatDateFR(compet.date) : 'Prochaine compétition') + '</span></div>' +
+      '</div>' +
+      '<div class="ligne petit muet" style="margin-top:10px"><span>Dispos :</span><span class="dispos">' + dispo.map(function (d, i) { return '<span class="' + (a.dispos && a.dispos[d[0]] ? 'oui' : '') + '" title="' + C.JOURS_LONGS[i] + (a.dispos && a.dispos[d[0]] ? ' : disponible' : ' : non') + '">' + d[1] + '</span>'; }).join('') + '</span>' +
+      (a.contraintes ? '<span>· Contraintes : ' + esc(a.contraintes) + '</span>' : '') + (a.terrains ? '<span>· Terrains : ' + esc(a.terrains) + '</span>' : '') + '</div>' +
+      '</section>';
+  }
+
+  /* ---------- Semaine du plan ---------- */
+  function htmlSemaine(a, n, aj, opts) {
+    var lundi = lundiDe(a, n), dim = C.addDays(lundi, 6), info = (a.semaines || {})[n] || {};
+    var jours = C.joursSemaine(a, lundi), bil = C.bilanJours(jours.map(function (x) { return x.jour; }));
+    var h = '<section class="carte"><div class="nav-semaine">' +
+      '<button class="sec" data-act="semPrec" aria-label="Semaine précédente">◀</button>' +
+      '<h2>S' + n + '<small>du ' + C.formatDateFR(lundi) + ' au ' + C.formatDateFR(dim) + '</small></h2>' +
+      '<button class="sec" data-act="semSuiv" aria-label="Semaine suivante">▶</button></div>' +
+      '<div class="ligne noprint" style="justify-content:center;margin-top:8px">' +
+      '<button class="discret" data-act="semAuj">Cette semaine</button>' +
+      '<button class="discret" data-act="imprimer">Imprimer</button>' + (opts.boutonsSemaine || '') + '</div>' +
+      ((info.phase || info.cycle) ? '<div class="ruban">' + (info.phase ? '<span title="Situation planif">' + esc(info.phase) + '</span>' : '') + (info.cycle ? '<span class="cycle" title="Type de cycle">' + esc(info.cycle) + '</span>' : '') + '</div>' : '') +
+      '</section>';
+    h += '<section class="jours" aria-label="Séances de la semaine">' + jours.map(function (x) { return carteJour(a, x.date, x.jour, aj, opts); }).join('') + '</section>';
+    h += '<section class="carte" style="margin-top:14px"><h3>Bilan S' + n + '</h3><div class="bilan">' +
+      '<div class="kpi"><b>' + C.nombreFR(bil.km, 2) + ' km</b><span>KM hebdo</span></div>' +
+      '<div class="kpi"><b>' + (bil.dureeSec ? C.formatDuree(bil.dureeSec) : '—') + '</b><span>Durée</span></div>' +
+      '<div class="kpi"><b>' + (bil.rpeMoy !== null ? C.nombreFR(bil.rpeMoy, 1) : '—') + '</b><span>RPE moyen' + (bil.nbRpe ? ' (' + bil.nbRpe + ' séance' + (bil.nbRpe > 1 ? 's' : '') + ')' : '') + '</span></div>' +
+      '<div class="kpi"><b>' + bil.faites + ' / ' + bil.prevues + '</b><span>Séances renseignées / prévues</span></div>' +
+      '</div></section>';
+    return h;
+  }
+
+  /* ---------- Km par semaine (graphique + tableau) ---------- */
   function semainesAvecDonnees(a) {
-    var dates = Object.keys(a.jours).sort();
-    if (!dates.length) return [];
+    var dates = Object.keys(a.jours || {}).sort();
+    if (!dates.length || !a.debut) return [];
     var s1 = semaineDe(a, dates[0]), s2 = semaineDe(a, dates[dates.length - 1]), out = [];
     for (var s = s1; s <= s2; s++) {
       var l = lundiDe(a, s), jr = C.joursSemaine(a, l).map(function (x) { return x.jour; });
       var b = C.bilanJours(jr);
-      b.n = s; b.lundi = l; b.info = a.semaines[s] || {};
+      b.n = s; b.lundi = l; b.info = (a.semaines || {})[s] || {};
       b.compet = jr.filter(function (j) { return C.normCode(j.type) === 'COMP'; }).map(function (j) { return j.corps; });
       out.push(b);
     }
     return out;
   }
-  function vueEnsemble(a, n) {
+  function htmlEnsemble(a, n) {
     var sem = semainesAvecDonnees(a);
     if (!sem.length) return '';
-    var h = '<section class="carte noprint"><h3>KM réalisés par semaine</h3>' +
-      '<p class="muet petit">Somme des km saisis dans la partie athlète. Touchez une barre pour ouvrir la semaine.</p>' +
+    return '<section class="carte noprint"><h3>KM réalisés par semaine</h3>' +
+      '<p class="muet petit">Somme des km saisis. Touchez une barre pour ouvrir la semaine.</p>' +
       '<div class="graph" id="graph"></div>' +
       '<details><summary>Tableau des semaines</summary><div class="tableau"><table><thead><tr><th>Sem.</th><th>Lundi</th><th>Phase / cycle</th><th class="num">Prévues</th><th class="num">KM</th><th class="num">Durée</th><th class="num">RPE moy.</th><th>Compétition</th></tr></thead><tbody>' +
       sem.map(function (b) {
@@ -1168,9 +1397,8 @@ var Store = (function () {
           '<td class="num">' + b.prevues + '</td><td class="num">' + (b.km ? C.nombreFR(b.km, 2) : '') + '</td><td class="num">' + (b.dureeSec ? C.formatDuree(b.dureeSec) : '') + '</td>' +
           '<td class="num">' + (b.rpeMoy !== null ? C.nombreFR(b.rpeMoy, 1) : '') + '</td><td>' + esc(b.compet.join(', ')) + '</td></tr>';
       }).join('') + '</tbody></table></div></details></section>';
-    return h;
   }
-  function brancherGraph(a) {
+  function brancherGraph(a, nCourant, allerA) {
     var zone = $('#graph');
     if (!zone) return;
     var sem = semainesAvecDonnees(a), W = Math.max(320, zone.clientWidth || 600), H = 200, g = 34, d = 10, hh = 18, bas = 24;
@@ -1183,8 +1411,8 @@ var Store = (function () {
     sem.forEach(function (b, i) {
       var x = g + i * lw + (lw - bw) / 2, yy = y(b.km), hb = H - bas - yy;
       if (b.km > 0) {
-        var r = Math.min(4, bw / 2, hb);
-        s += '<path class="barre' + (b.n === semaineAffichee ? ' cour' : '') + '" fill="' + (b.n === semaineAffichee ? 'var(--sapin)' : 'var(--vert)') + '" d="M' + x + ' ' + (H - bas) + 'V' + (yy + r) + 'Q' + x + ' ' + yy + ' ' + (x + r) + ' ' + yy + 'H' + (x + bw - r) + 'Q' + (x + bw) + ' ' + yy + ' ' + (x + bw) + ' ' + (yy + r) + 'V' + (H - bas) + 'Z"/>';
+        var r = Math.min(4, bw / 2, hb), cour = b.n === nCourant;
+        s += '<path fill="' + (cour ? 'var(--sapin)' : 'var(--vert)') + '" d="M' + x + ' ' + (H - bas) + 'V' + (yy + r) + 'Q' + x + ' ' + yy + ' ' + (x + r) + ' ' + yy + 'H' + (x + bw - r) + 'Q' + (x + bw) + ' ' + yy + ' ' + (x + bw) + ' ' + (yy + r) + 'V' + (H - bas) + 'Z"/>';
       }
       s += '<rect class="cible" data-i="' + i + '" x="' + (g + i * lw) + '" y="' + hh + '" width="' + lw + '" height="' + (H - bas - hh) + '" tabindex="0" aria-label="S' + b.n + ' : ' + C.nombreFR(b.km, 1) + ' km"/>';
       if (i % pasLab === 0) s += '<text class="axe" x="' + (g + i * lw + lw / 2) + '" y="' + (H - 6) + '" text-anchor="middle">S' + b.n + '</text>';
@@ -1193,70 +1421,415 @@ var Store = (function () {
     zone.innerHTML = s;
     var bulle = $('.infobulle', zone);
     function montrer(e) {
-      var i = +e.target.dataset.i, b = sem[i]; if (!b) return;
+      var b = sem[+e.target.dataset.i]; if (!b) return;
       bulle.innerHTML = '<b>S' + b.n + '</b> · ' + C.formatDateFR(b.lundi) + '<br>' + C.nombreFR(b.km, 2) + ' km' + (b.dureeSec ? ' · ' + C.formatDuree(b.dureeSec) : '') + (b.rpeMoy !== null ? ' · RPE ' + C.nombreFR(b.rpeMoy, 1) : '') + (b.info.phase ? '<br>' + esc(b.info.phase) : '');
       bulle.style.display = 'block';
       var rz = zone.getBoundingClientRect(), rr = e.target.getBoundingClientRect();
-      var left = rr.left - rz.left + rr.width / 2 - bulle.offsetWidth / 2;
-      bulle.style.left = Math.max(0, Math.min(rz.width - bulle.offsetWidth, left)) + 'px';
+      bulle.style.left = Math.max(0, Math.min(rz.width - bulle.offsetWidth, rr.left - rz.left + rr.width / 2 - bulle.offsetWidth / 2)) + 'px';
       bulle.style.top = '0px';
     }
     $$('rect.cible', zone).forEach(function (r) {
       r.addEventListener('mouseenter', montrer); r.addEventListener('focus', montrer);
       r.addEventListener('mouseleave', function () { bulle.style.display = 'none'; }); r.addEventListener('blur', function () { bulle.style.display = 'none'; });
-      r.addEventListener('click', function () { semaineAffichee = sem[+r.dataset.i].n; vuePlan(); window.scrollTo(0, 0); });
-      r.addEventListener('keydown', function (e) { if (e.key === 'Enter') r.dispatchEvent(new Event('click')); });
+      r.addEventListener('click', function () { allerA(sem[+r.dataset.i].n); });
+      r.addEventListener('keydown', function (e) { if (e.key === 'Enter') allerA(sem[+r.dataset.i].n); });
     });
   }
 
-  /* ---------- Saisie d'un jour ---------- */
+  /* ---------- Légende ---------- */
+  var rechercheLegende = '';
+  function surligner(t, q) {
+    var s = esc(t); if (!q) return s;
+    var i = s.toUpperCase().indexOf(esc(q).toUpperCase());
+    return i < 0 ? s : s.slice(0, i) + '<mark>' + s.slice(i, i + esc(q).length) + '</mark>' + s.slice(i + esc(q).length);
+  }
+  function vueLegende(main) {
+    var lg = ctx.legende() || { principes: [], colonnes: [], profils: [], types: [] }, q = rechercheLegende.trim();
+    function filtre(l) { return (l || []).filter(function (x) { return !q || (x.code + ' ' + x.desc).toUpperCase().indexOf(q.toUpperCase()) >= 0; }); }
+    function liste(l) { return l.length ? '<dl class="codes">' + l.map(function (x) { return '<dt>' + surligner(x.code, q) + '</dt><dd>' + surligner(x.desc, q) + '</dd>'; }).join('') + '</dl>' : '<p class="muet">Aucun résultat.</p>'; }
+    var h = '<section class="carte"><h2>Légende &amp; abréviations</h2><label for="rechLeg">Rechercher un code ou un mot</label><input id="rechLeg" type="search" value="' + esc(rechercheLegende) + '" placeholder="ex. VMA, RTDESC, côte"></section>';
+    if (!q && (lg.principes || []).length) h += '<section class="carte"><h3>Principes</h3><ol>' + lg.principes.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ol></section>';
+    h += '<div class="grille2"><section class="carte"><h3>Colonnes du tableau</h3>' + liste(filtre(lg.colonnes)) + '</section>' +
+      '<section class="carte"><h3>Colonne PROFIL</h3>' + liste(filtre(lg.profils)) + '</section></div>';
+    var types = filtre(lg.types), fams = {};
+    types.forEach(function (t) { var f = t.famille || 'Autres'; (fams[f] = fams[f] || []).push(t); });
+    h += '<section class="carte"><h3>Colonne TYPE</h3>' + (types.length ? '' : '<p class="muet">Aucun résultat.</p>') +
+      Object.keys(fams).map(function (f) {
+        return '<h3 style="margin-top:14px;font-size:.95rem"><span class="fam" style="--fam:' + (FAMILLES[f] || 'var(--bord)') + '"></span>' + esc(f) + '</h3>' + liste(fams[f]);
+      }).join('') +
+      (q ? '' : '<p class="muet petit" style="margin-top:14px">Les familles reprennent les regroupements de la colonne H de l\'onglet LEGENDE. « COMP » (compétition) et « PROTO » sont utilisés dans le plan mais ne figurent pas dans la légende.</p>') + '</section>';
+    h += '<section class="carte"><h3>Échelle RPE</h3><p class="muet petit">Niveau d\'intensité perçu de la séance, à noter 30 min après la séance.</p><div class="echelle">' +
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) { var l = C.libelleRPE(n); return '<span style="--rpe:' + l.couleur + '"><b>' + n + '</b>' + esc(l.libelle) + '</span>'; }).join('') + '</div></section>';
+    main.innerHTML = h;
+    var r = $('#rechLeg');
+    r.oninput = function () { rechercheLegende = r.value; var pos = r.selectionStart; vueLegende(main); var n = $('#rechLeg'); n.focus(); n.setSelectionRange(pos, pos); };
+  }
+
+  /* ---------- Allures ---------- */
+  // modifiable : formulaire actif (entraîneur) ou lecture seule (athlète) ; enregistrer(a) appelé après modification
+  function vueAllures(main, a, modifiable, enregistrer) {
+    var vma = a.vma, al = a.allures || {}, dis = modifiable ? '' : ' disabled';
+    var h = '<section class="carte"><h2>VMA &amp; allures</h2><form id="fAll" class="champs">' +
+      '<label>VMA (km/h)<input name="vma" inputmode="decimal"' + dis + ' value="' + (C.isNum(vma) ? C.nombreFR(vma) : '') + '"></label>' +
+      '<label>Type de test<input name="ttype"' + dis + ' value="' + esc((a.test || {}).type) + '" placeholder="1/2 COOPER"></label>' +
+      '<label>Date du test<input name="tdate"' + dis + ' value="' + esc((a.test || {}).date) + '" placeholder="11/24"></label>' +
+      '<label>Chrono 10 km<input name="c10"' + dis + ' value="' + (C.isNum(al.chrono10) ? C.formatDuree(al.chrono10) : '') + '" placeholder="0:37:00"></label>' +
+      '<label>Chrono semi<input name="cs"' + dis + ' value="' + (C.isNum(al.chronoSemi) ? C.formatDuree(al.chronoSemi) : '') + '" placeholder="1:22:45"></label>' +
+      '<label>Chrono marathon<input name="cm"' + dis + ' value="' + (C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : '') + '" placeholder="2:59:00"></label>' +
+      '<label>Pré-fatigue (% VMA)<input name="pf" inputmode="decimal"' + dis + ' value="' + C.nombreFR(al.preFatPct, 1) + '"></label>' +
+      '</form><p class="alerte" id="erreurAll" hidden></p><p class="muet petit">' + (modifiable ? 'Les calculs se mettent à jour à chaque modification.' : 'Valeurs fixées par ton entraîneur.') + ' Formules de l\'onglet ALLURES du tableau de l\'entraîneur.</p></section>';
+    if (!C.isNum(vma)) { main.innerHTML = h + '<p class="alerte">' + (modifiable ? 'Renseigne la VMA pour afficher les allures.' : 'Ton entraîneur n\'a pas encore renseigné ta VMA.') + '</p>'; brancher(); return; }
+    h += '<div class="grille2"><section class="carte"><h3>Zones d\'allures</h3><div class="tableau"><table><thead><tr><th>Zone</th><th class="num">% VMA</th><th class="num">km/h</th><th class="num">min/km</th><th>Usage</th></tr></thead><tbody>' +
+      (a.zones || []).map(function (z) { var v = C.zoneVitesses(vma, z); return '<tr><td><b>' + esc(z.nom) + '</b></td><td class="num">' + C.nombreFR(z.bas, 1) + '–' + C.nombreFR(z.haut, 1) + '</td><td class="num">' + (v ? C.nombreFR(v.bas, 1) + '–' + C.nombreFR(v.haut, 1) : '') + '</td><td class="num">' + (v ? C.formatAllure(v.allureLente).replace(' /km', '') + '–' + C.formatAllure(v.allureRapide).replace(' /km', '') : '') + '</td><td>' + esc(z.usage) + '</td></tr>'; }).join('') +
+      '</tbody></table></div></section>';
+    var hist = a.historiqueVMA || [];
+    h += '<section class="carte"><h3>Évolution de la VMA</h3>' + (hist.length ? '<div class="tableau"><table><thead><tr><th>Test</th><th>Date</th><th class="num">VMA</th>' + (modifiable ? '<th></th>' : '') + '</tr></thead><tbody>' +
+      hist.map(function (x, i) { return '<tr><td>' + esc(x.test) + '</td><td>' + esc(x.date) + '</td><td class="num">' + C.nombreFR(x.vma, 2) + ' km/h</td>' + (modifiable ? '<td><button class="discret" data-act="supprVma" data-i="' + i + '" aria-label="Supprimer">✕</button></td>' : '') + '</tr>'; }).join('') +
+      '</tbody></table></div>' : '<p class="muet">Aucun test enregistré.</p>') +
+      (modifiable ? '<form id="fHist" class="champs" style="margin-top:10px"><label>Test<input name="t" placeholder="1/2 COOP"></label><label>Date<input name="d" placeholder="11/24"></label><label>VMA<input name="v" inputmode="decimal"></label><label>&nbsp;<button>Ajouter</button></label></form>' : '') + '</section></div>';
+    var pcts = [120, 115, 110, 105, 100, 95], dists = [500, 400, 300, 200, 100];
+    h += '<section class="carte"><h3>Valeurs du travail en VMA ou PAL</h3><div class="tableau"><table><thead><tr><th>Distance</th>' + pcts.map(function (p) { return '<th class="num">' + p + ' %<br><span class="muet petit">' + C.nombreFR(C.vitessePct(vma, p), 1) + ' km/h</span></th>'; }).join('') + '</tr></thead><tbody>' +
+      dists.map(function (d) { return '<tr><td><b>' + d + ' m</b></td>' + pcts.map(function (p) { return '<td class="num">' + C.formatTemps(C.tempsDistancePct(d, vma, p)) + '</td>'; }).join('') + '</tr>'; }).join('') +
+      '</tbody></table></div><p class="muet petit">PAL : puissance anaérobie lactique (résistance-intensité) ; effort proche du maximum d\'une durée de 20 s à 1 min. Récupération incomplète et passive ; 3 à 6 répétitions. 100 % = VMA courte, 95 % = VMA longue.</p></section>';
+    var specs = [['10 km', al.chrono10, 10, 90], ['semi-marathon (21,1 km)', al.chronoSemi, 21.1, 85], ['marathon (42,195 km)', al.chronoMarathon, 42.195, 80]];
+    h += '<div class="grille2">' + specs.map(function (s) {
+      var x = C.allureChrono(s[1], s[2]), rep = C.vitessePct(vma, s[3]);
+      var t = '<section class="carte"><h3>Allure spécifique ' + s[0] + '</h3>';
+      if (!x) t += '<p class="muet">Pas de chrono de référence.</p>';
+      else t += '<p><b>' + C.formatAllure(x.allure) + '</b> · ' + C.nombreFR(x.vitesse, 2) + ' km/h <span class="muet petit">(chrono ' + C.formatDuree(s[1]) + ')</span></p>' +
+        '<table><thead><tr><th>Distance</th><th class="num">Temps</th></tr></thead><tbody>' + [1000, 2000, 3000, 4000, 5000].map(function (d) { return '<tr><td>' + d + ' m</td><td class="num">' + C.formatTemps(x.allure * d / 1000) + '</td></tr>'; }).join('') + '</tbody></table>';
+      return t + '<p class="muet petit">Repère : ' + s[3] + ' % de VMA = ' + C.nombreFR(rep, 2) + ' km/h (' + C.formatAllure(C.paceFromSpeed(rep)) + ')</p></section>';
+    }).join('');
+    var vpf = C.vitessePct(vma, al.preFatPct);
+    h += '<section class="carte"><h3>Travail en pré-fatigue</h3><p><b>' + C.nombreFR(al.preFatPct, 1) + ' %</b> de VMA = ' + C.nombreFR(vpf, 2) + ' km/h · ' + C.formatAllure(C.paceFromSpeed(vpf)) + '</p>' +
+      '<table><thead><tr><th>Distance</th><th class="num">Temps</th></tr></thead><tbody>' + [1000, 2000, 3000, 4000, 5000].map(function (d) { return '<tr><td>' + d + ' m</td><td class="num">' + C.formatTemps(C.tempsDistancePct(d, vma, al.preFatPct)) + '</td></tr>'; }).join('') + '</tbody></table></section></div>';
+    h += '<section class="carte"><h3>Séance 30"-30" sur piste</h3><p class="muet petit">Distance en mètres à parcourir en 30 secondes.</p><table><thead><tr>' + [105, 102, 100].map(function (p) { return '<th class="num">' + p + ' % VMA</th>'; }).join('') + '</tr></thead><tbody><tr>' +
+      [105, 102, 100].map(function (p) { return '<td class="num"><b>' + Math.round(C.distanceTempsPct(30, vma, p)) + ' m</b></td>'; }).join('') + '</tr></tbody></table></section>';
+    main.innerHTML = h;
+    brancher();
+    function brancher() {
+      if (!modifiable) return;
+      var f = $('#fAll');
+      f.onchange = function () {
+        var d = new FormData(f), err = [];
+        var v = C.parseNumberFR(d.get('vma'));
+        if (v !== null && !(v > 5 && v < 30)) err.push('VMA entre 5 et 30 km/h');
+        var ch = {}; [['c10', 'chrono10'], ['cs', 'chronoSemi'], ['cm', 'chronoMarathon']].forEach(function (k) {
+          var x = C.parseDuree(d.get(k[0])); if (x !== null && !(x > 0)) err.push('Chrono invalide (format h:mm:ss)'); else ch[k[1]] = x;
+        });
+        var pf = C.parseNumberFR(d.get('pf'));
+        if (!(pf > 0 && pf <= 120)) err.push('Pré-fatigue : % entre 1 et 120');
+        if (err.length) { var e = $('#erreurAll'); e.hidden = false; e.textContent = err.join(' · '); return; }
+        a.vma = v; a.allures = Object.assign({}, a.allures, ch, { preFatPct: pf });
+        a.test = Object.assign({}, a.test, { type: C.texte(d.get('ttype')), date: C.texte(d.get('tdate')) });
+        enregistrer(a);
+      };
+      var fh = $('#fHist');
+      if (fh) fh.onsubmit = function (ev) {
+        ev.preventDefault();
+        var d = new FormData(fh), v = C.parseNumberFR(d.get('v'));
+        if (!(v > 5 && v < 30)) { toast('VMA entre 5 et 30 km/h'); return; }
+        a.historiqueVMA = (a.historiqueVMA || []).concat([{ test: C.texte(d.get('t')), date: C.texte(d.get('d')), vma: v }]);
+        enregistrer(a);
+      };
+    }
+  }
+
+  /* ---------- Protos ---------- */
+  function vueProtos(main, a, modifiable) {
+    var protos = ctx.protos() || [];
+    var h = '<section class="carte"><div class="ligne"><h2 class="espace">Protocoles</h2>' + (modifiable ? '<button data-act="editProto" data-i="-1">Nouveau protocole</button>' : '') + '</div>' +
+      '<p class="petit"><b>Protocoles réfléchis et mis sur pied par Respir Outdoor : utilisation et reproduction interdites.</b></p></section>' +
+      (protos.length ? '' : '<section class="carte vide"><p class="muet">Aucun protocole pour le moment.</p></section>');
+    h += protos.map(function (p, i) {
+      var g = p.grille || [], nc = Math.max.apply(null, g.map(function (l) { return l.length; }).concat([0]));
+      var cols = []; for (var c = 0; c < nc; c++) if (g.some(function (l) { return C.texte(l[c]); })) cols.push(c);
+      var usages = a ? Object.keys(a.jours || {}).filter(function (d) { return (C.texte(a.jours[d].corps) + ' ' + C.texte(a.jours[d].consignes)).toUpperCase().indexOf(String(p.code).toUpperCase()) >= 0; }).sort() : [];
+      return '<section class="carte proto"><h3><span class="code">' + esc(p.code) + '</span>' + esc(p.titre) + '</h3>' +
+        (cols.length ? '<div class="tableau"><table><tbody>' + g.map(function (l) { return '<tr>' + cols.map(function (c) { return '<td>' + esc(l[c] || '') + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>' : '') +
+        (p.notes ? '<p style="white-space:pre-wrap">' + esc(p.notes) + '</p>' : '') +
+        (usages.length ? '<p class="petit muet">Prévu le : ' + usages.map(function (d) { return C.formatDateFR(d); }).join(', ') + '</p>' : '') +
+        (modifiable ? '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="editProto" data-i="' + i + '">Modifier</button></div>' : '') + '</section>';
+    }).join('');
+    main.innerHTML = h;
+  }
+
+  /* ---------- Thème ---------- */
+  function appliquerTheme(theme) { if (theme) document.documentElement.setAttribute('data-theme', theme); else document.documentElement.removeAttribute('data-theme'); }
+
+  return {
+    init: function (o) { Object.assign(ctx, o); },
+    FAMILLES: FAMILLES, REACTIONS: REACTIONS, esc: esc, $: $, $$: $$, toast: toast, auj: auj, maintenant: maintenant, nomComplet: nomComplet, prenom: prenom,
+    famille: famille, couleurFam: couleurFam, badgeRPE: badgeRPE, jourCourt: jourCourt, semaineDe: semaineDe, lundiDe: lundiDe, ilYa: ilYa, ecart: ecart,
+    creerStore: creerStore, chargerConfig: chargerConfig, appelService: appelService,
+    carteJour: carteJour, htmlFiche: htmlFiche, htmlSemaine: htmlSemaine, htmlEnsemble: htmlEnsemble, brancherGraph: brancherGraph,
+    vueLegende: vueLegende, vueAllures: vueAllures, vueProtos: vueProtos, appliquerTheme: appliquerTheme
+  };
+})();
+</script>
+<script>
+/* ======================================================================
+   APPLICATION ENTRAÎNEUR (Respir Outdoor Coach)
+   ====================================================================== */
+(function () {
+  'use strict';
+  var C = Core, esc = UI.esc, $ = UI.$, $$ = UI.$$, toast = UI.toast, auj = UI.auj, nomComplet = UI.nomComplet;
+  var Store = UI.creerStore('respir-outdoor');
+  var E = {
+    athletes: [], courant: null, legende: DEFAUTS.legende, protos: [], motGlobal: '',
+    reglages: { theme: '', cle: '', service: '', seuilAlerte: 2 },
+    sync: { depuis: '', derniere: '', erreur: '' }, aPublier: {}, aSupprimer: [], communAPublier: false, version: 2
+  };
+  var config = {}, vue = 'athletes', semaineAffichee = null;
+  var main = document.getElementById('contenu'), boite = document.getElementById('boite');
+  UI.init({ legende: function () { return E.legende; }, protos: function () { return E.protos; } });
+
+  function athlete() { return E.athletes.filter(function (a) { return a.id === E.courant; })[0] || null; }
+  function parId(id) { return E.athletes.filter(function (a) { return a.id === id; })[0] || null; }
+  function sauver() { return Store.enregistrer(E).catch(function (e) { toast('Enregistrement impossible : ' + e.message); }); }
+  function horodatage() { return auj().replace(/-/g, ''); }
+  function baseUrl() { return new URL('./', location.href).href; }
+  function assurerCode(a) { if (!a.code) a.code = C.genererCode(); }
+  function telecharger(nom, contenu, type) {
+    var blob = new Blob([contenu], { type: type }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = nom;
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  /* ---------- Synchronisation avec le service Google ---------- */
+  function urlService() { return E.reglages.service || config.service || ''; }
+  function syncConfiguree() { return !!(urlService() && E.reglages.cle); }
+  function marquer(a) { E.aPublier[a.id] = UI.maintenant(); a.maj = UI.maintenant(); planifierSync(); }
+  function marquerCommun() { E.communAPublier = true; planifierSync(); }
+  var minuteur = null, enCours = null;
+  function planifierSync() { clearTimeout(minuteur); minuteur = setTimeout(function () { synchroniser(false); }, 1500); }
+  function ficheAEnvoyer(a) { var x = JSON.parse(JSON.stringify(a)); delete x.jours; delete x.suivi; return x; }
+  function appel(corps) { corps.cle = E.reglages.cle; return UI.appelService(urlService(), corps); }
+
+  function synchroniser(manuel) {
+    if (!syncConfiguree()) { if (manuel) toast('Synchronisation non configurée : Réglages → Synchronisation'); rendreStatut(); return Promise.resolve(); }
+    if (enCours) return enCours;
+    rendreStatut('en cours');
+    enCours = Promise.resolve()
+      .then(function () {
+        return E.aSupprimer.reduce(function (p, id) {
+          return p.then(function () { return appel({ action: 'coach.supprimer', id: id }); }).then(function () { E.aSupprimer = E.aSupprimer.filter(function (x) { return x !== id; }); });
+        }, Promise.resolve());
+      })
+      .then(function () {
+        if (!E.communAPublier) return;
+        return appel({ action: 'coach.commun', legende: E.legende, protos: E.protos, motGlobal: E.motGlobal }).then(function () { E.communAPublier = false; });
+      })
+      .then(function () {
+        return Object.keys(E.aPublier).reduce(function (p, id) {
+          return p.then(function () {
+            var a = parId(id), marque = E.aPublier[id];
+            if (!a) { delete E.aPublier[id]; return; }
+            assurerCode(a);
+            return appel({ action: 'coach.publier', athlete: ficheAEnvoyer(a), jours: a.jours }).then(function () {
+              if (E.aPublier[id] === marque) delete E.aPublier[id]; // modifié pendant l'envoi : sera renvoyé
+            });
+          });
+        }, Promise.resolve());
+      })
+      .then(function () { return appel({ action: 'coach.lire', depuis: E.sync.depuis }); })
+      .then(function (res) {
+        var nouveaux = 0;
+        Object.keys(res.athletes || {}).forEach(function (id) {
+          var a = parId(id), info = res.athletes[id];
+          if (!a) return;
+          a.suivi = { lienOuvert: info.lienOuvert, derniereSync: info.derniereSync, majPlan: info.majPlan };
+          var n = Object.keys(info.jours || {}).length;
+          if (n) { a.jours = C.fusionner(a, { jours: info.jours }, 'retours').jours; nouveaux += n; }
+        });
+        E.sync.depuis = res.heure; E.sync.derniere = UI.maintenant(); E.sync.erreur = '';
+        if (manuel) toast(nouveaux ? nouveaux + ' saisie(s) reçue(s)' : 'Tout est à jour');
+        return nouveaux;
+      })
+      .catch(function (e) { E.sync.erreur = e.message; if (manuel) toast('Synchronisation impossible : ' + e.message); return 0; })
+      .then(function (nouveaux) {
+        enCours = null;
+        return sauver().then(function () {
+          rendreStatut();
+          if (nouveaux && !boite.open && (vue === 'athletes' || vue === 'plan')) rendre();
+        });
+      });
+    return enCours;
+  }
+  function rendreStatut(etat) {
+    var el = $('#statutSync');
+    if (!el) return;
+    var attente = Object.keys(E.aPublier).length + (E.communAPublier ? 1 : 0);
+    var t, cls = '';
+    if (!syncConfiguree()) { t = 'Synchronisation non configurée'; cls = 'attention'; }
+    else if (etat === 'en cours') t = 'Synchronisation…';
+    else if (E.sync.erreur) { t = 'Hors ligne : ' + E.sync.erreur; cls = 'attention'; }
+    else t = 'Synchronisé ' + UI.ilYa(E.sync.derniere) + (attente ? ' · ' + attente + ' envoi(s) en attente' : '');
+    el.textContent = t; el.className = 'statut ' + cls;
+  }
+
+  /* ---------- Rendu général ---------- */
+  function rendreEntete() {
+    var s = $('#choixAthlete');
+    s.innerHTML = E.athletes.length
+      ? E.athletes.slice().sort(function (x, y) { return nomComplet(x).localeCompare(nomComplet(y)); }).map(function (a) { return '<option value="' + esc(a.id) + '"' + (a.id === E.courant ? ' selected' : '') + '>' + esc(nomComplet(a)) + '</option>'; }).join('')
+      : '<option value="">Aucun athlète</option>';
+    rendreStatut();
+  }
+  function rendre() {
+    rendreEntete();
+    $$('nav.onglets a').forEach(function (a) { if (a.dataset.v === vue) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    var a = athlete();
+    ({
+      athletes: vueAthletes, plan: vuePlan, legende: function () { UI.vueLegende(main); },
+      allures: function () { if (!a) { main.innerHTML = vueVide(); return; } UI.vueAllures(main, a, true, function (x) { marquer(x); sauver().then(rendre); }); },
+      protos: function () { UI.vueProtos(main, a, true); }, reglages: vueReglages, tests: vueTests
+    }[vue] || vueAthletes)();
+  }
+  function route() { vue = (location.hash || '#/athletes').slice(2).split('/')[0] || 'athletes'; rendre(); }
+  function vueVide() {
+    return '<div class="carte vide"><img src="' + $('header.app img').src + '" alt=""><h2>Bienvenue</h2>' +
+      '<p class="muet">Importe un classeur Excel (onglets PLAN, LEGENDE, ALLURES, PROTOS) ou crée un athlète.</p>' +
+      '<div class="ligne" style="justify-content:center"><button data-act="importXlsx">Importer un classeur Excel</button>' +
+      '<button class="sec" data-act="nouvelAthlete">Créer un athlète</button></div></div>';
+  }
+
+  /* ---------- ATHLÈTES (tableau de bord entraîneur) ---------- */
+  function vueAthletes() {
+    var aj = auj();
+    var h = '<section class="carte"><div class="ligne"><h2 class="espace">Mes athlètes</h2>' +
+      '<button class="sec" data-act="sync">Synchroniser</button><button class="sec" data-act="importXlsx">Importer un Excel</button><button data-act="nouvelAthlete">Nouvel athlète</button></div>' +
+      (syncConfiguree() ? '' : '<p class="alerte">La synchronisation n\'est pas configurée : les athlètes ne reçoivent pas encore leur plan. <a href="#/reglages">Configurer</a></p>') + '</section>';
+    h += '<section class="carte"><h3>Mot du coach à tous</h3><p class="muet petit">Affiché en haut de l\'application de chaque athlète.</p>' +
+      '<form id="fMot"><label class="sr" for="motGlobal">Mot du coach</label><textarea id="motGlobal" maxlength="500" placeholder="ex. Semaine de récupération pour tout le monde : on lève le pied !">' + esc(E.motGlobal) + '</textarea>' +
+      '<div class="ligne" style="justify-content:flex-end;margin-top:8px"><button>Publier le mot</button></div></form></section>';
+    var compets = C.competitionsAVenir(E.athletes, aj, 7);
+    h += '<section class="carte"><h3>Compétitions des 7 prochains jours</h3>' + (compets.length ? '<ul class="liste">' + compets.map(function (c) {
+      return '<li><b>' + esc(UI.jourCourt(c.date)) + '</b> · ' + esc(nomComplet(c)) + ' · ' + esc(c.corps) + '</li>';
+    }).join('') + '</ul>' : '<p class="muet">Aucune compétition prévue.</p>') + '</section>';
+    if (!E.athletes.length) { main.innerHTML = h + vueVide(); brancherMot(); return; }
+    var lignes = E.athletes.map(function (a) { return { a: a, r: C.resumeCoach(a, aj) }; });
+    lignes.sort(function (x, y) { return (y.r.alerte - x.r.alerte) || nomComplet(x.a).localeCompare(nomComplet(y.a)); });
+    var nbAlertes = lignes.filter(function (l) { return l.r.alerte; }).length;
+    h += '<section class="carte"><h3>Semaine en cours</h3>' + (nbAlertes ? '<p class="alerte petit">⚠ ' + nbAlertes + ' athlète(s) sans retour sur au moins 2 séances prévues des 14 derniers jours.</p>' : '') +
+      '<div class="tableau"><table><thead><tr><th>Athlète</th><th class="num">Séances</th><th class="num">KM</th><th class="num">RPE moy.</th><th>Dernière saisie</th><th>Lien</th></tr></thead><tbody>' +
+      lignes.map(function (l) {
+        var a = l.a, r = l.r, s = a.suivi || {};
+        return '<tr class="cliquable" data-act="ouvrirAthlete" data-id="' + esc(a.id) + '"><td>' + (r.alerte ? '<span class="voyant" title="' + r.sansRetour.length + ' séance(s) prévue(s) sans retour">⚠</span> ' : '') + '<b>' + esc(nomComplet(a)) + '</b></td>' +
+          '<td class="num">' + r.semaine.prevuesFaites + ' / ' + r.semaine.prevuesADate + '</td>' +
+          '<td class="num">' + (r.semaine.km ? C.nombreFR(r.semaine.km, 1) : '') + '</td>' +
+          '<td class="num">' + (r.rpeMoy !== null ? C.nombreFR(r.rpeMoy, 1) : '') + '</td>' +
+          '<td>' + (r.derniere ? esc(UI.jourCourt(r.derniere)) : '<span class="muet">aucune</span>') + '</td>' +
+          '<td>' + (s.lienOuvert ? 'ouvert ' + esc(UI.ilYa(s.lienOuvert)) : (E.aPublier[a.id] ? '<span class="muet">à publier</span>' : '<span class="muet">pas encore ouvert</span>')) + '</td></tr>';
+      }).join('') + '</tbody></table></div><p class="muet petit">Séances : prévues réalisées / prévues jusqu\'à aujourd\'hui. Touchez une ligne pour ouvrir le plan.</p></section>';
+    main.innerHTML = h;
+    brancherMot();
+  }
+  function brancherMot() {
+    var f = $('#fMot');
+    if (f) f.onsubmit = function (ev) { ev.preventDefault(); E.motGlobal = C.texte($('#motGlobal').value); marquerCommun(); sauver().then(function () { toast('Mot du coach enregistré'); }); };
+  }
+
+  /* ---------- PLAN d'un athlète ---------- */
+  function vuePlan() {
+    var a = athlete();
+    if (!a) { main.innerHTML = vueVide(); return; }
+    var aj = auj();
+    if (!a.debut) a.debut = C.weekStart(aj);
+    if (semaineAffichee === null) semaineAffichee = Math.max(1, UI.semaineDe(a, aj));
+    var s = a.suivi || {};
+    var h = UI.htmlFiche(a, aj, '<div class="ligne noprint"><button class="sec" data-act="ficheAthlete">Modifier la fiche</button><button data-act="envoyerLien">Envoyer le lien</button></div>');
+    h += '<section class="carte petit"><div class="ligne"><span>Lien : ' + (s.lienOuvert ? 'ouvert ' + esc(UI.ilYa(s.lienOuvert)) + (s.derniereSync ? ' · dernière visite ' + esc(UI.ilYa(s.derniereSync)) : '') : 'pas encore ouvert') + '</span>' +
+      '<span class="espace"></span><span class="muet">' + (E.aPublier[a.id] ? 'Modifications en attente d\'envoi' : (s.majPlan ? 'Plan publié ' + esc(UI.ilYa(s.majPlan)) : '')) + '</span></div>' +
+      (a.motCoach ? '<p style="margin:8px 0 0"><b>Mot du coach :</b> ' + esc(a.motCoach) + '</p>' : '') + '</section>';
+    h += UI.htmlSemaine(a, semaineAffichee, aj, { role: 'coach', boutonsSemaine: '<button class="discret" data-act="semInfo">Cycle / phase</button><button class="discret" data-act="semCopier">Copier vers…</button>' });
+    h += UI.htmlEnsemble(a, semaineAffichee);
+    main.innerHTML = h;
+    UI.brancherGraph(a, semaineAffichee, function (n) { semaineAffichee = n; vuePlan(); window.scrollTo(0, 0); });
+  }
+
   function datalist(id, liste) { return '<datalist id="' + id + '">' + (liste || []).map(function (x) { return '<option value="' + esc(x.code) + '">' + esc(x.desc) + '</option>'; }).join('') + '</datalist>'; }
   function editJour(date) {
-    var a = athlete(), j = a.jours[date] || {}, coach = estCoach();
-    var h = '<form class="boite" method="dialog"><h2>' + C.JOURS_LONGS[C.dayOfWeek(date)] + ' ' + C.formatDateFR(date) + ' · S' + semaineDe(a, date) + '</h2>';
-    h += '<fieldset' + (coach ? '' : ' disabled') + '><legend>Partie entraîneur</legend>' +
+    var a = athlete(), j = a.jours[date] || {};
+    var h = '<form class="boite" method="dialog"><h2>' + C.JOURS_LONGS[C.dayOfWeek(date)] + ' ' + C.formatDateFR(date) + ' · S' + UI.semaineDe(a, date) + '</h2>' +
       '<label>Corps de séance<input name="corps" value="' + esc(j.corps) + '" placeholder="ex. 5x800M 95% VMA RMT2-3\' ou REPOS"></label>' +
       '<div class="champs"><label>Éveil (min.)<input name="eveil" value="' + esc(j.eveil) + '"></label><label>Éduc (min.)<input name="educ" value="' + esc(j.educ) + '"></label><label>RAC (min.)<input name="rac" value="' + esc(j.rac) + '"></label>' +
       '<label>Profil<input name="profil" list="dlProfils" value="' + esc(j.profil) + '"></label><label>Type<input name="type" list="dlTypes" value="' + esc(j.type) + '"></label></div>' +
-      '<label>Consignes<input name="consignes" value="' + esc(j.consignes) + '"></label></fieldset>';
-    h += '<fieldset' + (coach ? ' disabled' : '') + '><legend>Partie athlète</legend><div class="champs">' +
-      '<label>KM<input name="km" inputmode="decimal" value="' + (C.isNum(j.km) ? C.nombreFR(j.km, 3) : '') + '" placeholder="12,5"></label>' +
-      '<label>Durée<input name="duree" value="' + (C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '') + '" placeholder="1:15:45"></label>' +
-      '<label>RPE<select name="rpe"><option value="">—</option>' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) { return '<option value="' + n + '"' + (j.rpe === n ? ' selected' : '') + '>' + n + (C.ECHELLE_RPE[n] ? ' · ' + C.ECHELLE_RPE[n] : '') + '</option>'; }).join('') +
-      (C.isNum(j.rpe) && [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].indexOf(j.rpe) < 0 ? '<option value="' + j.rpe + '" selected>' + C.nombreFR(j.rpe, 1) + '</option>' : '') + '</select></label></div>' +
-      '<p class="muet petit" style="margin-top:0">RPE : niveau d\'intensité perçu de la séance, à noter 30 min après la séance (évaluation subjective basée sur son propre ressenti). Échelle de l\'entraîneur : 1 très facile, 2 facile, 4 modéré, 7 difficile, 9 très difficile, 10 effort maximal.</p>' +
-      '<label>Notes perso<textarea name="notes">' + esc(j.notes) + '</textarea></label></fieldset>';
-    h += datalist('dlProfils', E.legende && E.legende.profils) + datalist('dlTypes', E.legende && E.legende.types);
-    h += '<p class="alerte" id="erreurJour" hidden></p><div class="pied">' + (coach && C.aContenuCoach(j) ? '<button type="button" class="danger" data-x="vider">Vider la séance</button>' : '') +
+      '<label>Consignes<input name="consignes" value="' + esc(j.consignes) + '"></label>' +
+      (C.aRetour(j) ? '<p class="muet petit">Saisie de l\'athlète (non modifiable ici) : ' + [C.isNum(j.km) ? C.nombreFR(j.km, 2) + ' km' : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.rpe) ? 'RPE ' + j.rpe : ''].filter(Boolean).join(' · ') + '</p>' : '') +
+      datalist('dlProfils', (E.legende || {}).profils) + datalist('dlTypes', (E.legende || {}).types) +
+      '<div class="pied">' + (C.aContenuCoach(j) ? '<button type="button" class="danger" data-x="vider">Vider la séance</button>' : '') +
       '<button type="button" class="sec" data-x="annuler">Annuler</button><button value="ok">Enregistrer</button></div></form>';
     boite.innerHTML = h; boite.showModal();
     var f = $('form', boite);
     $('[data-x="annuler"]', f).onclick = function () { boite.close(); };
     var vid = $('[data-x="vider"]', f);
-    if (vid) vid.onclick = function () {
-      C.CHAMPS_COACH.forEach(function (k) { delete j[k]; });
-      majJour(a, date, j); boite.close();
-    };
+    if (vid) vid.onclick = function () { var n = Object.assign({}, j); C.CHAMPS_COACH.forEach(function (k) { delete n[k]; }); majJour(a, date, n); boite.close(); };
     f.onsubmit = function (ev) {
       ev.preventDefault();
-      var d = new FormData(f), n = Object.assign({}, j), err = [];
-      if (coach) C.CHAMPS_COACH.forEach(function (k) { n[k] = d.get(k); });
-      else {
-        var km = C.parseNumberFR(d.get('km')), du = C.parseDuree(d.get('duree')), rpe = C.parseNumberFR(d.get('rpe'));
-        if (km !== null && !(km >= 0 && km < 400)) err.push('KM : nombre attendu, ex. 12,5');
-        if (du !== null && !(du > 0)) err.push('Durée : format h:mm:ss, mm:ss, 1h15 ou minutes');
-        if (rpe !== null && !(rpe >= 1 && rpe <= 10)) err.push('RPE : entre 1 et 10');
-        n.km = km; n.dureeSec = du; n.rpe = rpe; n.notes = d.get('notes');
-      }
-      if (err.length) { var e = $('#erreurJour'); e.hidden = false; e.textContent = err.join(' · '); return; }
+      var d = new FormData(f), n = Object.assign({}, j);
+      C.CHAMPS_COACH.forEach(function (k) { n[k] = d.get(k); });
       majJour(a, date, n); boite.close();
     };
   }
   function majJour(a, date, j) {
     var n = C.nettoyerJour(j);
     if (Object.keys(n).length) a.jours[date] = n; else delete a.jours[date];
-    a.maj = new Date().toISOString();
+    marquer(a);
     sauver().then(function () { toast('Enregistré'); rendre(); });
+  }
+  function reagir(date) {
+    var a = athlete(), j = a.jours[date] || {};
+    var actuel = C.texte(j.reaction), emo = UI.REACTIONS.filter(function (e) { return actuel.indexOf(e) === 0; })[0] || '';
+    boite.innerHTML = '<form class="boite"><h2>Réagir à la séance du ' + C.formatDateFR(date) + '</h2>' +
+      '<p class="muet petit">' + esc(nomComplet(a)) + ' verra ta réaction à sa prochaine ouverture de l\'application.</p>' +
+      '<div class="emojis" role="radiogroup" aria-label="Réaction">' + UI.REACTIONS.map(function (e) { return '<label><input type="radio" name="emo" value="' + e + '"' + (e === emo ? ' checked' : '') + '><span>' + e + '</span></label>'; }).join('') + '</div>' +
+      '<label>Un mot (facultatif)<input name="mot" maxlength="140" value="' + esc(actuel.replace(emo, '').trim()) + '" placeholder="ex. Bien géré !"></label>' +
+      '<div class="pied">' + (actuel ? '<button type="button" class="danger" data-x="effacer">Retirer</button>' : '') + '<button type="button" class="sec" data-x="annuler">Annuler</button><button>Envoyer</button></div></form>';
+    boite.showModal();
+    var f = $('form', boite);
+    $('[data-x="annuler"]', f).onclick = function () { boite.close(); };
+    var ef = $('[data-x="effacer"]', f);
+    if (ef) ef.onclick = function () { var n = Object.assign({}, j); delete n.reaction; majJour(a, date, n); boite.close(); };
+    f.onsubmit = function (ev) {
+      ev.preventDefault();
+      var d = new FormData(f), r = [d.get('emo') || '', C.texte(d.get('mot'))].filter(Boolean).join(' ');
+      var n = Object.assign({}, j); if (r) n.reaction = r; else delete n.reaction;
+      majJour(a, date, n); boite.close();
+    };
+  }
+
+  /* ---------- Lien de l'athlète ---------- */
+  function envoyerLien() {
+    var a = athlete();
+    assurerCode(a);
+    var lien = C.lienAthlete(baseUrl(), a), p = UI.prenom(a) || nomComplet(a);
+    var message = 'Bonjour ' + p + ', voici ton application My RespirOutdoor avec ton plan d\'entraînement : ' + lien +
+      '\nTouche le lien, puis ajoute l\'application à ton écran d\'accueil (iPhone : Partager → « Sur l\'écran d\'accueil » ; Android : menu ⋮ → « Installer l\'application »).';
+    var enc = encodeURIComponent(message);
+    boite.innerHTML = '<form class="boite"><h2>Envoyer le lien à ' + esc(nomComplet(a)) + '</h2>' +
+      (syncConfiguree() ? '' : '<p class="alerte">La synchronisation n\'est pas configurée : le lien ne fonctionnera qu\'une fois le service Google installé (Réglages → Synchronisation).</p>') +
+      '<p class="lien-athlete">' + esc(lien) + '</p>' +
+      '<div class="ligne">' + (navigator.share ? '<button type="button" data-x="partager">Partager…</button>' : '') +
+      '<a class="bouton sec" href="https://wa.me/?text=' + enc + '" target="_blank" rel="noopener">WhatsApp</a>' +
+      '<a class="bouton sec" href="sms:?&body=' + enc + '">SMS</a>' +
+      '<a class="bouton sec" href="mailto:?subject=' + encodeURIComponent('Ton plan Respir Outdoor') + '&body=' + enc + '">E-mail</a>' +
+      '<button type="button" class="sec" data-x="copier">Copier</button></div>' +
+      '<p class="muet petit">Le lien est personnel : il ne donne accès qu\'au plan de ' + esc(p) + '. En cas de besoin, « Nouveau lien » désactive l\'ancien.</p>' +
+      '<div class="pied"><button type="button" class="danger" data-x="nouveau">Nouveau lien</button><button type="button" class="sec" data-x="fermer">Fermer</button></div></form>';
+    boite.showModal();
+    marquer(a); sauver(); synchroniser(false);
+    var f = $('form', boite);
+    $('[data-x="fermer"]', f).onclick = function () { boite.close(); };
+    var sh = $('[data-x="partager"]', f);
+    if (sh) sh.onclick = function () { navigator.share({ title: 'My RespirOutdoor', text: message }).catch(function () {}); };
+    $('[data-x="copier"]', f).onclick = function () {
+      (navigator.clipboard ? navigator.clipboard.writeText(message) : Promise.reject()).then(function () { toast('Message copié'); }, function () { toast('Copie impossible : sélectionne le lien à la main'); });
+    };
+    $('[data-x="nouveau"]', f).onclick = function () {
+      if (!confirm('Créer un nouveau lien pour ' + nomComplet(a) + ' ? L\'ancien ne fonctionnera plus.')) return;
+      a.code = C.genererCode(); a.suivi = {}; boite.close(); marquer(a); sauver().then(envoyerLien);
+    };
   }
 
   /* ---------- Fiche athlète ---------- */
@@ -1273,6 +1846,7 @@ var Store = (function () {
       '<label>Hebdo (séances)<input name="hebdo" value="' + esc(a.hebdo) + '"></label></div>' +
       '<label>Objectif<input name="objectif" value="' + esc(a.objectif) + '"></label>' +
       '<label>Objectif (accroche)<input name="objectif2" value="' + esc(a.objectif2) + '"></label>' +
+      '<label>Mot du coach pour cet athlète<textarea name="motCoach" maxlength="500" placeholder="Affiché en haut de son application">' + esc(a.motCoach) + '</textarea></label>' +
       '<div class="champs"><label>Contraintes<input name="contraintes" value="' + esc(a.contraintes) + '"></label><label>Terrains<input name="terrains" value="' + esc(a.terrains) + '"></label></div>' +
       '<fieldset><legend>Disponibilités</legend><div class="ligne">' + dispo.map(function (d) { return '<label class="ligne" style="margin:0 8px 10px 0"><input type="checkbox" name="d_' + d[0] + '"' + (a.dispos[d[0]] ? ' checked' : '') + '> ' + d[1] + '</label>'; }).join('') + '</div></fieldset>' +
       '<fieldset><legend>Zones d\'allures (% de VMA)</legend><div class="tableau"><table><thead><tr><th>Zone</th><th>Basse %</th><th>Haute %</th><th>Usage</th></tr></thead><tbody>' +
@@ -1285,7 +1859,7 @@ var Store = (function () {
     f.onsubmit = function (ev) {
       ev.preventDefault();
       var d = new FormData(f), err = [];
-      ['prenom', 'nom', 'email', 'hebdo', 'objectif', 'objectif2', 'contraintes', 'terrains'].forEach(function (k) { a[k] = C.texte(d.get(k)); });
+      ['prenom', 'nom', 'email', 'hebdo', 'objectif', 'objectif2', 'contraintes', 'terrains', 'motCoach'].forEach(function (k) { a[k] = C.texte(d.get(k)); });
       var deb = d.get('debut');
       if (!C.isValidISODate(deb)) err.push('Début du contrat invalide');
       else if (C.dayOfWeek(deb) !== 0) err.push('Le début du contrat doit être un lundi (les semaines S1, S2… partent de ce lundi)');
@@ -1293,26 +1867,27 @@ var Store = (function () {
       var ns = parseInt(d.get('contratSemaines'), 10); a.contratSemaines = ns > 0 ? ns : null;
       var vma = C.parseNumberFR(d.get('vma'));
       if (vma !== null && !(vma > 5 && vma < 30)) err.push('VMA : entre 5 et 30 km/h');
-      a.zones = a.zones.map(function (z, i) {
+      var zones = a.zones.map(function (z, i) {
         var b = C.parseNumberFR(d.get('zb' + i)), hh = C.parseNumberFR(d.get('zh' + i));
         if (!C.isNum(b) || !C.isNum(hh) || b > hh) err.push('Zone ' + (i + 1) + ' : bornes invalides');
         return { nom: C.texte(d.get('zn' + i)), bas: b, haut: hh, usage: C.texte(d.get('zu' + i)) };
       });
       if (err.length) { var e = $('#erreurFiche'); e.hidden = false; e.textContent = err.join(' · '); return; }
-      a.debut = deb; a.vma = vma;
+      a.debut = deb; a.vma = vma; a.zones = zones;
       Object.keys(a.dispos).forEach(function (k) { a.dispos[k] = d.get('d_' + k) === 'on'; });
       if (nouveau) {
         a.id = C.idAthlete(a);
-        if (E.athletes.some(function (x) { return x.id === a.id; })) a.id += '_' + Date.now().toString(36);
+        if (E.athletes.some(function (x) { return x.id === a.id; })) a.id += '_' + Date.now().toString(36).toUpperCase();
+        assurerCode(a);
         E.athletes.push(a); E.courant = a.id; semaineAffichee = null;
       }
-      a.maj = new Date().toISOString();
+      marquer(a);
       boite.close(); sauver().then(function () { location.hash = '#/plan'; rendre(); });
     };
   }
 
   function semInfo() {
-    var a = athlete(), n = semaineAffichee, w = a.semaines[n] || {};
+    var a = athlete(), n = semaineAffichee, w = (a.semaines || {})[n] || {};
     boite.innerHTML = '<form class="boite"><h2>S' + n + ' : situation planif et cycle</h2>' +
       '<label>Situation planif (phase)<input name="phase" value="' + esc(w.phase) + '" placeholder="ex. CYCLE DEVELOPPEMENT VMAC"></label>' +
       '<label>Type de cycle<input name="cycle" value="' + esc(w.cycle) + '" placeholder="ex. ASSIMIL, RELACH."></label>' +
@@ -1323,14 +1898,15 @@ var Store = (function () {
     f.onsubmit = function (ev) {
       ev.preventDefault();
       var d = new FormData(f), p = C.texte(d.get('phase')), c = C.texte(d.get('cycle'));
+      a.semaines = a.semaines || {};
       if (p || c) a.semaines[n] = { phase: p || undefined, cycle: c || undefined }; else delete a.semaines[n];
-      boite.close(); sauver().then(rendre);
+      marquer(a); boite.close(); sauver().then(rendre);
     };
   }
   function semCopier() {
     var a = athlete(), n = semaineAffichee;
     boite.innerHTML = '<form class="boite"><h2>Copier la partie entraîneur de S' + n + '</h2>' +
-      '<p class="muet petit">Les séances de la semaine cible sont remplacées ; les retours de l\'athlète (km, durée, RPE, notes) sont conservés.</p>' +
+      '<p class="muet petit">Les séances de la semaine cible sont remplacées ; les saisies de l\'athlète sont conservées.</p>' +
       '<label>Vers la semaine n°<input name="cible" type="number" min="1" value="' + (n + 1) + '"></label>' +
       '<div class="pied"><button type="button" class="sec" data-x="annuler">Annuler</button><button>Copier</button></div></form>';
     boite.showModal();
@@ -1340,149 +1916,17 @@ var Store = (function () {
       ev.preventDefault();
       var c = parseInt(new FormData(f).get('cible'), 10);
       if (!(c >= 1) || c === n) return;
-      var l1 = lundiDe(a, n), l2 = lundiDe(a, c);
+      var l1 = UI.lundiDe(a, n), l2 = UI.lundiDe(a, c);
       for (var i = 0; i < 7; i++) {
         var src = a.jours[C.addDays(l1, i)] || {}, d2 = C.addDays(l2, i), dst = Object.assign({}, a.jours[d2] || {});
         C.CHAMPS_COACH.forEach(function (k) { if (src[k] !== undefined) dst[k] = src[k]; else delete dst[k]; });
         var nn = C.nettoyerJour(dst);
         if (Object.keys(nn).length) a.jours[d2] = nn; else delete a.jours[d2];
       }
-      boite.close(); semaineAffichee = c; sauver().then(function () { toast('S' + n + ' copiée vers S' + c); rendre(); });
+      marquer(a); boite.close(); semaineAffichee = c; sauver().then(function () { toast('S' + n + ' copiée vers S' + c); rendre(); });
     };
   }
 
-  /* ---------- LÉGENDE ---------- */
-  function surligner(t, q) {
-    var s = esc(t); if (!q) return s;
-    var i = s.toUpperCase().indexOf(esc(q).toUpperCase());
-    return i < 0 ? s : s.slice(0, i) + '<mark>' + s.slice(i, i + esc(q).length) + '</mark>' + s.slice(i + esc(q).length);
-  }
-  function vueLegende() {
-    var lg = E.legende || { principes: [], colonnes: [], profils: [], types: [] }, q = rechercheLegende.trim();
-    function filtre(l) { return (l || []).filter(function (x) { return !q || (x.code + ' ' + x.desc).toUpperCase().indexOf(q.toUpperCase()) >= 0; }); }
-    function liste(l) { return l.length ? '<dl class="codes">' + l.map(function (x) { return '<dt>' + surligner(x.code, q) + '</dt><dd>' + surligner(x.desc, q) + '</dd>'; }).join('') + '</dl>' : '<p class="muet">Aucun résultat.</p>'; }
-    var h = '<section class="carte"><h2>Légende &amp; abréviations</h2><label for="rechLeg">Rechercher un code ou un mot</label><input id="rechLeg" type="search" value="' + esc(rechercheLegende) + '" placeholder="ex. VMA, RTDESC, côte"></section>';
-    if (!q && lg.principes.length) h += '<section class="carte"><h3>Principes</h3><ol>' + lg.principes.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ol></section>';
-    h += '<div class="grille2"><section class="carte"><h3>Colonnes du tableau</h3>' + liste(filtre(lg.colonnes)) + '</section>' +
-      '<section class="carte"><h3>Colonne PROFIL</h3>' + liste(filtre(lg.profils)) + '</section></div>';
-    var types = filtre(lg.types), fams = {};
-    types.forEach(function (t) { var f = t.famille || 'Autres'; (fams[f] = fams[f] || []).push(t); });
-    h += '<section class="carte"><h3>Colonne TYPE</h3>' + (types.length ? '' : '<p class="muet">Aucun résultat.</p>') +
-      Object.keys(fams).map(function (f) {
-        return '<h3 style="margin-top:14px;font-size:.95rem"><span class="fam" style="--fam:' + (FAMILLES[f] || 'var(--bord)') + '"></span>' + esc(f) + '</h3>' + liste(fams[f]);
-      }).join('') +
-      (q ? '' : '<p class="muet petit" style="margin-top:14px">Les familles reprennent les regroupements écrits verticalement dans la colonne H de l\'onglet LEGENDE. « COMP » (compétition) et « PROTO » sont utilisés dans le plan mais ne figurent pas dans la légende.</p>') + '</section>';
-    main.innerHTML = h;
-    var r = $('#rechLeg');
-    r.oninput = function () { rechercheLegende = r.value; var pos = r.selectionStart; vueLegende(); var n = $('#rechLeg'); n.focus(); n.setSelectionRange(pos, pos); };
-  }
-
-  /* ---------- ALLURES ---------- */
-  function vueAllures() {
-    var a = athlete();
-    if (!a) { main.innerHTML = vueVide(); return; }
-    var vma = a.vma, al = a.allures;
-    var h = '<section class="carte"><h2>VMA &amp; allures</h2><form id="fAll" class="champs">' +
-      '<label>VMA (km/h)<input name="vma" inputmode="decimal" value="' + (C.isNum(vma) ? C.nombreFR(vma) : '') + '"></label>' +
-      '<label>Type de test<input name="ttype" value="' + esc(a.test.type) + '" placeholder="1/2 COOPER"></label>' +
-      '<label>Date du test<input name="tdate" value="' + esc(a.test.date) + '" placeholder="11/24"></label>' +
-      '<label>VMA estimée<select name="testim"><option value="N">Non</option><option value="O"' + (a.test.estimee ? ' selected' : '') + '>Oui</option></select></label>' +
-      '<label>Chrono 10 km<input name="c10" value="' + (C.isNum(al.chrono10) ? C.formatDuree(al.chrono10) : '') + '" placeholder="0:37:00"></label>' +
-      '<label>Chrono semi<input name="cs" value="' + (C.isNum(al.chronoSemi) ? C.formatDuree(al.chronoSemi) : '') + '" placeholder="1:22:45"></label>' +
-      '<label>Chrono marathon<input name="cm" value="' + (C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : '') + '" placeholder="2:59:00"></label>' +
-      '<label>Pré-fatigue (% VMA)<input name="pf" inputmode="decimal" value="' + C.nombreFR(al.preFatPct, 1) + '"></label>' +
-      '</form><p class="alerte" id="erreurAll" hidden></p><p class="muet petit">Les calculs se mettent à jour à chaque modification. Les formules reprennent celles de l\'onglet ALLURES (voir FORMULES.md).</p></section>';
-    if (!C.isNum(vma)) { main.innerHTML = h + '<p class="alerte">Renseigne la VMA pour afficher les allures.</p>'; brancherAllures(a); return; }
-
-    // Zones
-    h += '<div class="grille2"><section class="carte"><h3>Zones d\'allures</h3><div class="tableau"><table><thead><tr><th>Zone</th><th class="num">% VMA</th><th class="num">km/h</th><th class="num">min/km</th><th>Usage</th></tr></thead><tbody>' +
-      a.zones.map(function (z) { var v = C.zoneVitesses(vma, z); return '<tr><td><b>' + esc(z.nom) + '</b></td><td class="num">' + C.nombreFR(z.bas, 1) + '–' + C.nombreFR(z.haut, 1) + '</td><td class="num">' + (v ? C.nombreFR(v.bas, 1) + '–' + C.nombreFR(v.haut, 1) : '') + '</td><td class="num">' + (v ? C.formatAllure(v.allureLente).replace(' /km', '') + '–' + C.formatAllure(v.allureRapide).replace(' /km', '') : '') + '</td><td>' + esc(z.usage) + '</td></tr>'; }).join('') +
-      '</tbody></table></div></section>';
-    // Historique
-    h += '<section class="carte"><h3>Évolution de la VMA</h3>' + (a.historiqueVMA.length ? '<div class="tableau"><table><thead><tr><th>Test</th><th>Date</th><th class="num">VMA</th>' + (estCoach() ? '<th></th>' : '') + '</tr></thead><tbody>' +
-      a.historiqueVMA.map(function (x, i) { return '<tr><td>' + esc(x.test) + '</td><td>' + esc(x.date) + '</td><td class="num">' + C.nombreFR(x.vma, 2) + ' km/h</td>' + (estCoach() ? '<td><button class="discret" data-act="supprVma" data-i="' + i + '" aria-label="Supprimer">✕</button></td>' : '') + '</tr>'; }).join('') +
-      '</tbody></table></div>' : '<p class="muet">Aucun test enregistré.</p>') +
-      (estCoach() ? '<form id="fHist" class="champs" style="margin-top:10px"><label>Test<input name="t" placeholder="1/2 COOP"></label><label>Date<input name="d" placeholder="11/24"></label><label>VMA<input name="v" inputmode="decimal"></label><label>&nbsp;<button>Ajouter</button></label></form>' : '') + '</section></div>';
-
-    // VMA / PAL
-    var pcts = [120, 115, 110, 105, 100, 95], dists = [500, 400, 300, 200, 100];
-    h += '<section class="carte"><h3>Valeurs du travail en VMA ou PAL</h3><div class="tableau"><table><thead><tr><th>Distance</th>' + pcts.map(function (p) { return '<th class="num">' + p + ' %<br><span class="muet petit">' + C.nombreFR(C.vitessePct(vma, p), 1) + ' km/h</span></th>'; }).join('') + '</tr></thead><tbody>' +
-      dists.map(function (d) { return '<tr><td><b>' + d + ' m</b></td>' + pcts.map(function (p) { return '<td class="num">' + C.formatTemps(C.tempsDistancePct(d, vma, p)) + '</td>'; }).join('') + '</tr>'; }).join('') +
-      '</tbody></table></div><p class="muet petit">PAL : puissance anaérobie lactique (résistance-intensité) ; effort proche du maximum d\'une durée de 20 s à 1 min. Récupération incomplète et passive ; 3 à 6 répétitions. 100 % = VMA courte, 95 % = VMA longue.</p></section>';
-
-    // Spécifiques
-    var specs = [['10 km', al.chrono10, 10, 90], ['semi-marathon (21,1 km)', al.chronoSemi, 21.1, 85], ['marathon (42,195 km)', al.chronoMarathon, 42.195, 80]];
-    h += '<div class="grille2">' + specs.map(function (s) {
-      var x = C.allureChrono(s[1], s[2]), rep = C.vitessePct(vma, s[3]);
-      var t = '<section class="carte"><h3>Allure spécifique ' + s[0] + '</h3>';
-      if (!x) t += '<p class="muet">Renseigne un chrono de référence ci-dessus.</p>';
-      else t += '<p><b>' + C.formatAllure(x.allure) + '</b> · ' + C.nombreFR(x.vitesse, 2) + ' km/h <span class="muet petit">(chrono ' + C.formatDuree(s[1]) + ')</span></p>' +
-        '<table><thead><tr><th>Distance</th><th class="num">Temps</th></tr></thead><tbody>' + [1000, 2000, 3000, 4000, 5000].map(function (d) { return '<tr><td>' + d + ' m</td><td class="num">' + C.formatTemps(x.allure * d / 1000) + '</td></tr>'; }).join('') + '</tbody></table>';
-      return t + '<p class="muet petit">Repère : ' + s[3] + ' % de VMA = ' + C.nombreFR(rep, 2) + ' km/h (' + C.formatAllure(C.paceFromSpeed(rep)) + ')</p></section>';
-    }).join('');
-    // Pré-fatigue
-    var vpf = C.vitessePct(vma, al.preFatPct);
-    h += '<section class="carte"><h3>Travail en pré-fatigue</h3><p><b>' + C.nombreFR(al.preFatPct, 1) + ' %</b> de VMA = ' + C.nombreFR(vpf, 2) + ' km/h · ' + C.formatAllure(C.paceFromSpeed(vpf)) + '</p>' +
-      '<table><thead><tr><th>Distance</th><th class="num">Temps</th></tr></thead><tbody>' + [1000, 2000, 3000, 4000, 5000].map(function (d) { return '<tr><td>' + d + ' m</td><td class="num">' + C.formatTemps(C.tempsDistancePct(d, vma, al.preFatPct)) + '</td></tr>'; }).join('') + '</tbody></table></section></div>';
-    // 30-30
-    h += '<section class="carte"><h3>Séance 30"-30" sur piste</h3><p class="muet petit">Distance en mètres à parcourir en 30 secondes.</p><table><thead><tr>' + [105, 102, 100].map(function (p) { return '<th class="num">' + p + ' % VMA</th>'; }).join('') + '</tr></thead><tbody><tr>' +
-      [105, 102, 100].map(function (p) { return '<td class="num"><b>' + Math.round(C.distanceTempsPct(30, vma, p)) + ' m</b></td>'; }).join('') + '</tr></tbody></table></section>';
-    main.innerHTML = h;
-    brancherAllures(a);
-  }
-  function brancherAllures(a) {
-    var f = $('#fAll');
-    f.onchange = function () {
-      var d = new FormData(f), err = [];
-      var vma = C.parseNumberFR(d.get('vma'));
-      if (vma !== null && !(vma > 5 && vma < 30)) err.push('VMA entre 5 et 30 km/h');
-      var ch = {}; [['c10', 'chrono10'], ['cs', 'chronoSemi'], ['cm', 'chronoMarathon']].forEach(function (k) {
-        var v = C.parseDuree(d.get(k[0])); if (v !== null && !(v > 0)) err.push('Chrono invalide (format h:mm:ss)'); else ch[k[1]] = v;
-      });
-      var pf = C.parseNumberFR(d.get('pf'));
-      if (!(pf > 0 && pf <= 120)) err.push('Pré-fatigue : % entre 1 et 120');
-      if (err.length) { var e = $('#erreurAll'); e.hidden = false; e.textContent = err.join(' · '); return; }
-      a.vma = vma; Object.assign(a.allures, ch); a.allures.preFatPct = pf;
-      a.test = { type: C.texte(d.get('ttype')), date: C.texte(d.get('tdate')), estimee: d.get('testim') === 'O' };
-      a.maj = new Date().toISOString();
-      sauver().then(vueAllures);
-    };
-    var fh = $('#fHist');
-    if (fh) fh.onsubmit = function (ev) {
-      ev.preventDefault();
-      var d = new FormData(fh), v = C.parseNumberFR(d.get('v'));
-      if (!(v > 5 && v < 30)) { toast('VMA entre 5 et 30 km/h'); return; }
-      a.historiqueVMA.push({ test: C.texte(d.get('t')), date: C.texte(d.get('d')), vma: v });
-      sauver().then(vueAllures);
-    };
-  }
-
-  /* ---------- PROTOS ---------- */
-  function vueProtos() {
-    var a = athlete(), protos = E.protos || [];
-    var h = '<section class="carte"><div class="ligne"><h2 class="espace">Protocoles</h2>' + (estCoach() ? '<button data-act="editProto" data-i="-1">Nouveau protocole</button>' : '') + '</div>' +
-      '<p class="muet petit">Bibliothèque de l\'entraîneur, commune à tous les athlètes. Elle se remplit à l\'import du classeur Excel (onglet PROTOS) ou avec « Nouveau protocole ».</p>' +
-      '<p class="petit"><b>Protocoles réfléchis et mis sur pied par Respir Outdoor : utilisation et reproduction interdites.</b> <span class="muet">(mention de l\'onglet PROTOS)</span></p></section>' +
-      (protos.length ? '' : '<section class="carte vide"><p class="muet">Aucun protocole sur cet appareil.</p></section>');
-    h += protos.map(function (p, i) {
-      var g = p.grille || [], nc = Math.max.apply(null, g.map(function (l) { return l.length; }).concat([0]));
-      var cols = []; for (var c = 0; c < nc; c++) if (g.some(function (l) { return C.texte(l[c]); })) cols.push(c);
-      var usages = a ? Object.keys(a.jours).filter(function (d) { return (C.texte(a.jours[d].corps) + ' ' + C.texte(a.jours[d].consignes)).toUpperCase().indexOf(p.code.toUpperCase()) >= 0; }).sort() : [];
-      return '<section class="carte proto"><h3><span class="code">' + esc(p.code) + '</span>' + esc(p.titre) + '</h3>' +
-        (cols.length ? '<div class="tableau"><table><tbody>' + g.map(function (l) { return '<tr>' + cols.map(function (c) { return '<td>' + esc(l[c] || '') + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>' : '') +
-        (p.notes ? '<p style="white-space:pre-wrap">' + esc(p.notes) + '</p>' : '') +
-        (usages.length ? '<p class="petit muet">Prévu le : ' + usages.map(function (d) { return C.formatDateFR(d); }).join(', ') + '</p>' : '') +
-        (estCoach() ? '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="editProto" data-i="' + i + '">Modifier</button></div>' : '') + '</section>';
-    }).join('');
-    if (a) {
-      var nonDecrits = Object.keys(a.jours).filter(function (d) {
-        var t = C.texte(a.jours[d].corps).toUpperCase();
-        return /PROTOCOLE|\bPROTO\b/.test(t + ' ' + C.normCode(a.jours[d].type)) && !protos.some(function (p) { return t.indexOf(p.code.toUpperCase()) >= 0; });
-      }).sort();
-      if (nonDecrits.length) h += '<section class="alerte"><b>Protocoles cités dans le plan mais non décrits ici :</b><ul>' + nonDecrits.map(function (d) { return '<li>' + C.formatDateFR(d) + ' : ' + esc(a.jours[d].corps) + '</li>'; }).join('') + '</ul></section>';
-    }
-    main.innerHTML = h;
-  }
   function editProto(i) {
     var p = i >= 0 ? E.protos[i] : { code: '', titre: '', grille: [], notes: '' };
     var txt = (p.grille || []).map(function (l) { return l.join(' | '); }).join('\n');
@@ -1495,127 +1939,111 @@ var Store = (function () {
     var f = $('form', boite);
     $('[data-x="annuler"]', f).onclick = function () { boite.close(); };
     var s = $('[data-x="suppr"]', f);
-    if (s) s.onclick = function () { if (confirm('Supprimer ' + p.code + ' ?')) { E.protos.splice(i, 1); boite.close(); sauver().then(rendre); } };
+    if (s) s.onclick = function () { if (confirm('Supprimer ' + p.code + ' ?')) { E.protos.splice(i, 1); marquerCommun(); boite.close(); sauver().then(rendre); } };
     f.onsubmit = function (ev) {
       ev.preventDefault();
-      var d = new FormData(f), n = {
-        id: C.texte(d.get('code')).toUpperCase(), code: C.texte(d.get('code')).toUpperCase(), titre: C.texte(d.get('titre')), notes: C.texte(d.get('notes')),
+      var d = new FormData(f), code = C.texte(d.get('code')).toUpperCase(), n = {
+        id: code, code: code, titre: C.texte(d.get('titre')), notes: C.texte(d.get('notes')),
         grille: C.texte(d.get('grille')).split('\n').filter(function (l) { return l.trim(); }).map(function (l) { return l.split('|').map(function (c) { return c.trim(); }); })
       };
       if (i >= 0) E.protos[i] = n; else E.protos.push(n);
-      boite.close(); sauver().then(rendre);
+      marquerCommun(); boite.close(); sauver().then(rendre);
     };
   }
 
-  /* ---------- DONNÉES ---------- */
-  function vueDonnees() {
+  /* ---------- RÉGLAGES ---------- */
+  function vueReglages() {
     var a = athlete();
-    var h = '<section class="carte"><h2>Qui utilise cet appareil ?</h2><div class="ligne">' +
-      Object.keys(ROLES).map(function (r) { return '<label class="ligne" style="margin:0 16px 0 0"><input type="radio" name="role" value="' + r + '"' + (E.reglages.role === r ? ' checked' : '') + '> ' + ROLES[r] + '</label>'; }).join('') + '</div>' +
-      '<p class="muet petit">Entraîneur : écrit le plan (séance, éveil, éduc, RAC, profil, type, consignes, cycles, protos). Athlète : remplit sa partie (km, durée, RPE, notes). C\'est un confort de saisie, pas une protection : les deux parties restent dans le même fichier.</p></section>';
-    h += '<section class="carte"><h2>Échanger entraîneur ↔ athlète</h2>' +
-      '<p class="muet petit">Le fichier d\'échange (.json) contient la fiche et le plan de l\'athlète affiché, la légende et les protos. Envoie-le par mail ou messagerie ; le destinataire l\'ouvre avec « Ouvrir un fichier d\'échange ».</p>' +
-      '<div class="ligne"><button data-act="exportAthlete"' + (a ? '' : ' disabled') + '>' + (estCoach() ? 'Envoyer le plan à l\'athlète' : 'Envoyer mes retours à l\'entraîneur') + '</button>' +
-      '<button class="sec" data-act="importJson">Ouvrir un fichier d\'échange</button></div></section>';
-    h += '<section class="carte"><h2>Classeur Excel de l\'entraîneur</h2>' +
-      '<p class="muet petit">Lit un classeur .xlsx au format du tableau (onglets PLAN, LEGENDE, ALLURES, PROTOS) : fiche, zones, séances, retours de l\'athlète, cycles, VMA et chronos, légende et protocoles. Le fichier n\'est pas modifié et ne quitte pas l\'appareil.</p>' +
+    var h = '<section class="carte"><h2>Synchronisation</h2>' +
+      '<p class="muet petit">Le service Google de Respir Outdoor relie cette application aux applications « My RespirOutdoor » des athlètes. Installation : voir le guide google/GUIDE-INSTALLATION.md.</p>' +
+      '<form id="fSync"><label>Adresse du service' + (config.service ? ' (fournie par la publication de l\'application)' : '') + '<input name="service" type="url" value="' + esc(urlService()) + '" placeholder="https://script.google.com/macros/s/…/exec"></label>' +
+      '<label>Clé entraîneur (onglet « Réglages » du tableur Google)<input name="cle" type="password" autocomplete="off" value="' + esc(E.reglages.cle) + '"></label>' +
+      '<div class="ligne"><button>Enregistrer et tester</button><button type="button" class="sec" data-act="sync">Synchroniser maintenant</button></div></form>' +
+      '<p class="petit" id="statutSync2" style="margin-top:10px"></p></section>';
+    h += '<section class="carte"><h2>Classeur Excel</h2>' +
+      '<p class="muet petit">Lit un classeur .xlsx au format du tableau (onglets PLAN, LEGENDE, ALLURES, PROTOS). Pour un athlète existant, seule la partie entraîneur est mise à jour : ses séances déjà saisies sont conservées.</p>' +
       '<button data-act="importXlsx">Importer un classeur Excel</button></section>';
-    h += '<section class="carte"><h2>Exports</h2><div class="ligne">' +
+    h += '<section class="carte"><h2>Exports et sauvegarde</h2><div class="ligne">' +
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
-      '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button></div>' +
-      '<p class="muet petit">La sauvegarde complète contient tous les athlètes ; elle se restaure avec « Ouvrir un fichier d\'échange ».</p></section>';
+      '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
+      '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
-    h += '<section class="carte"><h2>À propos</h2><p class="petit muet">Stockage : ' + esc(Store.mode) + ', sur cet appareil uniquement. Aucune donnée n\'est envoyée sur internet.</p>' +
-      '<div class="ligne"><a class="bouton sec" href="#/tests">Lancer les autotests</a><button class="danger" data-act="toutEffacer">Tout effacer</button></div></section>';
+    h += '<section class="carte"><h2>À propos</h2><p class="petit muet">Stockage : ' + esc(Store.mode) + ' sur cet appareil, et copie dans le tableur Google de l\'entraîneur si la synchronisation est configurée.</p>' +
+      '<div class="ligne"><a class="bouton sec" href="#/tests">Lancer les autotests</a><button class="danger" data-act="toutEffacer">Tout effacer sur cet appareil</button></div></section>';
     main.innerHTML = h;
-    $$('input[name="role"]').forEach(function (r) { r.onchange = function () { E.reglages.role = r.value; sauver().then(rendre); }; });
     var t = $('#theme'); t.value = E.reglages.theme || '';
-    t.onchange = function () { E.reglages.theme = t.value; appliquerTheme(); sauver(); };
+    t.onchange = function () { E.reglages.theme = t.value; UI.appliquerTheme(t.value); sauver(); };
+    var st = $('#statutSync2'), rs = $('#statutSync'); if (rs) st.textContent = rs.textContent;
+    $('#fSync').onsubmit = function (ev) {
+      ev.preventDefault();
+      var d = new FormData(ev.target), avant = syncConfiguree();
+      E.reglages.service = C.texte(d.get('service')) === (config.service || '') ? '' : C.texte(d.get('service'));
+      E.reglages.cle = C.texte(d.get('cle'));
+      st.textContent = 'Test en cours…';
+      appel({ action: 'coach.verifier' }).then(function () {
+        st.textContent = '✓ Service joignable et clé acceptée.';
+        if (!avant) { E.athletes.forEach(function (x) { assurerCode(x); E.aPublier[x.id] = UI.maintenant(); }); E.communAPublier = true; E.sync.depuis = ''; }
+        return sauver().then(function () { return synchroniser(true); });
+      }, function (e) { st.textContent = '✗ ' + e.message; return sauver(); });
+    };
   }
-  function appliquerTheme() { if (E.reglages.theme) document.documentElement.setAttribute('data-theme', E.reglages.theme); else document.documentElement.removeAttribute('data-theme'); }
 
   function choisirFichier(accept, cb) {
     var i = document.createElement('input'); i.type = 'file'; i.accept = accept;
     i.onchange = function () { if (i.files[0]) cb(i.files[0]); };
     i.click();
   }
-  function demanderMode(titre, texte, options) {
-    return new Promise(function (ok) {
-      boite.innerHTML = '<form class="boite"><h2>' + esc(titre) + '</h2>' + texte +
-        options.map(function (o, i) { return '<label class="ligne" style="align-items:flex-start;font-weight:400;color:var(--texte)"><input type="radio" name="mode" value="' + o[0] + '"' + (i === 0 ? ' checked' : '') + '> <span><b>' + esc(o[1]) + '</b><br><span class="muet">' + esc(o[2]) + '</span></span></label>'; }).join('') +
-        '<div class="pied"><button type="button" class="sec" data-x="annuler">Annuler</button><button>Valider</button></div></form>';
-      boite.showModal();
-      var f = $('form', boite);
-      $('[data-x="annuler"]', f).onclick = function () { boite.close(); ok(null); };
-      f.onsubmit = function (ev) { ev.preventDefault(); var m = new FormData(f).get('mode'); boite.close(); ok(m); };
-    });
-  }
-  var MODES = [
-    ['plan', 'Mettre à jour le plan', 'Prend la partie entraîneur du fichier (séances, fiche, cycles) et garde les retours déjà saisis sur cet appareil.'],
-    ['retours', 'Récupérer les retours de l\'athlète', 'Prend km, durée, RPE et notes du fichier et garde le plan de cet appareil.'],
-    ['remplacer', 'Tout remplacer', 'Remplace l\'athlète de cet appareil par celui du fichier.']
-  ];
-  function integrerAthlete(recu, rapport, lg, protos) {
-    var local = E.athletes.filter(function (x) { return x.id === recu.id; })[0];
-    var defaut = estCoach() ? 'retours' : 'plan';
-    var opts = MODES.slice().sort(function (x, y) { return (y[0] === defaut) - (x[0] === defaut); });
-    var p = local
-      ? demanderMode('Importer ' + nomComplet(recu), '<p>' + esc(nomComplet(recu)) + ' existe déjà sur cet appareil.</p>' + (rapport || ''), opts)
-      : demanderMode('Importer ' + nomComplet(recu), (rapport || '') + '<p>Nouvel athlète.</p>', [['remplacer', 'Ajouter cet athlète', 'Crée l\'athlète sur cet appareil.']]);
-    return p.then(function (mode) {
-      if (!mode) return;
-      var res = C.fusionner(local, recu, mode);
-      res.maj = new Date().toISOString();
-      if (local) E.athletes[E.athletes.indexOf(local)] = res; else E.athletes.push(res);
-      E.courant = res.id; semaineAffichee = null;
-      if (lg && (mode !== 'retours' || !local)) E.legende = lg;
-      if (protos && protos.length && (mode !== 'retours' || !local)) E.protos = protos;
-      return sauver().then(function () { toast('Import terminé'); location.hash = '#/plan'; rendre(); });
-    });
-  }
-  function importXlsx() {
-    choisirFichier('.xlsx', function (f) {
-      f.arrayBuffer().then(function (buf) { return C.lireXLSX(new Uint8Array(buf)); }).then(function (cl) {
-        var r = C.importerClasseur(cl);
-        var rap = '<ul class="petit">' + r.rapport.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
-        return integrerAthlete(r.athlete, rap, r.legende && r.legende.types.length ? enrichirFamilles(r.legende) : null, r.protos);
-      }).catch(function (e) { toast('Import impossible : ' + e.message); });
-    });
-  }
-  // Garde les familles connues pour les codes de la légende importée
   function enrichirFamilles(lg) {
     lg.types.forEach(function (t) { var r = C.chercherCode(DEFAUTS.legende.types, t.code); if (r && !r.variante) t.famille = r.entree.famille; });
     return lg;
   }
-  function importJson() {
+  function importXlsx() {
+    choisirFichier('.xlsx', function (f) {
+      f.arrayBuffer().then(function (buf) { return C.lireXLSX(new Uint8Array(buf)); }).then(function (cl) {
+        var r = C.importerClasseur(cl), recu = r.athlete, local = parId(recu.id);
+        var res = local ? C.fusionner(local, recu, 'excel') : recu;
+        res.id = recu.id; assurerCode(res);
+        if (local) E.athletes[E.athletes.indexOf(local)] = res; else E.athletes.push(res);
+        if (r.legende && r.legende.types.length) E.legende = enrichirFamilles(r.legende);
+        if (r.protos && r.protos.length) E.protos = r.protos;
+        E.courant = res.id; semaineAffichee = null;
+        marquer(res); marquerCommun();
+        return sauver().then(function () {
+          boite.innerHTML = '<form class="boite"><h2>' + (local ? 'Plan mis à jour' : 'Athlète ajouté') + ' : ' + esc(nomComplet(res)) + '</h2>' +
+            '<ul class="petit">' + r.rapport.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' +
+            (local ? '<p>Seule la partie entraîneur a été remplacée. Les séances déjà saisies par l\'athlète, tes réactions et son lien sont conservés.</p>' : '<p>Envoie-lui son lien pour qu\'il reçoive son plan.</p>') +
+            '<div class="pied">' + (local ? '' : '<button type="button" class="sec" data-x="lien">Envoyer le lien</button>') + '<button type="button" data-x="ok">Voir le plan</button></div></form>';
+          boite.showModal();
+          $('[data-x="ok"]', boite).onclick = function () { boite.close(); location.hash = '#/plan'; rendre(); };
+          var l = $('[data-x="lien"]', boite);
+          if (l) l.onclick = function () { boite.close(); location.hash = '#/plan'; rendre(); envoyerLien(); };
+        });
+      }).catch(function (e) { toast('Import impossible : ' + e.message); });
+    });
+  }
+  function restaurer() {
     choisirFichier('.json,application/json', function (f) {
       f.text().then(function (t) {
         var d = JSON.parse(t);
-        if (d.format === 'respir-sauvegarde') {
-          if (!confirm('Restaurer la sauvegarde du ' + C.formatDateFR(String(d.date).slice(0, 10)) + ' ? Toutes les données de cet appareil seront remplacées.')) return;
-          E.athletes = d.etat.athletes || []; E.legende = d.etat.legende || DEFAUTS.legende; E.protos = d.etat.protos || [];
-          E.courant = E.athletes[0] ? E.athletes[0].id : null; semaineAffichee = null;
-          return sauver().then(function () { toast('Sauvegarde restaurée'); rendre(); });
-        }
-        if (d.format !== 'respir-athlete' || !d.athlete) throw new Error('fichier non reconnu');
-        return integrerAthlete(d.athlete, '<p class="muet petit">Fichier envoyé par ' + esc(ROLES[d.role] || '?') + ' le ' + C.formatDateFR(String(d.date).slice(0, 10)) + '.</p>', d.legende, d.protos);
-      }).catch(function (e) { toast('Ouverture impossible : ' + e.message); });
+        if (d.format !== 'respir-sauvegarde' || !d.etat) throw new Error('fichier non reconnu');
+        if (!confirm('Restaurer la sauvegarde du ' + C.formatDateFR(String(d.date).slice(0, 10)) + ' ? Les données de cet appareil seront remplacées.')) return;
+        var cle = E.reglages.cle;
+        E = Object.assign(E, d.etat); E.reglages.cle = cle;
+        E.athletes.forEach(function (a) { assurerCode(a); E.aPublier[a.id] = UI.maintenant(); });
+        E.communAPublier = true; E.courant = E.athletes[0] ? E.athletes[0].id : null; semaineAffichee = null;
+        return sauver().then(function () { toast('Sauvegarde restaurée'); rendre(); planifierSync(); });
+      }).catch(function (e) { toast('Restauration impossible : ' + e.message); });
     });
-  }
-  function exportAthlete() {
-    var a = athlete();
-    var d = { format: 'respir-athlete', version: C.SCHEMA_VERSION, date: new Date().toISOString(), role: E.reglages.role, athlete: a, legende: E.legende, protos: E.protos };
-    telecharger(horodatage() + '_' + (a.nom || 'ATHLETE').toUpperCase() + '_' + (a.prenom || '').toUpperCase() + '.json', JSON.stringify(d, null, 1), 'application/json');
   }
   function exportCsv() {
     var a = athlete(), dates = Object.keys(a.jours).sort();
-    var l = [['Semaine', 'Jour', 'Date', 'Éveil (min.)', 'Éduc (min.)', 'Corps de séance', 'RAC (min.)', 'Profil', 'Type', 'Phase', 'Cycle', 'Consignes', 'KM', 'Durée', 'RPE', 'Notes perso']];
+    var l = [['Semaine', 'Jour', 'Date', 'Éveil (min.)', 'Éduc (min.)', 'Corps de séance', 'RAC (min.)', 'Profil', 'Type', 'Phase', 'Cycle', 'Consignes', 'KM', 'Durée', 'D+ (m)', 'RPE', 'Notes perso', 'Réaction du coach']];
     dates.forEach(function (d) {
-      var j = a.jours[d], s = semaineDe(a, d), w = a.semaines[s] || {};
+      var j = a.jours[d], s = UI.semaineDe(a, d), w = (a.semaines || {})[s] || {};
       l.push(['S' + s, C.JOURS[C.dayOfWeek(d)], C.formatDateFR(d), j.eveil || '', j.educ || '', j.corps || '', j.rac || '', j.profil || '', j.type || '', w.phase || '', w.cycle || '', j.consignes || '',
-        C.isNum(j.km) ? C.nombreFR(j.km, 3) : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.rpe) ? C.nombreFR(j.rpe, 1) : '', j.notes || '']);
+        C.isNum(j.km) ? C.nombreFR(j.km, 3) : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.dplus) ? Math.round(j.dplus) : '', C.isNum(j.rpe) ? C.nombreFR(j.rpe, 1) : '', j.notes || '', j.reaction || '']);
     });
     telecharger(horodatage() + '_PLAN_' + (a.nom || '').toUpperCase() + '.csv', '﻿' + C.versCSV(l), 'text/csv;charset=utf-8');
   }
@@ -1623,15 +2051,8 @@ var Store = (function () {
   /* ---------- Autotests ---------- */
   function vueTests() {
     var r = C.runTests(), ko = r.filter(function (x) { return !x.ok; }).length;
-    var h = '<section class="carte"><h2>Autotests : ' + (r.length - ko) + ' / ' + r.length + ' réussis</h2><p class="muet petit">Valeurs de référence calculées à la main (voir FORMULES.md). Aucun test n\'utilise de données personnelles.</p><ul>' +
+    var h = '<section class="carte"><h2>Autotests : ' + (r.length - ko) + ' / ' + r.length + ' réussis</h2><p class="muet petit">Valeurs de référence calculées à la main (voir FORMULES.md).</p><ul>' +
       r.map(function (x) { return '<li>' + (x.ok ? '✓' : '<b style="color:var(--alerte)">✗ ÉCHEC</b>') + ' ' + esc(x.nom) + (x.err ? ' — ' + esc(x.err) : '') + '</li>'; }).join('') + '</ul></section>';
-    var a = athlete();
-    if (a) {
-      // Cohérence sur les données : bilan de chaque semaine = somme directe des jours
-      var sem = semainesAvecDonnees(a), ecarts = 0, total = 0;
-      sem.forEach(function (b) { var s = 0; for (var i = 0; i < 7; i++) { var j = a.jours[C.addDays(b.lundi, i)]; if (j && C.isNum(j.km)) s += j.km; } total += s; if (Math.abs(s - b.km) > 1e-6) ecarts++; });
-      h += '<section class="carte"><h3>Cohérence sur les données de ' + esc(nomComplet(a)) + '</h3><p>' + (ecarts ? '✗ ' + ecarts + ' semaine(s) incohérente(s)' : '✓ Les ' + sem.length + ' bilans hebdomadaires égalent la somme directe des séances (' + C.nombreFR(total, 2) + ' km au total).') + '</p></section>';
-    }
     main.innerHTML = h;
   }
 
@@ -1642,42 +2063,58 @@ var Store = (function () {
     var act = b.dataset.act, a = athlete();
     if (act === 'semPrec') { semaineAffichee = Math.max(1, semaineAffichee - 1); vuePlan(); }
     else if (act === 'semSuiv') { semaineAffichee++; vuePlan(); }
-    else if (act === 'semAuj') { semaineAffichee = Math.max(1, semaineDe(a, auj())); vuePlan(); }
+    else if (act === 'semAuj') { semaineAffichee = Math.max(1, UI.semaineDe(a, auj())); vuePlan(); }
     else if (act === 'allerSem') { semaineAffichee = +b.dataset.n; vuePlan(); window.scrollTo(0, 0); }
     else if (act === 'imprimer') window.print();
     else if (act === 'semInfo') semInfo();
     else if (act === 'semCopier') semCopier();
     else if (act === 'editJour') editJour(b.dataset.date);
+    else if (act === 'reagir') reagir(b.dataset.date);
     else if (act === 'ficheAthlete') ficheAthlete(false);
     else if (act === 'nouvelAthlete') ficheAthlete(true);
+    else if (act === 'envoyerLien') envoyerLien();
+    else if (act === 'ouvrirAthlete') { E.courant = b.dataset.id; semaineAffichee = null; sauver(); location.hash = '#/plan'; }
     else if (act === 'editProto') editProto(+b.dataset.i);
     else if (act === 'importXlsx') importXlsx();
-    else if (act === 'importJson') importJson();
-    else if (act === 'exportAthlete') exportAthlete();
+    else if (act === 'restaurer') restaurer();
     else if (act === 'exportCsv') exportCsv();
-    else if (act === 'sauvegarde') telecharger(horodatage() + '_RESPIR_SAUVEGARDE.json', JSON.stringify({ format: 'respir-sauvegarde', version: C.SCHEMA_VERSION, date: new Date().toISOString(), etat: E }), 'application/json');
-    else if (act === 'supprVma') { if (confirm('Supprimer ce test ?')) { a.historiqueVMA.splice(+b.dataset.i, 1); sauver().then(vueAllures); } }
+    else if (act === 'sync') synchroniser(true);
+    else if (act === 'sauvegarde') {
+      var copie = JSON.parse(JSON.stringify(E)); copie.reglages.cle = '';
+      telecharger(horodatage() + '_RESPIR_SAUVEGARDE.json', JSON.stringify({ format: 'respir-sauvegarde', version: E.version, date: UI.maintenant(), etat: copie }), 'application/json');
+    }
+    else if (act === 'supprVma') { if (confirm('Supprimer ce test ?')) { a.historiqueVMA.splice(+b.dataset.i, 1); marquer(a); sauver().then(rendre); } }
     else if (act === 'supprAthlete') {
-      if (confirm('Supprimer ' + nomComplet(a) + ' et tout son plan de cet appareil ?')) {
-        E.athletes = E.athletes.filter(function (x) { return x !== a; }); E.courant = E.athletes[0] ? E.athletes[0].id : null; semaineAffichee = null; sauver().then(rendre);
+      if (confirm('Supprimer ' + nomComplet(a) + ', son plan et ses saisies (sur cet appareil et dans le tableur Google) ? Son lien ne fonctionnera plus.')) {
+        E.athletes = E.athletes.filter(function (x) { return x !== a; }); delete E.aPublier[a.id]; E.aSupprimer.push(a.id);
+        E.courant = E.athletes[0] ? E.athletes[0].id : null; semaineAffichee = null; sauver().then(function () { rendre(); planifierSync(); });
       }
     }
     else if (act === 'toutEffacer') {
-      if (confirm('Effacer tous les athlètes, la légende et les protos de cet appareil ? Pense à faire une sauvegarde avant.')) {
-        E.athletes = []; E.courant = null; E.legende = DEFAUTS.legende; E.protos = []; semaineAffichee = null; sauver().then(rendre);
+      if (confirm('Effacer toutes les données de cet appareil ? Le tableur Google n\'est pas touché. Pense à faire une sauvegarde avant.')) {
+        E.athletes = []; E.courant = null; E.legende = DEFAUTS.legende; E.protos = []; E.aPublier = {}; E.sync.depuis = ''; semaineAffichee = null; sauver().then(rendre);
       }
     }
   });
-  $('#choixAthlete').onchange = function (e) { E.courant = e.target.value; semaineAffichee = null; sauver(); rendre(); };
+  $('#choixAthlete').onchange = function (e) { E.courant = e.target.value; semaineAffichee = null; sauver(); if (vue === 'athletes') location.hash = '#/plan'; else rendre(); };
   window.addEventListener('hashchange', route);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') synchroniser(false); });
+  window.addEventListener('online', function () { synchroniser(false); });
+  setInterval(function () { if (document.visibilityState === 'visible') synchroniser(false); }, 120000);
+  setInterval(rendreStatut, 30000);
 
-  Store.charger().then(function (d) {
+  Promise.all([Store.charger(), UI.chargerConfig('config.json')]).then(function (r) {
+    var d = r[0]; config = r[1] || {};
     if (d && d.athletes) {
+      var reglages = Object.assign({}, E.reglages, d.reglages);
       E = Object.assign(E, d);
-      E.reglages = Object.assign({ role: 'coach' }, d.reglages);
+      E.reglages = reglages; delete E.reglages.role;
+      E.aPublier = E.aPublier || {}; E.aSupprimer = E.aSupprimer || []; E.sync = E.sync || { depuis: '', derniere: '', erreur: '' };
+      E.athletes.forEach(assurerCode);
     }
-    appliquerTheme();
+    UI.appliquerTheme(E.reglages.theme);
     route();
+    synchroniser(false);
   });
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
 })();
