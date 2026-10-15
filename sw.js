@@ -1,9 +1,9 @@
 // Service worker : fonctionnement hors connexion de Respir Outdoor Coach.
-// Fichiers de l'application : réponse immédiate depuis le cache, mise à jour en arrière-plan
-// (la nouvelle version est utilisée au chargement suivant). config.json : réseau d'abord.
+// Page de l'application et config.json : réseau d'abord, cache en secours (hors connexion ou réseau lent).
+// Autres fichiers (icônes, manifeste) : réponse depuis le cache, mise à jour en arrière-plan.
 // Aucune donnée d'athlète n'est mise en cache ici : elles restent dans IndexedDB et le tableur de l'entraîneur.
 var PREFIXE = 'respir-outdoor-';
-var VERSION = PREFIXE + 'v8';
+var VERSION = PREFIXE + 'v9';
 var FICHIERS = ['./', './index.html', './manifest.json', './config.json', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {
@@ -17,14 +17,19 @@ self.addEventListener('activate', function (e) {
 });
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET' || new URL(e.request.url).origin !== self.location.origin) return;
-  var config = /\/config\.json$/.test(new URL(e.request.url).pathname);
+  var chemin = new URL(e.request.url).pathname;
+  // Page de l'application et config.json : réseau d'abord (une mise à jour s'affiche dès l'ouverture), cache en secours après 4 s ou hors connexion
+  var config = e.request.mode === 'navigate' || /\/config\.json$|\/$|\.html$/.test(chemin);
   e.respondWith(caches.open(VERSION).then(function (cache) {
     return cache.match(e.request, { ignoreSearch: true }).then(function (enCache) {
       var reseau = fetch(e.request).then(function (rep) {
         if (rep && rep.ok) cache.put(e.request, rep.clone());
         return rep;
       }).catch(function () { return enCache; });
-      return config ? reseau.then(function (r) { return r || enCache; }) : (enCache || reseau);
+      if (!config) return enCache || reseau;
+      if (!enCache) return reseau;
+      var delai = new Promise(function (ok) { setTimeout(function () { ok(enCache); }, 4000); });
+      return Promise.race([reseau.then(function (r) { return r && r.ok ? r : enCache; }), delai]);
     });
   }));
 });
