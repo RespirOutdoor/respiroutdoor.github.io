@@ -282,6 +282,47 @@ ul.liste { margin: 0; padding-left: 18px; }
   #ouverture { animation: ouv-sortie .2s ease-in .4s forwards !important; }
 }
 @media print { #ouverture { display: none; } }
+
+/* ---------- Harmonisation des cartes et tableaux ---------- */
+:root { --rayon: 14px; }
+.carte { padding: 16px; margin-bottom: 14px; min-width: 0; box-shadow: 0 1px 3px rgba(10, 50, 42, .06); }
+.carte > h2, .carte > h3 { font-size: 1.1rem; margin-bottom: .75rem; }
+.grille2 { grid-template-columns: minmax(0, 1fr); gap: 0 14px; }
+@media (min-width: 760px) { .grille2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tableau { overflow-x: auto; border: 1px solid var(--bord); border-radius: 10px; -webkit-overflow-scrolling: touch; }
+.tableau table { font-size: .9rem; }
+.tableau th, .tableau td { padding: 9px 10px; }
+.tableau thead th { font-size: .8rem; letter-spacing: .02em; border-bottom: 1px solid var(--bord); }
+.tableau tbody tr:last-child > * { border-bottom: 0; }
+.tableau tbody tr:nth-child(even) > td, .tableau tbody tr:nth-child(even) > th { background: var(--repos); }
+.kpis { gap: 8px; }
+.kpi { border-radius: 10px; padding: 10px 12px; }
+.kpi b { font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.valeurs { margin-top: 0; }
+dl.codes { gap: 0 14px; }
+dl.codes dt, dl.codes dd { padding: 7px 0; border-bottom: 1px solid var(--bord); }
+dl.codes dt:last-of-type, dl.codes dd:last-of-type { border-bottom: 0; }
+.echelle { gap: 8px; }
+.echelle span { border-radius: 10px; min-height: 58px; font-size: .72rem; padding: 6px 4px; }
+/* Tableau de bord en colonnes */
+.bilan-tab { font-size: .84rem; }
+.tableau table.compact { font-size: .82rem; }
+.tableau table.compact th, .tableau table.compact td { padding: 8px 6px; }
+.tableau table.compact th:first-child, .tableau table.compact td:first-child { padding-left: 10px; }
+.tableau table.compact th:last-child, .tableau table.compact td:last-child { padding-right: 10px; }
+.tableau .bilan-tab th, .tableau .bilan-tab td { padding: 8px 6px; }
+.tableau .bilan-tab th:first-child { padding-left: 10px; }
+.tableau .bilan-tab th:last-child, .tableau .bilan-tab td:last-child { padding-right: 10px; }
+.bilan-tab th[scope="row"] { color: var(--texte-2); font-size: .78rem; position: static; white-space: nowrap; }
+.bilan-tab tbody tr:nth-child(odd) > th[scope="row"] { background: transparent; }
+.bilan-tab thead th small { display: block; font-weight: 500; font-size: .7rem; color: var(--texte-2); }
+.bilan-tab td b, .bilan-tab td { font-weight: 700; }
+.tableau .ecart { display: block; font-size: .72rem; font-weight: 500; color: var(--texte-2); }
+.tableau .ecart.voyant { color: var(--alerte); font-weight: 700; }
+/* Chaussures */
+.jauge { height: 6px; border-radius: 3px; background: var(--bord); margin-top: 6px; overflow: hidden; max-width: 160px; }
+.jauge span { display: block; height: 100%; background: var(--vert); border-radius: 3px; }
+.jauge.pleine span { background: var(--alerte); }
 </style>
 </head>
 <body class="athlete">
@@ -336,9 +377,9 @@ var Core = (function () {
   // Échelle « Intensité de l'effort » de 1 à 10 : image insérée dans l'onglet PLAN du classeur (cellule O7).
   // Libellés et couleurs relevés sur cette image ; les niveaux sans libellé restent sans libellé.
   var ECHELLE_RPE = { 1: 'Très facile', 2: 'Facile', 4: 'Modéré', 7: 'Difficile', 9: 'Très difficile', 10: 'Effort maximal' };
-  // Dégradé de la barre RPE (couleurs relevées sur la capture fournie) : bleu, vert, jaune, orange, rouge, violet, noir.
+  // Dégradé de la barre RPE, en tons pastel : bleu, vert, jaune, orange, rouge, violet, ardoise (effort maximal).
   // Niveau n placé à (n − 1) / 9 du dégradé ; les niveaux entre deux couleurs sont interpolés.
-  var DEGRADE_RPE = ['#4D83C3', '#519C57', '#EBC443', '#E5913B', '#C53A35', '#7342AF', '#111111'];
+  var DEGRADE_RPE = ['#9EC1E8', '#A6D6B4', '#F3DE95', '#F5BE8F', '#EE9E9A', '#C2A9E0', '#6E6584'];
   function couleurDegrade(t) {
     var n = DEGRADE_RPE.length - 1, x = Math.max(0, Math.min(1, t)) * n, i = Math.min(n - 1, Math.floor(x)), f = x - i;
     var a = DEGRADE_RPE[i], b = DEGRADE_RPE[i + 1], s = '#';
@@ -358,6 +399,17 @@ var Core = (function () {
   for (var nr = 1; nr <= 10; nr++) COULEURS_RPE[nr] = couleurDegrade((nr - 1) / 9);
   // Libellé du niveau entier le plus proche (6,5 -> niveau 7) ; null hors échelle
   function libelleRPE(v) { if (!isNum(v) || v < 1 || v > 10) return null; var n = Math.round(v); return { niveau: n, libelle: ECHELLE_RPE[n] || '', couleur: COULEURS_RPE[n], texte: texteSur(COULEURS_RPE[n]) }; }
+
+  // Kilomètres par paire de chaussures : km déjà parcourus à l'ajout + km des séances associées à la paire
+  function kmChaussures(ch, jours) {
+    var r = {};
+    ((ch && ch.liste) || []).forEach(function (c) { r[c.id] = isNum(c.kmDepart) ? c.kmDepart : 0; });
+    Object.keys((ch && ch.parDate) || {}).forEach(function (d) {
+      var id = ch.parDate[d], j = (jours || {})[d];
+      if (r[id] !== undefined && j && isNum(j.km)) r[id] = Math.round((r[id] + j.km) * 1000) / 1000;
+    });
+    return r;
+  }
 
   function pad2(n) { n = String(n); return n.length < 2 ? '0' + n : n; }
   function isNum(x) { return typeof x === 'number' && isFinite(x); }
@@ -1225,10 +1277,16 @@ var Core = (function () {
         a.jours['2026-08-03'].type === 'VMAC' && a.jours['2026-08-03'].eveil === '20' && a.jours['2026-08-05'].dureeSec === 3725 && a.jours['2026-08-05'].km === 12.3 &&
         a.jours['2026-08-05'].notes === 'bien' && a.semaines[82].cycle === 'AS' && a.id === 'DUPONT_JEAN';
     }],
-    ['Dégradé RPE : 1 = bleu #4D83C3, 4 = jaune #EBC443, 7 = rouge #C53A35, 10 = noir #111111 (texte blanc), 2 interpolé', function () {
-      // 2 -> t = 1/9 -> 2/3 du chemin bleu -> vert : 77 + (81−77)×2/3 = 79,7 -> 80 (0x50) ; 131 + (156−131)×2/3 = 147,7 -> 148 (0x94) ; 195 + (87−195)×2/3 = 123 (0x7B)
-      return libelleRPE(1).couleur === '#4D83C3' && libelleRPE(4).couleur === '#EBC443' && libelleRPE(7).couleur === '#C53A35' &&
-        libelleRPE(10).couleur === '#111111' && libelleRPE(10).texte === '#FFFFFF' && libelleRPE(4).texte === '#000000' && libelleRPE(2).couleur === '#50947B';
+    ['Dégradé RPE pastel : 1 = bleu #9EC1E8, 4 = jaune #F3DE95, 7 = rouge #EE9E9A, 10 = ardoise #6E6584 (texte blanc), 2 interpolé', function () {
+      // 2 -> t = 1/9 -> 2/3 du chemin bleu -> vert : 158 + (166−158)×2/3 = 163,3 -> 163 (0xA3) ; 193 + (214−193)×2/3 = 207 (0xCF) ; 232 + (180−232)×2/3 = 197,3 -> 197 (0xC5)
+      return libelleRPE(1).couleur === '#9EC1E8' && libelleRPE(4).couleur === '#F3DE95' && libelleRPE(7).couleur === '#EE9E9A' &&
+        libelleRPE(10).couleur === '#6E6584' && libelleRPE(10).texte === '#FFFFFF' && libelleRPE(4).texte === '#000000' && libelleRPE(2).couleur === '#A3CFC5';
+    }],
+    ['Chaussures : km = km de départ + km des séances associées ; séance sans km ou paire inconnue ignorée', function () {
+      var ch = { liste: [{ id: 'c1', nom: 'A', kmDepart: 120 }, { id: 'c2', nom: 'B', kmDepart: 0 }], parDate: { '2026-10-01': 'c1', '2026-10-02': 'c1', '2026-10-03': 'c2', '2026-10-04': 'c9', '2026-10-05': 'c2' } };
+      var jours = { '2026-10-01': { km: 10.5 }, '2026-10-02': { km: 8 }, '2026-10-03': { km: 12.25 }, '2026-10-04': { km: 30 }, '2026-10-05': { dureeSec: 1800 } };
+      var r = kmChaussures(ch, jours);
+      return r.c1 === 138.5 && r.c2 === 12.25 && r.c9 === undefined;
     }],
     ['Échelle RPE : 1 = Très facile, 4 = Modéré, 10 = Effort maximal ; 3 sans libellé ; 6,5 -> niveau 7 ; 0 et 11 hors échelle', function () {
       return libelleRPE(1).libelle === 'Très facile' && libelleRPE(4).libelle === 'Modéré' && libelleRPE(10).libelle === 'Effort maximal' && libelleRPE(3).libelle === '' &&
@@ -1248,7 +1306,7 @@ var Core = (function () {
     TZ: TZ, SCHEMA_VERSION: SCHEMA_VERSION, JOURS: JOURS, JOURS_LONGS: JOURS_LONGS, CHAMPS_COACH: CHAMPS_COACH, CHAMPS_ATHLETE: CHAMPS_ATHLETE,
     ZONES_DEFAUT: ZONES_DEFAUT, CHAMP_REACTION: CHAMP_REACTION, aDonneesAthlete: aDonneesAthlete, periodes: periodes, bilanPeriode: bilanPeriode,
     estPrevue: estPrevue, estFaite: estFaite, records: records, derniereSaisie: derniereSaisie, resumeCoach: resumeCoach, competitionsAVenir: competitionsAVenir,
-    genererCode: genererCode, slugNom: slugNom, lienAthlete: lienAthlete, codeDepuisLien: codeDepuisLien, ECHELLE_RPE: ECHELLE_RPE, DEGRADE_RPE: DEGRADE_RPE, libelleRPE: libelleRPE, pad2: pad2, isNum: isNum, texte: texte, parseNumberFR: parseNumberFR, nombreFR: nombreFR,
+    genererCode: genererCode, slugNom: slugNom, lienAthlete: lienAthlete, codeDepuisLien: codeDepuisLien, ECHELLE_RPE: ECHELLE_RPE, DEGRADE_RPE: DEGRADE_RPE, libelleRPE: libelleRPE, kmChaussures: kmChaussures, pad2: pad2, isNum: isNum, texte: texte, parseNumberFR: parseNumberFR, nombreFR: nombreFR,
     isValidISODate: isValidISODate, parseDateFR: parseDateFR, formatDateFR: formatDateFR, addDays: addDays, daysBetween: daysBetween,
     dayOfWeek: dayOfWeek, weekStart: weekStart, todayParis: todayParis, excelSerialToISO: excelSerialToISO,
     numSemaine: numSemaine, lundiSemaine: lundiSemaine, formatDuree: formatDuree, parseDuree: parseDuree, formatTemps: formatTemps,
@@ -1553,7 +1611,15 @@ var UI = (function () {
   // modifiable : formulaire actif (entraîneur) ou lecture seule (athlète) ; enregistrer(a) appelé après modification
   function vueAllures(main, a, modifiable, enregistrer) {
     var vma = a.vma, al = a.allures || {}, dis = modifiable ? '' : ' disabled';
-    var h = '<section class="carte"><h2>VMA &amp; allures</h2><form id="fAll" class="champs">' +
+    var h;
+    if (!modifiable) {
+      // Lecture seule (athlète) : valeurs en cases, pas de champs grisés
+      var vals = [['VMA', C.isNum(vma) ? C.nombreFR(vma) + ' km/h' : ''], ['Type de test', (a.test || {}).type], ['Date du test', (a.test || {}).date],
+        ['Chrono 10 km', C.isNum(al.chrono10) ? C.formatDuree(al.chrono10) : ''], ['Chrono semi', C.isNum(al.chronoSemi) ? C.formatDuree(al.chronoSemi) : ''],
+        ['Chrono marathon', C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : ''], ['Pré-fatigue', C.isNum(al.preFatPct) ? C.nombreFR(al.preFatPct, 1) + ' % VMA' : '']];
+      h = '<section class="carte"><h2>VMA &amp; allures</h2><div class="kpis kpis2 valeurs">' + vals.map(function (x) { return '<div class="kpi"><span class="etiq">' + x[0] + '</span><b>' + (C.texte(x[1]) ? esc(x[1]) : '—') + '</b></div>'; }).join('') +
+        '</div><p class="muet petit" style="margin:12px 0 0">Valeurs fixées par ton entraîneur. Formules de l\'onglet ALLURES du tableau de l\'entraîneur.</p></section>';
+    } else h = '<section class="carte"><h2>VMA &amp; allures</h2><form id="fAll" class="champs">' +
       '<label>VMA (km/h)<input name="vma" inputmode="decimal"' + dis + ' value="' + (C.isNum(vma) ? C.nombreFR(vma) : '') + '"></label>' +
       '<label>Type de test<input name="ttype"' + dis + ' value="' + esc((a.test || {}).type) + '" placeholder="1/2 COOPER"></label>' +
       '<label>Date du test<input name="tdate"' + dis + ' value="' + esc((a.test || {}).date) + '" placeholder="11/24"></label>' +
@@ -1563,7 +1629,7 @@ var UI = (function () {
       '<label>Pré-fatigue (% VMA)<input name="pf" inputmode="decimal"' + dis + ' value="' + C.nombreFR(al.preFatPct, 1) + '"></label>' +
       '</form><p class="alerte" id="erreurAll" hidden></p><p class="muet petit">' + (modifiable ? 'Les calculs se mettent à jour à chaque modification.' : 'Valeurs fixées par ton entraîneur.') + ' Formules de l\'onglet ALLURES du tableau de l\'entraîneur.</p></section>';
     if (!C.isNum(vma)) { main.innerHTML = h + '<p class="alerte">' + (modifiable ? 'Renseigne la VMA pour afficher les allures.' : 'Ton entraîneur n\'a pas encore renseigné ta VMA.') + '</p>'; brancher(); return; }
-    h += '<div class="grille2"><section class="carte"><h3>Zones d\'allures</h3><div class="tableau"><table><thead><tr><th>Zone</th><th class="num">% VMA</th><th class="num">km/h</th><th class="num">min/km</th><th>Usage</th></tr></thead><tbody>' +
+    h += '<div class="grille2"><section class="carte"><h3>Zones d\'allures</h3><div class="tableau"><table class="compact"><thead><tr><th>Zone</th><th class="num">% VMA</th><th class="num">km/h</th><th class="num">min/km</th><th>Usage</th></tr></thead><tbody>' +
       (a.zones || []).map(function (z) { var v = C.zoneVitesses(vma, z); return '<tr><td><b>' + esc(z.nom) + '</b></td><td class="num">' + C.nombreFR(z.bas, 1) + '–' + C.nombreFR(z.haut, 1) + '</td><td class="num">' + (v ? C.nombreFR(v.bas, 1) + '–' + C.nombreFR(v.haut, 1) : '') + '</td><td class="num">' + (v ? C.formatAllure(v.allureLente).replace(' /km', '') + '–' + C.formatAllure(v.allureRapide).replace(' /km', '') : '') + '</td><td>' + esc(z.usage) + '</td></tr>'; }).join('') +
       '</tbody></table></div></section>';
     var hist = a.historiqueVMA || [];
@@ -1798,15 +1864,93 @@ var UI = (function () {
     var ds = Object.keys(a.jours || {}).filter(function (d) { return d > apres && C.estPrevue(a.jours[d]); }).sort();
     return ds.length ? ds[0] : null;
   }
-  function carteBilan(titre, b, p, aj) {
-    var duree = function (s) { return C.formatDuree(s); };
-    return '<section class="carte"><h3>' + titre + '</h3><p class="muet petit">' + C.formatDateFR(b.du) + ' → ' + C.formatDateFR(b.au) + ' · écart vs ' + C.formatDateFR(b.precDu) + ' → ' + C.formatDateFR(b.precAu) + '</p>' +
-      '<div class="kpis kpis2">' +
-      '<div class="kpi"><span class="etiq">Volume</span><b>' + C.nombreFR(b.cur.km, 1) + ' km</b>' + UI.ecart(b.cur.km, b.prec.km, function (x) { return C.nombreFR(x, 1) + ' km'; }) + '</div>' +
-      '<div class="kpi"><span class="etiq">D+</span><b>' + Math.round(b.cur.dplus) + ' m</b>' + UI.ecart(b.cur.dplus, b.prec.dplus, function (x) { return Math.round(x) + ' m'; }) + '</div>' +
-      '<div class="kpi"><span class="etiq">Durée</span><b>' + (b.cur.dureeSec ? duree(b.cur.dureeSec) : '0:00:00') + '</b>' + UI.ecart(b.cur.dureeSec, b.prec.dureeSec, duree) + '</div>' +
-      '<div class="kpi"><span class="etiq">Séances</span><b>' + b.cur.seances + '</b>' + UI.ecart(b.cur.seances, b.prec.seances, String) + '</div>' +
-      '</div><p class="petit" style="margin:10px 0 0">Prévu sur la période : ' + b.cur.prevues + ' séance(s)' + (b.cur.prevuesADate ? ' · plan suivi : ' + b.cur.prevuesFaites + ' / ' + b.cur.prevuesADate + ' jusqu\'à aujourd\'hui' : '') + '.</p></section>';
+  // Tableau de bord : une colonne par période (semaine, mois, année), une ligne par mesure, écart avec la période précédente
+  function tableauBilan(a, aj) {
+    var per = C.periodes(aj), duree = function (x) { return C.formatDuree(x); };
+    var cols = [['Semaine', per.semaine], ['Mois', per.mois], ['Année', per.annee]].map(function (x) {
+      var p = x[1];
+      return { titre: x[0], p: p, cur: C.bilanPeriode(a, p.du, p.au, aj), prec: C.bilanPeriode(a, p.precDu, p.precAu) };
+    });
+    function ec(v, prec, f) { var d = (v || 0) - (prec || 0); return '<span class="ecart">' + (!d ? '=' : (d > 0 ? '+' : '−') + f(Math.abs(d))) + '</span>'; }
+    var lignes = [
+      ['Volume', function (c) { return C.nombreFR(c.cur.km, 1) + ' km' + ec(c.cur.km, c.prec.km, function (x) { return C.nombreFR(x, 1); }); }],
+      ['D+', function (c) { return Math.round(c.cur.dplus) + ' m' + ec(c.cur.dplus, c.prec.dplus, function (x) { return Math.round(x); }); }],
+      ['Durée', function (c) { return (c.cur.dureeSec ? duree(c.cur.dureeSec) : '0:00:00') + ec(c.cur.dureeSec, c.prec.dureeSec, duree); }],
+      ['Séances', function (c) { return c.cur.seances + ec(c.cur.seances, c.prec.seances, String); }],
+      ['Plan suivi', function (c) { return c.cur.prevuesADate ? c.cur.prevuesFaites + ' / ' + c.cur.prevuesADate : '—'; }]
+    ];
+    return '<section class="carte"><div class="tableau"><table class="bilan-tab"><thead><tr><th></th>' +
+      cols.map(function (c, i) {
+        var sous = i === 0 ? C.formatDateFR(c.p.du).slice(0, 5) + '–' + C.formatDateFR(c.p.au).slice(0, 5) : i === 1 ? new Date(c.p.du + 'T12:00:00Z').toLocaleDateString('fr-FR', { month: 'long', timeZone: 'UTC' }) : c.p.du.slice(0, 4);
+        return '<th class="num">' + c.titre + '<small>' + sous + '</small></th>';
+      }).join('') +
+      '</tr></thead><tbody>' + lignes.map(function (l) { return '<tr><th scope="row">' + l[0] + '</th>' + cols.map(function (c) { return '<td class="num">' + l[1](c) + '</td>'; }).join('') + '</tr>'; }).join('') +
+      '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">Écarts par rapport à la période précédente de même durée. Plan suivi : séances prévues réalisées / prévues jusqu\'à aujourd\'hui.</p></section>';
+  }
+
+  /* ---------- Chaussures (enregistrées sur ce téléphone) ---------- */
+  function chaussures() { A.chaussures = A.chaussures || { liste: [], parDate: {}, defaut: '' }; A.chaussures.parDate = A.chaussures.parDate || {}; return A.chaussures; }
+  function carteChaussures(a) {
+    var ch = chaussures(), km = C.kmChaussures(ch, a.jours), actives = ch.liste.filter(function (c) { return !c.retiree; });
+    var h = '<section class="carte"><div class="ligne"><h3 class="espace" style="margin:0">👟 Mes chaussures</h3><button class="sec" data-act="chaussures">' + (ch.liste.length ? 'Gérer' : 'Ajouter une paire') + '</button></div>';
+    if (!actives.length) return h + '<p class="muet petit" style="margin:10px 0 0">Ajoute tes paires pour suivre les kilomètres parcourus avec chacune. Tu choisiras la paire à chaque séance saisie.</p></section>';
+    return h + '<div class="tableau" style="margin-top:12px"><table><thead><tr><th>Paire</th><th class="num">Km</th><th class="num">Seuil</th></tr></thead><tbody>' +
+      actives.map(function (c) {
+        var k = km[c.id] || 0, lim = C.isNum(c.limite) && c.limite > 0 ? c.limite : null, pct = lim ? Math.min(100, Math.round(k / lim * 100)) : 0;
+        return '<tr><td><b>' + esc(c.nom) + '</b>' + (ch.defaut === c.id ? ' <span class="muet petit">· par défaut</span>' : '') +
+          (lim ? '<div class="jauge' + (k >= lim ? ' pleine' : '') + '"><span style="width:' + pct + '%"></span></div>' : '') + '</td>' +
+          '<td class="num"><b>' + C.nombreFR(k, 1) + '</b></td><td class="num">' + (lim ? C.nombreFR(lim, 0) + (k >= lim ? '<span class="ecart voyant">à changer ?</span>' : '') : '—') + '</td></tr>';
+      }).join('') + '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">Enregistré sur ce téléphone uniquement : ton entraîneur ne le voit pas.</p></section>';
+  }
+  function gererChaussures() {
+    var ch = chaussures(), km = C.kmChaussures(ch, (A.athlete || {}).jours);
+    var h = '<form class="boite"><h2>👟 Mes chaussures</h2>' +
+      (ch.liste.length ? '<div class="tableau"><table><thead><tr><th>Paire</th><th class="num">Km</th><th></th></tr></thead><tbody>' + ch.liste.map(function (c) {
+        return '<tr' + (c.retiree ? ' class="muet"' : '') + '><td><b>' + esc(c.nom) + '</b>' + (c.retiree ? ' · retirée' : '') + (ch.defaut === c.id ? ' · par défaut' : '') + '</td><td class="num">' + C.nombreFR(km[c.id] || 0, 1) + '</td>' +
+          '<td class="num"><button type="button" class="discret" data-ch="modif" data-id="' + esc(c.id) + '">Modifier</button></td></tr>';
+      }).join('') + '</tbody></table></div>' : '') +
+      '<h3 style="margin-top:16px" id="titrePaire">Ajouter une paire</h3><input type="hidden" name="id">' +
+      '<div class="champs"><label>Nom<input name="nom" maxlength="60" placeholder="ex. Pegasus 41" autocomplete="off"></label>' +
+      '<label>Km déjà parcourus<input name="kmDepart" inputmode="decimal" placeholder="0"></label>' +
+      '<label>Seuil d\'alerte (km)<input name="limite" inputmode="decimal" placeholder="800"></label></div>' +
+      '<label class="ligne" style="font-weight:600"><input type="checkbox" name="defaut" style="width:22px"> Paire par défaut pour mes séances</label>' +
+      '<label class="ligne" style="font-weight:600" id="ligneRetiree" hidden><input type="checkbox" name="retiree" style="width:22px"> Paire retirée (n\'apparaît plus dans la saisie)</label>' +
+      '<p class="alerte" id="erreurCh" hidden></p><div class="pied"><button type="button" class="danger" data-ch="suppr" hidden>Supprimer</button><button type="button" class="sec" data-ch="fermer">Fermer</button><button>Enregistrer la paire</button></div></form>';
+    boite.innerHTML = h; if (!boite.open) boite.showModal();
+    var f = $('form', boite);
+    f.onclick = function (ev) {
+      var b = ev.target.closest('[data-ch]'); if (!b) return;
+      if (b.dataset.ch === 'fermer') { boite.close(); rendre(); return; }
+      if (b.dataset.ch === 'modif') {
+        var c = ch.liste.filter(function (x) { return x.id === b.dataset.id; })[0];
+        f.elements.id.value = c.id; f.elements.nom.value = c.nom; f.elements.kmDepart.value = C.isNum(c.kmDepart) ? C.nombreFR(c.kmDepart) : '';
+        f.elements.limite.value = C.isNum(c.limite) ? C.nombreFR(c.limite) : ''; f.elements.defaut.checked = ch.defaut === c.id; f.elements.retiree.checked = !!c.retiree;
+        $('#titrePaire', f).textContent = 'Modifier « ' + c.nom + ' »'; $('#ligneRetiree', f).hidden = false; $('[data-ch="suppr"]', f).hidden = false;
+        $('[data-ch="suppr"]', f).dataset.id = c.id; f.elements.nom.focus();
+      }
+      if (b.dataset.ch === 'suppr') {
+        if (!confirm('Supprimer cette paire ? Les séances associées n\'auront plus de paire.')) return;
+        var id = b.dataset.id;
+        ch.liste = ch.liste.filter(function (x) { return x.id !== id; });
+        Object.keys(ch.parDate).forEach(function (d) { if (ch.parDate[d] === id) delete ch.parDate[d]; });
+        if (ch.defaut === id) ch.defaut = '';
+        sauver().then(gererChaussures);
+      }
+    };
+    f.onsubmit = function (ev) {
+      ev.preventDefault();
+      var nom = String(f.elements.nom.value || '').trim(), kd = C.parseNumberFR(f.elements.kmDepart.value), li = C.parseNumberFR(f.elements.limite.value), err = [];
+      if (!nom) err.push('Donne un nom à la paire');
+      if (kd !== null && !(kd >= 0 && kd < 20000)) err.push('Km déjà parcourus : nombre attendu');
+      if (li !== null && !(li > 0 && li < 20000)) err.push('Seuil : nombre de km attendu');
+      if (err.length) { var e = $('#erreurCh', f); e.hidden = false; e.textContent = err.join(' · '); return; }
+      var id = f.elements.id.value, c = ch.liste.filter(function (x) { return x.id === id; })[0];
+      if (!c) { c = { id: 'ch' + Date.now().toString(36) }; ch.liste.push(c); }
+      c.nom = nom; c.kmDepart = kd || 0; c.limite = li === null ? 800 : li; c.retiree = f.elements.retiree.checked;
+      if (f.elements.defaut.checked) ch.defaut = c.id; else if (ch.defaut === c.id) ch.defaut = '';
+      if (c.retiree && ch.defaut === c.id) ch.defaut = '';
+      sauver().then(function () { toast('Paire enregistrée'); gererChaussures(); });
+    };
   }
   function vueAccueil(m) {
     var a = A.athlete, aj = auj(), j = a.jours[aj] || {}, h = '';
@@ -1827,17 +1971,13 @@ var UI = (function () {
     var compet = C.prochaineCompet(a, aj);
     if (compet) h += '<section class="carte compet"><span class="jx">' + (compet.dans === 0 ? 'Jour J' : 'J-' + compet.dans) + '</span><div><b>' + esc(compet.jour.corps) + '</b><br><span class="muet">' + esc(UI.jourCourt(compet.date)) + '</span></div></section>';
     // Tableau de bord
-    var per = C.periodes(aj);
-    h += '<h2 class="titre-section">Tableau de bord</h2>';
-    [['Cette semaine', per.semaine], ['Ce mois', per.mois], ['Cette année', per.annee]].forEach(function (x) {
-      var p = x[1];
-      h += carteBilan(x[0], { du: p.du, au: p.au, precDu: p.precDu, precAu: p.precAu, cur: C.bilanPeriode(a, p.du, p.au, aj), prec: C.bilanPeriode(a, p.precDu, p.precAu) }, p, aj);
-    });
+    h += '<h2 class="titre-section">Tableau de bord</h2>' + tableauBilan(a, aj);
     // Records
     var rec = C.records(a);
-    h += '<section class="carte"><h3>🏅 Mes records</h3>' + (rec.length ? '<ul class="records">' + rec.map(function (r) {
-      return '<li><span>' + esc(r.libelle) + '</span><b>' + esc(r.texte) + '</b><span class="muet petit">' + (r.cle === 'semaine' ? 'semaine du ' : 'le ') + C.formatDateFR(r.date) + '</span></li>';
-    }).join('') + '</ul><p class="muet petit">Calculés uniquement à partir de tes séances saisies. Les allures sont des allures moyennes de séance.</p>' : '<p class="muet">Tes records apparaîtront ici dès tes premières séances saisies.</p>') + '</section>';
+    h += '<section class="carte"><h3>🏅 Mes records</h3>' + (rec.length ? '<div class="tableau"><table><thead><tr><th>Record</th><th class="num">Valeur</th><th class="num">Date</th></tr></thead><tbody>' + rec.map(function (r) {
+      return '<tr><td>' + esc(r.libelle) + '</td><td class="num"><b>' + esc(r.texte).replace(' sur ', '</b><span class="ecart">sur ') + (r.texte.indexOf(' sur ') >= 0 ? '</span>' : '</b>') + '</td><td class="num">' + (r.cle === 'semaine' ? '<span class="ecart">sem. du</span>' : '') + C.formatDateFR(r.date).slice(0, 5) + '</td></tr>';
+    }).join('') + '</tbody></table></div><p class="muet petit">Calculés uniquement à partir de tes séances saisies. Les allures sont des allures moyennes de séance.</p>' : '<p class="muet">Tes records apparaîtront ici dès tes premières séances saisies.</p>') + '</section>';
+    h += carteChaussures(a);
     m.innerHTML = h;
   }
 
@@ -1871,6 +2011,12 @@ var UI = (function () {
         return '<label><input name="' + x[0] + '" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="' + (aDuree ? x[2] : '') + '" placeholder="' + x[3] + '" aria-label="' + ({ h: 'heures', min: 'minutes', s: 'secondes' })[x[1]] + '"><span>' + x[1] + '</span></label>';
       }).join('') + '</div></div>' +
       '<label>D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (C.isNum(j.dplus) ? Math.round(j.dplus) : '') + '" placeholder="150"></label></div>' +
+      (function () {
+        var ch = chaussures(), act = ch.liste.filter(function (c) { return !c.retiree || ch.parDate[date] === c.id; });
+        if (!act.length) return '';
+        var sel = ch.parDate[date] || (C.aRetour(j) ? '' : ch.defaut);
+        return '<label>Chaussures<select name="chaussure"><option value="">—</option>' + act.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.nom) + '</option>'; }).join('') + '</select></label>';
+      })() +
       '<fieldset><legend>Ressenti (RPE)</legend>' + UI.htmlBarreRPE(j.rpe) +
       '<p class="muet petit">À noter 30 min après la séance : 1 très facile → 10 effort maximal.</p></fieldset>' +
       '<label>Notes (ressenti, douleurs, conditions…)<textarea name="notes" maxlength="2000">' + esc(j.notes) + '</textarea></label>' +
@@ -1890,6 +2036,7 @@ var UI = (function () {
     if (ef) ef.onclick = function () {
       if (!confirm('Effacer ta saisie du ' + C.formatDateFR(date) + ' ?')) return;
       var n = Object.assign({}, j); C.CHAMPS_ATHLETE.forEach(function (k) { delete n[k]; });
+      delete chaussures().parDate[date];
       enregistrer(date, n); boite.close();
     };
     f.onsubmit = function (ev) {
@@ -1902,6 +2049,8 @@ var UI = (function () {
       if (km === null && du === null && rpe === null && !C.texte(d.get('notes'))) err.push('Renseigne au moins la distance ou la durée');
       if (err.length) { var e = $('#erreurSaisie'); e.hidden = false; e.textContent = err.join(' · '); return; }
       var n = Object.assign({}, j, { km: km, dureeSec: du, dplus: dp, rpe: rpe, notes: d.get('notes') });
+      var chx = d.get('chaussure'), ch = chaussures();
+      if (chx) ch.parDate[date] = chx; else delete ch.parDate[date];
       enregistrer(date, n); boite.close();
     };
   }
@@ -1927,6 +2076,7 @@ var UI = (function () {
     else if (act === 'semAuj') { semaineAffichee = Math.max(1, UI.semaineDe(a, auj())); rendre(); }
     else if (act === 'allerSem') { semaineAffichee = +b.dataset.n; rendre(); window.scrollTo(0, 0); }
     else if (act === 'imprimer') window.print();
+    else if (act === 'chaussures') gererChaussures();
   });
   $('#statutSync').addEventListener('click', function () { synchroniser(true); });
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') synchroniser(false); });

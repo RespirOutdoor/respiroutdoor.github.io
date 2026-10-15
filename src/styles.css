@@ -270,3 +270,44 @@ ul.liste { margin: 0; padding-left: 18px; }
   #ouverture { animation: ouv-sortie .2s ease-in .4s forwards !important; }
 }
 @media print { #ouverture { display: none; } }
+
+/* ---------- Harmonisation des cartes et tableaux ---------- */
+:root { --rayon: 14px; }
+.carte { padding: 16px; margin-bottom: 14px; min-width: 0; box-shadow: 0 1px 3px rgba(10, 50, 42, .06); }
+.carte > h2, .carte > h3 { font-size: 1.1rem; margin-bottom: .75rem; }
+.grille2 { grid-template-columns: minmax(0, 1fr); gap: 0 14px; }
+@media (min-width: 760px) { .grille2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tableau { overflow-x: auto; border: 1px solid var(--bord); border-radius: 10px; -webkit-overflow-scrolling: touch; }
+.tableau table { font-size: .9rem; }
+.tableau th, .tableau td { padding: 9px 10px; }
+.tableau thead th { font-size: .8rem; letter-spacing: .02em; border-bottom: 1px solid var(--bord); }
+.tableau tbody tr:last-child > * { border-bottom: 0; }
+.tableau tbody tr:nth-child(even) > td, .tableau tbody tr:nth-child(even) > th { background: var(--repos); }
+.kpis { gap: 8px; }
+.kpi { border-radius: 10px; padding: 10px 12px; }
+.kpi b { font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.valeurs { margin-top: 0; }
+dl.codes { gap: 0 14px; }
+dl.codes dt, dl.codes dd { padding: 7px 0; border-bottom: 1px solid var(--bord); }
+dl.codes dt:last-of-type, dl.codes dd:last-of-type { border-bottom: 0; }
+.echelle { gap: 8px; }
+.echelle span { border-radius: 10px; min-height: 58px; font-size: .72rem; padding: 6px 4px; }
+/* Tableau de bord en colonnes */
+.bilan-tab { font-size: .84rem; }
+.tableau table.compact { font-size: .82rem; }
+.tableau table.compact th, .tableau table.compact td { padding: 8px 6px; }
+.tableau table.compact th:first-child, .tableau table.compact td:first-child { padding-left: 10px; }
+.tableau table.compact th:last-child, .tableau table.compact td:last-child { padding-right: 10px; }
+.tableau .bilan-tab th, .tableau .bilan-tab td { padding: 8px 6px; }
+.tableau .bilan-tab th:first-child { padding-left: 10px; }
+.tableau .bilan-tab th:last-child, .tableau .bilan-tab td:last-child { padding-right: 10px; }
+.bilan-tab th[scope="row"] { color: var(--texte-2); font-size: .78rem; position: static; white-space: nowrap; }
+.bilan-tab tbody tr:nth-child(odd) > th[scope="row"] { background: transparent; }
+.bilan-tab thead th small { display: block; font-weight: 500; font-size: .7rem; color: var(--texte-2); }
+.bilan-tab td b, .bilan-tab td { font-weight: 700; }
+.tableau .ecart { display: block; font-size: .72rem; font-weight: 500; color: var(--texte-2); }
+.tableau .ecart.voyant { color: var(--alerte); font-weight: 700; }
+/* Chaussures */
+.jauge { height: 6px; border-radius: 3px; background: var(--bord); margin-top: 6px; overflow: hidden; max-width: 160px; }
+.jauge span { display: block; height: 100%; background: var(--vert); border-radius: 3px; }
+.jauge.pleine span { background: var(--alerte); }

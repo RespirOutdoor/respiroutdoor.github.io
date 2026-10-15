@@ -115,15 +115,93 @@
     var ds = Object.keys(a.jours || {}).filter(function (d) { return d > apres && C.estPrevue(a.jours[d]); }).sort();
     return ds.length ? ds[0] : null;
   }
-  function carteBilan(titre, b, p, aj) {
-    var duree = function (s) { return C.formatDuree(s); };
-    return '<section class="carte"><h3>' + titre + '</h3><p class="muet petit">' + C.formatDateFR(b.du) + ' → ' + C.formatDateFR(b.au) + ' · écart vs ' + C.formatDateFR(b.precDu) + ' → ' + C.formatDateFR(b.precAu) + '</p>' +
-      '<div class="kpis kpis2">' +
-      '<div class="kpi"><span class="etiq">Volume</span><b>' + C.nombreFR(b.cur.km, 1) + ' km</b>' + UI.ecart(b.cur.km, b.prec.km, function (x) { return C.nombreFR(x, 1) + ' km'; }) + '</div>' +
-      '<div class="kpi"><span class="etiq">D+</span><b>' + Math.round(b.cur.dplus) + ' m</b>' + UI.ecart(b.cur.dplus, b.prec.dplus, function (x) { return Math.round(x) + ' m'; }) + '</div>' +
-      '<div class="kpi"><span class="etiq">Durée</span><b>' + (b.cur.dureeSec ? duree(b.cur.dureeSec) : '0:00:00') + '</b>' + UI.ecart(b.cur.dureeSec, b.prec.dureeSec, duree) + '</div>' +
-      '<div class="kpi"><span class="etiq">Séances</span><b>' + b.cur.seances + '</b>' + UI.ecart(b.cur.seances, b.prec.seances, String) + '</div>' +
-      '</div><p class="petit" style="margin:10px 0 0">Prévu sur la période : ' + b.cur.prevues + ' séance(s)' + (b.cur.prevuesADate ? ' · plan suivi : ' + b.cur.prevuesFaites + ' / ' + b.cur.prevuesADate + ' jusqu\'à aujourd\'hui' : '') + '.</p></section>';
+  // Tableau de bord : une colonne par période (semaine, mois, année), une ligne par mesure, écart avec la période précédente
+  function tableauBilan(a, aj) {
+    var per = C.periodes(aj), duree = function (x) { return C.formatDuree(x); };
+    var cols = [['Semaine', per.semaine], ['Mois', per.mois], ['Année', per.annee]].map(function (x) {
+      var p = x[1];
+      return { titre: x[0], p: p, cur: C.bilanPeriode(a, p.du, p.au, aj), prec: C.bilanPeriode(a, p.precDu, p.precAu) };
+    });
+    function ec(v, prec, f) { var d = (v || 0) - (prec || 0); return '<span class="ecart">' + (!d ? '=' : (d > 0 ? '+' : '−') + f(Math.abs(d))) + '</span>'; }
+    var lignes = [
+      ['Volume', function (c) { return C.nombreFR(c.cur.km, 1) + ' km' + ec(c.cur.km, c.prec.km, function (x) { return C.nombreFR(x, 1); }); }],
+      ['D+', function (c) { return Math.round(c.cur.dplus) + ' m' + ec(c.cur.dplus, c.prec.dplus, function (x) { return Math.round(x); }); }],
+      ['Durée', function (c) { return (c.cur.dureeSec ? duree(c.cur.dureeSec) : '0:00:00') + ec(c.cur.dureeSec, c.prec.dureeSec, duree); }],
+      ['Séances', function (c) { return c.cur.seances + ec(c.cur.seances, c.prec.seances, String); }],
+      ['Plan suivi', function (c) { return c.cur.prevuesADate ? c.cur.prevuesFaites + ' / ' + c.cur.prevuesADate : '—'; }]
+    ];
+    return '<section class="carte"><div class="tableau"><table class="bilan-tab"><thead><tr><th></th>' +
+      cols.map(function (c, i) {
+        var sous = i === 0 ? C.formatDateFR(c.p.du).slice(0, 5) + '–' + C.formatDateFR(c.p.au).slice(0, 5) : i === 1 ? new Date(c.p.du + 'T12:00:00Z').toLocaleDateString('fr-FR', { month: 'long', timeZone: 'UTC' }) : c.p.du.slice(0, 4);
+        return '<th class="num">' + c.titre + '<small>' + sous + '</small></th>';
+      }).join('') +
+      '</tr></thead><tbody>' + lignes.map(function (l) { return '<tr><th scope="row">' + l[0] + '</th>' + cols.map(function (c) { return '<td class="num">' + l[1](c) + '</td>'; }).join('') + '</tr>'; }).join('') +
+      '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">Écarts par rapport à la période précédente de même durée. Plan suivi : séances prévues réalisées / prévues jusqu\'à aujourd\'hui.</p></section>';
+  }
+
+  /* ---------- Chaussures (enregistrées sur ce téléphone) ---------- */
+  function chaussures() { A.chaussures = A.chaussures || { liste: [], parDate: {}, defaut: '' }; A.chaussures.parDate = A.chaussures.parDate || {}; return A.chaussures; }
+  function carteChaussures(a) {
+    var ch = chaussures(), km = C.kmChaussures(ch, a.jours), actives = ch.liste.filter(function (c) { return !c.retiree; });
+    var h = '<section class="carte"><div class="ligne"><h3 class="espace" style="margin:0">👟 Mes chaussures</h3><button class="sec" data-act="chaussures">' + (ch.liste.length ? 'Gérer' : 'Ajouter une paire') + '</button></div>';
+    if (!actives.length) return h + '<p class="muet petit" style="margin:10px 0 0">Ajoute tes paires pour suivre les kilomètres parcourus avec chacune. Tu choisiras la paire à chaque séance saisie.</p></section>';
+    return h + '<div class="tableau" style="margin-top:12px"><table><thead><tr><th>Paire</th><th class="num">Km</th><th class="num">Seuil</th></tr></thead><tbody>' +
+      actives.map(function (c) {
+        var k = km[c.id] || 0, lim = C.isNum(c.limite) && c.limite > 0 ? c.limite : null, pct = lim ? Math.min(100, Math.round(k / lim * 100)) : 0;
+        return '<tr><td><b>' + esc(c.nom) + '</b>' + (ch.defaut === c.id ? ' <span class="muet petit">· par défaut</span>' : '') +
+          (lim ? '<div class="jauge' + (k >= lim ? ' pleine' : '') + '"><span style="width:' + pct + '%"></span></div>' : '') + '</td>' +
+          '<td class="num"><b>' + C.nombreFR(k, 1) + '</b></td><td class="num">' + (lim ? C.nombreFR(lim, 0) + (k >= lim ? '<span class="ecart voyant">à changer ?</span>' : '') : '—') + '</td></tr>';
+      }).join('') + '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">Enregistré sur ce téléphone uniquement : ton entraîneur ne le voit pas.</p></section>';
+  }
+  function gererChaussures() {
+    var ch = chaussures(), km = C.kmChaussures(ch, (A.athlete || {}).jours);
+    var h = '<form class="boite"><h2>👟 Mes chaussures</h2>' +
+      (ch.liste.length ? '<div class="tableau"><table><thead><tr><th>Paire</th><th class="num">Km</th><th></th></tr></thead><tbody>' + ch.liste.map(function (c) {
+        return '<tr' + (c.retiree ? ' class="muet"' : '') + '><td><b>' + esc(c.nom) + '</b>' + (c.retiree ? ' · retirée' : '') + (ch.defaut === c.id ? ' · par défaut' : '') + '</td><td class="num">' + C.nombreFR(km[c.id] || 0, 1) + '</td>' +
+          '<td class="num"><button type="button" class="discret" data-ch="modif" data-id="' + esc(c.id) + '">Modifier</button></td></tr>';
+      }).join('') + '</tbody></table></div>' : '') +
+      '<h3 style="margin-top:16px" id="titrePaire">Ajouter une paire</h3><input type="hidden" name="id">' +
+      '<div class="champs"><label>Nom<input name="nom" maxlength="60" placeholder="ex. Pegasus 41" autocomplete="off"></label>' +
+      '<label>Km déjà parcourus<input name="kmDepart" inputmode="decimal" placeholder="0"></label>' +
+      '<label>Seuil d\'alerte (km)<input name="limite" inputmode="decimal" placeholder="800"></label></div>' +
+      '<label class="ligne" style="font-weight:600"><input type="checkbox" name="defaut" style="width:22px"> Paire par défaut pour mes séances</label>' +
+      '<label class="ligne" style="font-weight:600" id="ligneRetiree" hidden><input type="checkbox" name="retiree" style="width:22px"> Paire retirée (n\'apparaît plus dans la saisie)</label>' +
+      '<p class="alerte" id="erreurCh" hidden></p><div class="pied"><button type="button" class="danger" data-ch="suppr" hidden>Supprimer</button><button type="button" class="sec" data-ch="fermer">Fermer</button><button>Enregistrer la paire</button></div></form>';
+    boite.innerHTML = h; if (!boite.open) boite.showModal();
+    var f = $('form', boite);
+    f.onclick = function (ev) {
+      var b = ev.target.closest('[data-ch]'); if (!b) return;
+      if (b.dataset.ch === 'fermer') { boite.close(); rendre(); return; }
+      if (b.dataset.ch === 'modif') {
+        var c = ch.liste.filter(function (x) { return x.id === b.dataset.id; })[0];
+        f.elements.id.value = c.id; f.elements.nom.value = c.nom; f.elements.kmDepart.value = C.isNum(c.kmDepart) ? C.nombreFR(c.kmDepart) : '';
+        f.elements.limite.value = C.isNum(c.limite) ? C.nombreFR(c.limite) : ''; f.elements.defaut.checked = ch.defaut === c.id; f.elements.retiree.checked = !!c.retiree;
+        $('#titrePaire', f).textContent = 'Modifier « ' + c.nom + ' »'; $('#ligneRetiree', f).hidden = false; $('[data-ch="suppr"]', f).hidden = false;
+        $('[data-ch="suppr"]', f).dataset.id = c.id; f.elements.nom.focus();
+      }
+      if (b.dataset.ch === 'suppr') {
+        if (!confirm('Supprimer cette paire ? Les séances associées n\'auront plus de paire.')) return;
+        var id = b.dataset.id;
+        ch.liste = ch.liste.filter(function (x) { return x.id !== id; });
+        Object.keys(ch.parDate).forEach(function (d) { if (ch.parDate[d] === id) delete ch.parDate[d]; });
+        if (ch.defaut === id) ch.defaut = '';
+        sauver().then(gererChaussures);
+      }
+    };
+    f.onsubmit = function (ev) {
+      ev.preventDefault();
+      var nom = String(f.elements.nom.value || '').trim(), kd = C.parseNumberFR(f.elements.kmDepart.value), li = C.parseNumberFR(f.elements.limite.value), err = [];
+      if (!nom) err.push('Donne un nom à la paire');
+      if (kd !== null && !(kd >= 0 && kd < 20000)) err.push('Km déjà parcourus : nombre attendu');
+      if (li !== null && !(li > 0 && li < 20000)) err.push('Seuil : nombre de km attendu');
+      if (err.length) { var e = $('#erreurCh', f); e.hidden = false; e.textContent = err.join(' · '); return; }
+      var id = f.elements.id.value, c = ch.liste.filter(function (x) { return x.id === id; })[0];
+      if (!c) { c = { id: 'ch' + Date.now().toString(36) }; ch.liste.push(c); }
+      c.nom = nom; c.kmDepart = kd || 0; c.limite = li === null ? 800 : li; c.retiree = f.elements.retiree.checked;
+      if (f.elements.defaut.checked) ch.defaut = c.id; else if (ch.defaut === c.id) ch.defaut = '';
+      if (c.retiree && ch.defaut === c.id) ch.defaut = '';
+      sauver().then(function () { toast('Paire enregistrée'); gererChaussures(); });
+    };
   }
   function vueAccueil(m) {
     var a = A.athlete, aj = auj(), j = a.jours[aj] || {}, h = '';
@@ -144,17 +222,13 @@
     var compet = C.prochaineCompet(a, aj);
     if (compet) h += '<section class="carte compet"><span class="jx">' + (compet.dans === 0 ? 'Jour J' : 'J-' + compet.dans) + '</span><div><b>' + esc(compet.jour.corps) + '</b><br><span class="muet">' + esc(UI.jourCourt(compet.date)) + '</span></div></section>';
     // Tableau de bord
-    var per = C.periodes(aj);
-    h += '<h2 class="titre-section">Tableau de bord</h2>';
-    [['Cette semaine', per.semaine], ['Ce mois', per.mois], ['Cette année', per.annee]].forEach(function (x) {
-      var p = x[1];
-      h += carteBilan(x[0], { du: p.du, au: p.au, precDu: p.precDu, precAu: p.precAu, cur: C.bilanPeriode(a, p.du, p.au, aj), prec: C.bilanPeriode(a, p.precDu, p.precAu) }, p, aj);
-    });
+    h += '<h2 class="titre-section">Tableau de bord</h2>' + tableauBilan(a, aj);
     // Records
     var rec = C.records(a);
-    h += '<section class="carte"><h3>🏅 Mes records</h3>' + (rec.length ? '<ul class="records">' + rec.map(function (r) {
-      return '<li><span>' + esc(r.libelle) + '</span><b>' + esc(r.texte) + '</b><span class="muet petit">' + (r.cle === 'semaine' ? 'semaine du ' : 'le ') + C.formatDateFR(r.date) + '</span></li>';
-    }).join('') + '</ul><p class="muet petit">Calculés uniquement à partir de tes séances saisies. Les allures sont des allures moyennes de séance.</p>' : '<p class="muet">Tes records apparaîtront ici dès tes premières séances saisies.</p>') + '</section>';
+    h += '<section class="carte"><h3>🏅 Mes records</h3>' + (rec.length ? '<div class="tableau"><table><thead><tr><th>Record</th><th class="num">Valeur</th><th class="num">Date</th></tr></thead><tbody>' + rec.map(function (r) {
+      return '<tr><td>' + esc(r.libelle) + '</td><td class="num"><b>' + esc(r.texte).replace(' sur ', '</b><span class="ecart">sur ') + (r.texte.indexOf(' sur ') >= 0 ? '</span>' : '</b>') + '</td><td class="num">' + (r.cle === 'semaine' ? '<span class="ecart">sem. du</span>' : '') + C.formatDateFR(r.date).slice(0, 5) + '</td></tr>';
+    }).join('') + '</tbody></table></div><p class="muet petit">Calculés uniquement à partir de tes séances saisies. Les allures sont des allures moyennes de séance.</p>' : '<p class="muet">Tes records apparaîtront ici dès tes premières séances saisies.</p>') + '</section>';
+    h += carteChaussures(a);
     m.innerHTML = h;
   }
 
@@ -188,6 +262,12 @@
         return '<label><input name="' + x[0] + '" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="' + (aDuree ? x[2] : '') + '" placeholder="' + x[3] + '" aria-label="' + ({ h: 'heures', min: 'minutes', s: 'secondes' })[x[1]] + '"><span>' + x[1] + '</span></label>';
       }).join('') + '</div></div>' +
       '<label>D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (C.isNum(j.dplus) ? Math.round(j.dplus) : '') + '" placeholder="150"></label></div>' +
+      (function () {
+        var ch = chaussures(), act = ch.liste.filter(function (c) { return !c.retiree || ch.parDate[date] === c.id; });
+        if (!act.length) return '';
+        var sel = ch.parDate[date] || (C.aRetour(j) ? '' : ch.defaut);
+        return '<label>Chaussures<select name="chaussure"><option value="">—</option>' + act.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.nom) + '</option>'; }).join('') + '</select></label>';
+      })() +
       '<fieldset><legend>Ressenti (RPE)</legend>' + UI.htmlBarreRPE(j.rpe) +
       '<p class="muet petit">À noter 30 min après la séance : 1 très facile → 10 effort maximal.</p></fieldset>' +
       '<label>Notes (ressenti, douleurs, conditions…)<textarea name="notes" maxlength="2000">' + esc(j.notes) + '</textarea></label>' +
@@ -207,6 +287,7 @@
     if (ef) ef.onclick = function () {
       if (!confirm('Effacer ta saisie du ' + C.formatDateFR(date) + ' ?')) return;
       var n = Object.assign({}, j); C.CHAMPS_ATHLETE.forEach(function (k) { delete n[k]; });
+      delete chaussures().parDate[date];
       enregistrer(date, n); boite.close();
     };
     f.onsubmit = function (ev) {
@@ -219,6 +300,8 @@
       if (km === null && du === null && rpe === null && !C.texte(d.get('notes'))) err.push('Renseigne au moins la distance ou la durée');
       if (err.length) { var e = $('#erreurSaisie'); e.hidden = false; e.textContent = err.join(' · '); return; }
       var n = Object.assign({}, j, { km: km, dureeSec: du, dplus: dp, rpe: rpe, notes: d.get('notes') });
+      var chx = d.get('chaussure'), ch = chaussures();
+      if (chx) ch.parDate[date] = chx; else delete ch.parDate[date];
       enregistrer(date, n); boite.close();
     };
   }
@@ -244,6 +327,7 @@
     else if (act === 'semAuj') { semaineAffichee = Math.max(1, UI.semaineDe(a, auj())); rendre(); }
     else if (act === 'allerSem') { semaineAffichee = +b.dataset.n; rendre(); window.scrollTo(0, 0); }
     else if (act === 'imprimer') window.print();
+    else if (act === 'chaussures') gererChaussures();
   });
   $('#statutSync').addEventListener('click', function () { synchroniser(true); });
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') synchroniser(false); });

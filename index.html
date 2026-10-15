@@ -282,6 +282,47 @@ ul.liste { margin: 0; padding-left: 18px; }
   #ouverture { animation: ouv-sortie .2s ease-in .4s forwards !important; }
 }
 @media print { #ouverture { display: none; } }
+
+/* ---------- Harmonisation des cartes et tableaux ---------- */
+:root { --rayon: 14px; }
+.carte { padding: 16px; margin-bottom: 14px; min-width: 0; box-shadow: 0 1px 3px rgba(10, 50, 42, .06); }
+.carte > h2, .carte > h3 { font-size: 1.1rem; margin-bottom: .75rem; }
+.grille2 { grid-template-columns: minmax(0, 1fr); gap: 0 14px; }
+@media (min-width: 760px) { .grille2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tableau { overflow-x: auto; border: 1px solid var(--bord); border-radius: 10px; -webkit-overflow-scrolling: touch; }
+.tableau table { font-size: .9rem; }
+.tableau th, .tableau td { padding: 9px 10px; }
+.tableau thead th { font-size: .8rem; letter-spacing: .02em; border-bottom: 1px solid var(--bord); }
+.tableau tbody tr:last-child > * { border-bottom: 0; }
+.tableau tbody tr:nth-child(even) > td, .tableau tbody tr:nth-child(even) > th { background: var(--repos); }
+.kpis { gap: 8px; }
+.kpi { border-radius: 10px; padding: 10px 12px; }
+.kpi b { font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.valeurs { margin-top: 0; }
+dl.codes { gap: 0 14px; }
+dl.codes dt, dl.codes dd { padding: 7px 0; border-bottom: 1px solid var(--bord); }
+dl.codes dt:last-of-type, dl.codes dd:last-of-type { border-bottom: 0; }
+.echelle { gap: 8px; }
+.echelle span { border-radius: 10px; min-height: 58px; font-size: .72rem; padding: 6px 4px; }
+/* Tableau de bord en colonnes */
+.bilan-tab { font-size: .84rem; }
+.tableau table.compact { font-size: .82rem; }
+.tableau table.compact th, .tableau table.compact td { padding: 8px 6px; }
+.tableau table.compact th:first-child, .tableau table.compact td:first-child { padding-left: 10px; }
+.tableau table.compact th:last-child, .tableau table.compact td:last-child { padding-right: 10px; }
+.tableau .bilan-tab th, .tableau .bilan-tab td { padding: 8px 6px; }
+.tableau .bilan-tab th:first-child { padding-left: 10px; }
+.tableau .bilan-tab th:last-child, .tableau .bilan-tab td:last-child { padding-right: 10px; }
+.bilan-tab th[scope="row"] { color: var(--texte-2); font-size: .78rem; position: static; white-space: nowrap; }
+.bilan-tab tbody tr:nth-child(odd) > th[scope="row"] { background: transparent; }
+.bilan-tab thead th small { display: block; font-weight: 500; font-size: .7rem; color: var(--texte-2); }
+.bilan-tab td b, .bilan-tab td { font-weight: 700; }
+.tableau .ecart { display: block; font-size: .72rem; font-weight: 500; color: var(--texte-2); }
+.tableau .ecart.voyant { color: var(--alerte); font-weight: 700; }
+/* Chaussures */
+.jauge { height: 6px; border-radius: 3px; background: var(--bord); margin-top: 6px; overflow: hidden; max-width: 160px; }
+.jauge span { display: block; height: 100%; background: var(--vert); border-radius: 3px; }
+.jauge.pleine span { background: var(--alerte); }
 </style>
 </head>
 <body class="coach">
@@ -339,9 +380,9 @@ var Core = (function () {
   // Échelle « Intensité de l'effort » de 1 à 10 : image insérée dans l'onglet PLAN du classeur (cellule O7).
   // Libellés et couleurs relevés sur cette image ; les niveaux sans libellé restent sans libellé.
   var ECHELLE_RPE = { 1: 'Très facile', 2: 'Facile', 4: 'Modéré', 7: 'Difficile', 9: 'Très difficile', 10: 'Effort maximal' };
-  // Dégradé de la barre RPE (couleurs relevées sur la capture fournie) : bleu, vert, jaune, orange, rouge, violet, noir.
+  // Dégradé de la barre RPE, en tons pastel : bleu, vert, jaune, orange, rouge, violet, ardoise (effort maximal).
   // Niveau n placé à (n − 1) / 9 du dégradé ; les niveaux entre deux couleurs sont interpolés.
-  var DEGRADE_RPE = ['#4D83C3', '#519C57', '#EBC443', '#E5913B', '#C53A35', '#7342AF', '#111111'];
+  var DEGRADE_RPE = ['#9EC1E8', '#A6D6B4', '#F3DE95', '#F5BE8F', '#EE9E9A', '#C2A9E0', '#6E6584'];
   function couleurDegrade(t) {
     var n = DEGRADE_RPE.length - 1, x = Math.max(0, Math.min(1, t)) * n, i = Math.min(n - 1, Math.floor(x)), f = x - i;
     var a = DEGRADE_RPE[i], b = DEGRADE_RPE[i + 1], s = '#';
@@ -361,6 +402,17 @@ var Core = (function () {
   for (var nr = 1; nr <= 10; nr++) COULEURS_RPE[nr] = couleurDegrade((nr - 1) / 9);
   // Libellé du niveau entier le plus proche (6,5 -> niveau 7) ; null hors échelle
   function libelleRPE(v) { if (!isNum(v) || v < 1 || v > 10) return null; var n = Math.round(v); return { niveau: n, libelle: ECHELLE_RPE[n] || '', couleur: COULEURS_RPE[n], texte: texteSur(COULEURS_RPE[n]) }; }
+
+  // Kilomètres par paire de chaussures : km déjà parcourus à l'ajout + km des séances associées à la paire
+  function kmChaussures(ch, jours) {
+    var r = {};
+    ((ch && ch.liste) || []).forEach(function (c) { r[c.id] = isNum(c.kmDepart) ? c.kmDepart : 0; });
+    Object.keys((ch && ch.parDate) || {}).forEach(function (d) {
+      var id = ch.parDate[d], j = (jours || {})[d];
+      if (r[id] !== undefined && j && isNum(j.km)) r[id] = Math.round((r[id] + j.km) * 1000) / 1000;
+    });
+    return r;
+  }
 
   function pad2(n) { n = String(n); return n.length < 2 ? '0' + n : n; }
   function isNum(x) { return typeof x === 'number' && isFinite(x); }
@@ -1228,10 +1280,16 @@ var Core = (function () {
         a.jours['2026-08-03'].type === 'VMAC' && a.jours['2026-08-03'].eveil === '20' && a.jours['2026-08-05'].dureeSec === 3725 && a.jours['2026-08-05'].km === 12.3 &&
         a.jours['2026-08-05'].notes === 'bien' && a.semaines[82].cycle === 'AS' && a.id === 'DUPONT_JEAN';
     }],
-    ['Dégradé RPE : 1 = bleu #4D83C3, 4 = jaune #EBC443, 7 = rouge #C53A35, 10 = noir #111111 (texte blanc), 2 interpolé', function () {
-      // 2 -> t = 1/9 -> 2/3 du chemin bleu -> vert : 77 + (81−77)×2/3 = 79,7 -> 80 (0x50) ; 131 + (156−131)×2/3 = 147,7 -> 148 (0x94) ; 195 + (87−195)×2/3 = 123 (0x7B)
-      return libelleRPE(1).couleur === '#4D83C3' && libelleRPE(4).couleur === '#EBC443' && libelleRPE(7).couleur === '#C53A35' &&
-        libelleRPE(10).couleur === '#111111' && libelleRPE(10).texte === '#FFFFFF' && libelleRPE(4).texte === '#000000' && libelleRPE(2).couleur === '#50947B';
+    ['Dégradé RPE pastel : 1 = bleu #9EC1E8, 4 = jaune #F3DE95, 7 = rouge #EE9E9A, 10 = ardoise #6E6584 (texte blanc), 2 interpolé', function () {
+      // 2 -> t = 1/9 -> 2/3 du chemin bleu -> vert : 158 + (166−158)×2/3 = 163,3 -> 163 (0xA3) ; 193 + (214−193)×2/3 = 207 (0xCF) ; 232 + (180−232)×2/3 = 197,3 -> 197 (0xC5)
+      return libelleRPE(1).couleur === '#9EC1E8' && libelleRPE(4).couleur === '#F3DE95' && libelleRPE(7).couleur === '#EE9E9A' &&
+        libelleRPE(10).couleur === '#6E6584' && libelleRPE(10).texte === '#FFFFFF' && libelleRPE(4).texte === '#000000' && libelleRPE(2).couleur === '#A3CFC5';
+    }],
+    ['Chaussures : km = km de départ + km des séances associées ; séance sans km ou paire inconnue ignorée', function () {
+      var ch = { liste: [{ id: 'c1', nom: 'A', kmDepart: 120 }, { id: 'c2', nom: 'B', kmDepart: 0 }], parDate: { '2026-10-01': 'c1', '2026-10-02': 'c1', '2026-10-03': 'c2', '2026-10-04': 'c9', '2026-10-05': 'c2' } };
+      var jours = { '2026-10-01': { km: 10.5 }, '2026-10-02': { km: 8 }, '2026-10-03': { km: 12.25 }, '2026-10-04': { km: 30 }, '2026-10-05': { dureeSec: 1800 } };
+      var r = kmChaussures(ch, jours);
+      return r.c1 === 138.5 && r.c2 === 12.25 && r.c9 === undefined;
     }],
     ['Échelle RPE : 1 = Très facile, 4 = Modéré, 10 = Effort maximal ; 3 sans libellé ; 6,5 -> niveau 7 ; 0 et 11 hors échelle', function () {
       return libelleRPE(1).libelle === 'Très facile' && libelleRPE(4).libelle === 'Modéré' && libelleRPE(10).libelle === 'Effort maximal' && libelleRPE(3).libelle === '' &&
@@ -1251,7 +1309,7 @@ var Core = (function () {
     TZ: TZ, SCHEMA_VERSION: SCHEMA_VERSION, JOURS: JOURS, JOURS_LONGS: JOURS_LONGS, CHAMPS_COACH: CHAMPS_COACH, CHAMPS_ATHLETE: CHAMPS_ATHLETE,
     ZONES_DEFAUT: ZONES_DEFAUT, CHAMP_REACTION: CHAMP_REACTION, aDonneesAthlete: aDonneesAthlete, periodes: periodes, bilanPeriode: bilanPeriode,
     estPrevue: estPrevue, estFaite: estFaite, records: records, derniereSaisie: derniereSaisie, resumeCoach: resumeCoach, competitionsAVenir: competitionsAVenir,
-    genererCode: genererCode, slugNom: slugNom, lienAthlete: lienAthlete, codeDepuisLien: codeDepuisLien, ECHELLE_RPE: ECHELLE_RPE, DEGRADE_RPE: DEGRADE_RPE, libelleRPE: libelleRPE, pad2: pad2, isNum: isNum, texte: texte, parseNumberFR: parseNumberFR, nombreFR: nombreFR,
+    genererCode: genererCode, slugNom: slugNom, lienAthlete: lienAthlete, codeDepuisLien: codeDepuisLien, ECHELLE_RPE: ECHELLE_RPE, DEGRADE_RPE: DEGRADE_RPE, libelleRPE: libelleRPE, kmChaussures: kmChaussures, pad2: pad2, isNum: isNum, texte: texte, parseNumberFR: parseNumberFR, nombreFR: nombreFR,
     isValidISODate: isValidISODate, parseDateFR: parseDateFR, formatDateFR: formatDateFR, addDays: addDays, daysBetween: daysBetween,
     dayOfWeek: dayOfWeek, weekStart: weekStart, todayParis: todayParis, excelSerialToISO: excelSerialToISO,
     numSemaine: numSemaine, lundiSemaine: lundiSemaine, formatDuree: formatDuree, parseDuree: parseDuree, formatTemps: formatTemps,
@@ -1556,7 +1614,15 @@ var UI = (function () {
   // modifiable : formulaire actif (entraîneur) ou lecture seule (athlète) ; enregistrer(a) appelé après modification
   function vueAllures(main, a, modifiable, enregistrer) {
     var vma = a.vma, al = a.allures || {}, dis = modifiable ? '' : ' disabled';
-    var h = '<section class="carte"><h2>VMA &amp; allures</h2><form id="fAll" class="champs">' +
+    var h;
+    if (!modifiable) {
+      // Lecture seule (athlète) : valeurs en cases, pas de champs grisés
+      var vals = [['VMA', C.isNum(vma) ? C.nombreFR(vma) + ' km/h' : ''], ['Type de test', (a.test || {}).type], ['Date du test', (a.test || {}).date],
+        ['Chrono 10 km', C.isNum(al.chrono10) ? C.formatDuree(al.chrono10) : ''], ['Chrono semi', C.isNum(al.chronoSemi) ? C.formatDuree(al.chronoSemi) : ''],
+        ['Chrono marathon', C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : ''], ['Pré-fatigue', C.isNum(al.preFatPct) ? C.nombreFR(al.preFatPct, 1) + ' % VMA' : '']];
+      h = '<section class="carte"><h2>VMA &amp; allures</h2><div class="kpis kpis2 valeurs">' + vals.map(function (x) { return '<div class="kpi"><span class="etiq">' + x[0] + '</span><b>' + (C.texte(x[1]) ? esc(x[1]) : '—') + '</b></div>'; }).join('') +
+        '</div><p class="muet petit" style="margin:12px 0 0">Valeurs fixées par ton entraîneur. Formules de l\'onglet ALLURES du tableau de l\'entraîneur.</p></section>';
+    } else h = '<section class="carte"><h2>VMA &amp; allures</h2><form id="fAll" class="champs">' +
       '<label>VMA (km/h)<input name="vma" inputmode="decimal"' + dis + ' value="' + (C.isNum(vma) ? C.nombreFR(vma) : '') + '"></label>' +
       '<label>Type de test<input name="ttype"' + dis + ' value="' + esc((a.test || {}).type) + '" placeholder="1/2 COOPER"></label>' +
       '<label>Date du test<input name="tdate"' + dis + ' value="' + esc((a.test || {}).date) + '" placeholder="11/24"></label>' +
@@ -1566,7 +1632,7 @@ var UI = (function () {
       '<label>Pré-fatigue (% VMA)<input name="pf" inputmode="decimal"' + dis + ' value="' + C.nombreFR(al.preFatPct, 1) + '"></label>' +
       '</form><p class="alerte" id="erreurAll" hidden></p><p class="muet petit">' + (modifiable ? 'Les calculs se mettent à jour à chaque modification.' : 'Valeurs fixées par ton entraîneur.') + ' Formules de l\'onglet ALLURES du tableau de l\'entraîneur.</p></section>';
     if (!C.isNum(vma)) { main.innerHTML = h + '<p class="alerte">' + (modifiable ? 'Renseigne la VMA pour afficher les allures.' : 'Ton entraîneur n\'a pas encore renseigné ta VMA.') + '</p>'; brancher(); return; }
-    h += '<div class="grille2"><section class="carte"><h3>Zones d\'allures</h3><div class="tableau"><table><thead><tr><th>Zone</th><th class="num">% VMA</th><th class="num">km/h</th><th class="num">min/km</th><th>Usage</th></tr></thead><tbody>' +
+    h += '<div class="grille2"><section class="carte"><h3>Zones d\'allures</h3><div class="tableau"><table class="compact"><thead><tr><th>Zone</th><th class="num">% VMA</th><th class="num">km/h</th><th class="num">min/km</th><th>Usage</th></tr></thead><tbody>' +
       (a.zones || []).map(function (z) { var v = C.zoneVitesses(vma, z); return '<tr><td><b>' + esc(z.nom) + '</b></td><td class="num">' + C.nombreFR(z.bas, 1) + '–' + C.nombreFR(z.haut, 1) + '</td><td class="num">' + (v ? C.nombreFR(v.bas, 1) + '–' + C.nombreFR(v.haut, 1) : '') + '</td><td class="num">' + (v ? C.formatAllure(v.allureLente).replace(' /km', '') + '–' + C.formatAllure(v.allureRapide).replace(' /km', '') : '') + '</td><td>' + esc(z.usage) + '</td></tr>'; }).join('') +
       '</tbody></table></div></section>';
     var hist = a.historiqueVMA || [];
