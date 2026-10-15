@@ -206,9 +206,17 @@ nav.onglets[hidden] { display: none; }
   nav.onglets button[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--vert); }
 }
 @media (max-width: 420px) { nav.onglets a, nav.onglets button { font-size: .68rem; } }
-/* Mode sombre : onglets en blanc (la règle des boutons pleins leur donnait un texte foncé, invisible) */
-:root[data-theme="dark"] nav.onglets button:not(.sec):not(.discret):not(.danger) { color: #FFFFFF; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) nav.onglets button:not(.sec):not(.discret):not(.danger) { color: #FFFFFF; } }
+/* Barre d'onglets sur fond sapin dans les deux modes : vert clair (contraste 9,2:1), onglet actif en blanc (14:1) */
+nav.onglets { background: #0A322A; border-top-color: #0A322A; border-bottom-color: #0A322A; }
+:root nav.onglets button:not(.sec):not(.discret):not(.danger), :root nav.onglets a { color: #A8DCCF; }
+:root nav.onglets button[aria-current="page"]:not(.sec):not(.discret):not(.danger), :root nav.onglets a[aria-current="page"] { color: #FFFFFF; box-shadow: inset 0 3px 0 #7CC5B5; }
+@media (min-width: 900px) { :root nav.onglets button[aria-current="page"]:not(.sec):not(.discret):not(.danger), :root nav.onglets a[aria-current="page"] { box-shadow: inset 0 -3px 0 #7CC5B5; } }
+:root[data-theme="dark"] nav.onglets button:not(.sec):not(.discret):not(.danger) { color: #A8DCCF; }
+:root[data-theme="dark"] nav.onglets button[aria-current="page"]:not(.sec):not(.discret):not(.danger) { color: #FFFFFF; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) nav.onglets button:not(.sec):not(.discret):not(.danger) { color: #A8DCCF; }
+  :root:not([data-theme="light"]) nav.onglets button[aria-current="page"]:not(.sec):not(.discret):not(.danger) { color: #FFFFFF; }
+}
 .titre-section { font-size: 1.1rem; margin: 18px 0 10px; }
 .kpis2 { grid-template-columns: repeat(2, 1fr); }
 @media (min-width: 760px) { .kpis2 { grid-template-columns: repeat(4, 1fr); } }
