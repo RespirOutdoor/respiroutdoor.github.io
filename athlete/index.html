@@ -377,9 +377,9 @@ var Core = (function () {
   // Échelle « Intensité de l'effort » de 1 à 10 : image insérée dans l'onglet PLAN du classeur (cellule O7).
   // Libellés et couleurs relevés sur cette image ; les niveaux sans libellé restent sans libellé.
   var ECHELLE_RPE = { 1: 'Très facile', 2: 'Facile', 4: 'Modéré', 7: 'Difficile', 9: 'Très difficile', 10: 'Effort maximal' };
-  // Dégradé de la barre RPE, en tons pastel : bleu, vert, jaune, orange, rouge, violet, ardoise (effort maximal).
+  // Dégradé de la barre RPE (couleurs relevées sur l'image fournie) : bleu, cyan, vert, jaune, orange, rouge.
   // Niveau n placé à (n − 1) / 9 du dégradé ; les niveaux entre deux couleurs sont interpolés.
-  var DEGRADE_RPE = ['#9EC1E8', '#A6D6B4', '#F3DE95', '#F5BE8F', '#EE9E9A', '#C2A9E0', '#6E6584'];
+  var DEGRADE_RPE = ['#4879C6', '#63C6DD', '#60C462', '#FECF63', '#F2804A', '#C54135'];
   function couleurDegrade(t) {
     var n = DEGRADE_RPE.length - 1, x = Math.max(0, Math.min(1, t)) * n, i = Math.min(n - 1, Math.floor(x)), f = x - i;
     var a = DEGRADE_RPE[i], b = DEGRADE_RPE[i + 1], s = '#';
@@ -1277,10 +1277,11 @@ var Core = (function () {
         a.jours['2026-08-03'].type === 'VMAC' && a.jours['2026-08-03'].eveil === '20' && a.jours['2026-08-05'].dureeSec === 3725 && a.jours['2026-08-05'].km === 12.3 &&
         a.jours['2026-08-05'].notes === 'bien' && a.semaines[82].cycle === 'AS' && a.id === 'DUPONT_JEAN';
     }],
-    ['Dégradé RPE pastel : 1 = bleu #9EC1E8, 4 = jaune #F3DE95, 7 = rouge #EE9E9A, 10 = ardoise #6E6584 (texte blanc), 2 interpolé', function () {
-      // 2 -> t = 1/9 -> 2/3 du chemin bleu -> vert : 158 + (166−158)×2/3 = 163,3 -> 163 (0xA3) ; 193 + (214−193)×2/3 = 207 (0xCF) ; 232 + (180−232)×2/3 = 197,3 -> 197 (0xC5)
-      return libelleRPE(1).couleur === '#9EC1E8' && libelleRPE(4).couleur === '#F3DE95' && libelleRPE(7).couleur === '#EE9E9A' &&
-        libelleRPE(10).couleur === '#6E6584' && libelleRPE(10).texte === '#FFFFFF' && libelleRPE(4).texte === '#000000' && libelleRPE(2).couleur === '#A3CFC5';
+    ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
+      // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
+      // 4 -> 1/3 × 5 = 1,667 : 2/3 du chemin cyan -> vert : 99 − 3×2/3 = 97 (0x61) ; 198 − 2×2/3 = 196,7 -> 197 (0xC5) ; 221 − 123×2/3 = 139 (0x8B)
+      return libelleRPE(1).couleur === '#4879C6' && libelleRPE(10).couleur === '#C54135' && libelleRPE(10).texte === '#FFFFFF' &&
+        libelleRPE(2).couleur === '#57A4D3' && libelleRPE(4).couleur === '#61C58B' && libelleRPE(4).texte === '#000000';
     }],
     ['Chaussures : km = km de départ + km des séances associées ; séance sans km ou paire inconnue ignorée', function () {
       var ch = { liste: [{ id: 'c1', nom: 'A', kmDepart: 120 }, { id: 'c2', nom: 'B', kmDepart: 0 }], parDate: { '2026-10-01': 'c1', '2026-10-02': 'c1', '2026-10-03': 'c2', '2026-10-04': 'c9', '2026-10-05': 'c2' } };
