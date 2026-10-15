@@ -3,7 +3,7 @@
 // (la nouvelle version est utilisée au chargement suivant). config.json : réseau d'abord.
 // Aucune donnée d'athlète n'est mise en cache ici : elles restent dans IndexedDB et le tableur de l'entraîneur.
 var PREFIXE = 'my-respiroutdoor-';
-var VERSION = PREFIXE + 'v5';
+var VERSION = PREFIXE + 'v6';
 var FICHIERS = ['./', './index.html', './manifest.json', '../config.json', '../icons/icon-192.png', '../icons/icon-512.png', '../icons/apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {
