@@ -27,6 +27,23 @@ __STYLES__
   <button type="button" data-v="legende"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Légende</button>
   <button type="button" data-v="protos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 20l6-12 4 7 3-4 5 9z"/></svg>Protos</button>
 </nav>
+<div id="ouverture" aria-hidden="true">
+  <div class="ouv-logo"><img alt=""></div>
+  <svg class="ouv-piste" viewBox="0 0 240 24"><path d="M6 12 H234" /></svg>
+  <div class="ouv-titre">MY RESPIROUTDOOR</div>
+  <div class="ouv-sous">Ton plan d'entraînement</div>
+</div>
+<script>
+// Animation d'ouverture (2 s) : touche l'écran pour la passer
+(function () {
+  var o = document.getElementById('ouverture'), l = document.querySelector('header.app img');
+  if (l) o.querySelector('img').src = l.src;
+  var duree = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches ? 600 : 2000;
+  function fin() { if (o.parentNode) o.parentNode.removeChild(o); }
+  o.addEventListener('click', fin);
+  setTimeout(fin, duree);
+})();
+</script>
 <main id="contenu" tabindex="-1"></main>
 <dialog id="boite"></dialog>
 <div id="toast" role="status" aria-live="polite"></div>

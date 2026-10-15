@@ -61,9 +61,11 @@
     var el = $('#statutSync');
     if (!el) return;
     var n = Object.keys(A.enAttente || {}).length, t, cls = '';
+    if (!A.code) { el.hidden = true; return; }
+    el.hidden = false;
     if (etat === 'en cours') t = 'Mise à jour…';
     else if (A.sync.erreur) { t = (navigator.onLine === false ? 'Hors connexion' : 'Pas de connexion au service') + (n ? ' · ' + n + ' saisie(s) en attente d\'envoi' : ''); cls = 'attention'; }
-    else t = 'À jour ' + UI.ilYa(A.sync.derniere) + (n ? ' · ' + n + ' saisie(s) en attente' : '');
+    else t = (A.sync.derniere ? 'À jour ' + UI.ilYa(A.sync.derniere) : 'Pas encore synchronisé') + (n ? ' · ' + n + ' saisie(s) en attente' : '');
     el.textContent = t; el.className = 'statut ' + cls;
   }
 

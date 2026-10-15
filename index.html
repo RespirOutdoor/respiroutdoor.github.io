@@ -244,6 +244,28 @@ ul.liste { margin: 0; padding-left: 18px; }
 .barre-rpe .graduations { display: flex; justify-content: space-between; padding: 0 8px; font-size: .75rem; color: var(--texte-2); }
 .barre-rpe .graduations span { width: 22px; text-align: center; font-size: .85rem; }
 .barre-rpe .graduations span.choisi { font-weight: 800; color: var(--texte); font-size: 1.05rem; }
+
+/* ---------- Animation d'ouverture (2 s) ---------- */
+#ouverture { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: radial-gradient(900px 700px at 50% 45%, #155446 0%, #0A322A 65%); color: #fff; cursor: pointer;
+  animation: ouv-sortie .4s ease-in 1.6s forwards; }
+#ouverture .ouv-logo { background: #fff; border-radius: 22px; padding: 14px 22px; box-shadow: 0 20px 50px rgba(0,0,0,.35);
+  opacity: 0; transform: scale(.8); animation: ouv-logo .7s cubic-bezier(.2,.9,.3,1.2) .05s forwards; }
+#ouverture .ouv-logo img { display: block; width: min(220px, 55vw); height: auto; }
+#ouverture .ouv-piste { width: min(240px, 60vw); height: 24px; }
+#ouverture .ouv-piste path { fill: none; stroke: #7CC5B5; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 228; stroke-dashoffset: 228;
+  animation: ouv-trait .7s ease-out .45s forwards; }
+#ouverture .ouv-titre { font-weight: 800; letter-spacing: .14em; font-size: 1.15rem; opacity: 0; transform: translateY(12px); animation: ouv-texte .5s ease-out .7s forwards; }
+#ouverture .ouv-sous { font-size: .95rem; color: #CFE5DF; opacity: 0; transform: translateY(12px); animation: ouv-texte .5s ease-out .9s forwards; }
+@keyframes ouv-logo { to { opacity: 1; transform: scale(1); } }
+@keyframes ouv-trait { to { stroke-dashoffset: 0; } }
+@keyframes ouv-texte { to { opacity: 1; transform: none; } }
+@keyframes ouv-sortie { to { opacity: 0; visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) {
+  #ouverture, #ouverture * { animation-duration: .01s !important; animation-delay: 0s !important; }
+  #ouverture { animation: ouv-sortie .2s ease-in .4s forwards !important; }
+}
+@media print { #ouverture { display: none; } }
 </style>
 </head>
 <body class="coach">
@@ -263,6 +285,23 @@ ul.liste { margin: 0; padding-left: 18px; }
   <a href="#/protos" data-v="protos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 20l6-12 4 7 3-4 5 9z"/></svg>Protos</a>
   <a href="#/reglages" data-v="reglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Réglages</a>
 </nav>
+<div id="ouverture" aria-hidden="true">
+  <div class="ouv-logo"><img alt=""></div>
+  <svg class="ouv-piste" viewBox="0 0 240 24"><path d="M6 12 H234" /></svg>
+  <div class="ouv-titre">RESPIR OUTDOOR</div>
+  <div class="ouv-sous">Espace entraîneur</div>
+</div>
+<script>
+// Animation d'ouverture (2 s) : touche l'écran pour la passer
+(function () {
+  var o = document.getElementById('ouverture'), l = document.querySelector('header.app img');
+  if (l) o.querySelector('img').src = l.src;
+  var duree = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches ? 600 : 2000;
+  function fin() { if (o.parentNode) o.parentNode.removeChild(o); }
+  o.addEventListener('click', fin);
+  setTimeout(fin, duree);
+})();
+</script>
 <main id="contenu" tabindex="-1"></main>
 <dialog id="boite"></dialog>
 <div id="toast" role="status" aria-live="polite"></div>
