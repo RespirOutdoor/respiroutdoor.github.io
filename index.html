@@ -1910,6 +1910,7 @@ var UI = (function () {
     boite.innerHTML = '<form class="boite"><h2>Envoyer le lien à ' + esc(nomComplet(a)) + '</h2>' +
       (syncConfiguree() ? '' : '<p class="alerte">La synchronisation n\'est pas configurée : le lien ne fonctionnera qu\'une fois le service Google installé (Réglages → Synchronisation).</p>') +
       '<p class="lien-athlete">' + esc(lien) + '</p>' +
+      '<p class="petit" id="etatLien">' + (syncConfiguree() ? 'Activation du lien…' : '') + '</p>' +
       '<div class="ligne">' + (navigator.share ? '<button type="button" data-x="partager">Partager…</button>' : '') +
       '<a class="bouton sec" href="https://wa.me/?text=' + enc + '" target="_blank" rel="noopener">WhatsApp</a>' +
       '<a class="bouton sec" href="sms:?&body=' + enc + '">SMS</a>' +
@@ -1918,8 +1919,15 @@ var UI = (function () {
       '<p class="muet petit">Le lien est personnel : il ne donne accès qu\'au plan de ' + esc(p) + '. En cas de besoin, « Nouveau lien » désactive l\'ancien.</p>' +
       '<div class="pied"><button type="button" class="danger" data-x="nouveau">Nouveau lien</button><button type="button" class="sec" data-x="fermer">Fermer</button></div></form>';
     boite.showModal();
-    marquer(a); sauver(); synchroniser(false);
+    marquer(a); sauver();
     var f = $('form', boite);
+    // Le lien ne fonctionne qu'une fois l'athlète publié sur le service : on l'indique à l'entraîneur
+    if (syncConfiguree()) synchroniser(false).then(function () { return E.aPublier[a.id] ? synchroniser(false) : null; }).then(function () {
+      var el = $('#etatLien', f);
+      if (!el || !boite.open) return;
+      if (!E.aPublier[a.id]) el.innerHTML = '<strong>✓ Lien actif :</strong> ' + esc(p) + ' peut l\'ouvrir dès maintenant.';
+      else { el.className = 'alerte'; el.textContent = 'Lien pas encore actif : l\'envoi au service a échoué' + (E.sync.erreur ? ' (' + E.sync.erreur + ')' : '') + '. Vérifie la connexion puis touche « Synchroniser » avant d\'envoyer le lien.'; }
+    });
     $('[data-x="fermer"]', f).onclick = function () { boite.close(); };
     var sh = $('[data-x="partager"]', f);
     if (sh) sh.onclick = function () { navigator.share({ title: 'My RespirOutdoor', text: message }).catch(function () {}); };
