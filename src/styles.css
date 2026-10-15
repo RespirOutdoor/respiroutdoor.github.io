@@ -86,6 +86,11 @@ textarea { min-height: 80px; resize: vertical; }
 input[type="checkbox"] { width: 22px; height: 22px; min-height: 0; accent-color: var(--vert-fonce); }
 label { display: block; font-size: .85rem; font-weight: 600; color: var(--texte-2); margin-bottom: 10px; }
 label > input, label > select, label > textarea { margin-top: 4px; }
+.duree-hms { grid-column: 1 / -1; margin: 4px 0 12px; }
+.duree-hms .etiq-champ { display: block; font-size: .85rem; font-weight: 600; color: var(--texte-2); }
+.hms { display: flex; gap: 10px; margin-top: 6px; }
+.hms label { display: flex; align-items: center; gap: 6px; flex: 1; margin: 0; font-weight: 600; color: var(--texte-2); }
+.hms input { width: 100%; min-width: 0; text-align: center; margin: 0; }
 .champs { display: grid; gap: 0 12px; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 fieldset { border: 1px solid var(--bord); border-radius: var(--rayon); margin: 0 0 12px; padding: 10px 12px 2px; }
 fieldset[disabled] { opacity: .6; }

@@ -168,12 +168,25 @@
   }
 
   /* ---------- Saisie d'une séance ---------- */
+  // Durée en secondes depuis les cases h / min / s ; null si tout est vide, NaN si une valeur est invalide
+  function lireDuree(d) {
+    var v = ['dh', 'dm', 'ds'].map(function (k) { return String(d.get(k) || '').trim(); });
+    if (!v.join('')) return null;
+    var n = v.map(function (x) { return x === '' ? 0 : /^\d{1,2}$/.test(x) ? Number(x) : NaN; });
+    if (n.some(isNaN) || n[1] > 59 || n[2] > 59) return NaN;
+    return n[0] * 3600 + n[1] * 60 + n[2];
+  }
   function saisir(date) {
     var a = A.athlete, j = a.jours[date] || {};
+    var aDuree = C.isNum(j.dureeSec) && j.dureeSec > 0, ds = aDuree ? Math.round(j.dureeSec) : 0;
     var h = '<form class="boite"><h2>' + C.JOURS_LONGS[C.dayOfWeek(date)] + ' ' + C.formatDateFR(date) + '</h2>' +
       (j.corps ? '<p class="muet">Prévu : <b>' + esc(j.corps) + '</b></p>' : '') +
       '<div class="champs"><label>Distance (km)<input name="km" inputmode="decimal" value="' + (C.isNum(j.km) ? C.nombreFR(j.km, 3) : '') + '" placeholder="12,5"></label>' +
-      '<label>Durée<input name="duree" inputmode="numeric" value="' + (C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '') + '" placeholder="1:15:45"></label>' +
+      // Durée en trois cases chiffrées : le pavé numérique de l'iPhone n'a pas de « : »
+      '<div class="duree-hms"><span class="etiq-champ" id="lblDuree">Durée</span><div class="hms" role="group" aria-labelledby="lblDuree">' +
+      [['dh', 'h', Math.floor(ds / 3600), '1'], ['dm', 'min', Math.floor(ds % 3600 / 60), '15'], ['ds', 's', ds % 60, '45']].map(function (x) {
+        return '<label><input name="' + x[0] + '" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="' + (aDuree ? x[2] : '') + '" placeholder="' + x[3] + '" aria-label="' + ({ h: 'heures', min: 'minutes', s: 'secondes' })[x[1]] + '"><span>' + x[1] + '</span></label>';
+      }).join('') + '</div></div>' +
       '<label>D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (C.isNum(j.dplus) ? Math.round(j.dplus) : '') + '" placeholder="150"></label></div>' +
       '<fieldset><legend>Ressenti (RPE)</legend>' + UI.htmlBarreRPE(j.rpe) +
       '<p class="muet petit">À noter 30 min après la séance : 1 très facile → 10 effort maximal.</p></fieldset>' +
@@ -183,6 +196,12 @@
     boite.innerHTML = h; boite.showModal();
     var f = $('form', boite);
     UI.brancherBarreRPE(f);
+    // Passage automatique à la case suivante après deux chiffres (minutes, secondes)
+    ['dh', 'dm'].forEach(function (n, i) {
+      var el = f.elements[n], suiv = f.elements[['dm', 'ds'][i]];
+      el.oninput = function () { el.value = el.value.replace(/\D/g, ''); if (el.value.length >= 2) suiv.focus(); };
+    });
+    f.elements.ds.oninput = function () { this.value = this.value.replace(/\D/g, ''); };
     $('[data-x="annuler"]', f).onclick = function () { boite.close(); };
     var ef = $('[data-x="effacer"]', f);
     if (ef) ef.onclick = function () {
@@ -193,9 +212,9 @@
     f.onsubmit = function (ev) {
       ev.preventDefault();
       var d = new FormData(f), err = [];
-      var km = C.parseNumberFR(d.get('km')), du = C.parseDuree(d.get('duree')), dp = C.parseNumberFR(d.get('dplus')), rpe = d.get('rpe') ? Number(d.get('rpe')) : null;
+      var km = C.parseNumberFR(d.get('km')), du = lireDuree(d), dp = C.parseNumberFR(d.get('dplus')), rpe = d.get('rpe') ? Number(d.get('rpe')) : null;
       if (km !== null && !(km >= 0 && km < 400)) err.push('Distance : nombre attendu, ex. 12,5');
-      if (du !== null && !(du > 0 && du < 172800)) err.push('Durée : format h:mm:ss, mm:ss, 1h15 ou minutes');
+      if (du !== null && !(du > 0 && du < 172800)) err.push('Durée : heures, minutes (0 à 59) et secondes (0 à 59)');
       if (dp !== null && !(dp >= 0 && dp < 20000)) err.push('D+ : nombre de mètres');
       if (km === null && du === null && rpe === null && !C.texte(d.get('notes'))) err.push('Renseigne au moins la distance ou la durée');
       if (err.length) { var e = $('#erreurSaisie'); e.hidden = false; e.textContent = err.join(' · '); return; }
