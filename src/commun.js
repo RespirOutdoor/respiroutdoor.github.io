@@ -128,6 +128,7 @@ var UI = (function () {
           (C.isNum(j.dureeSec) ? '<span><b>' + C.formatDuree(j.dureeSec) + '</b></span>' : '') +
           (allure ? '<span>' + C.formatAllure(allure) + '</span>' : '') +
           (C.isNum(j.dplus) ? '<span>D+ ' + Math.round(j.dplus) + ' m</span>' : '') +
+          (C.isNum(j.fc) ? '<span>FC moy. <b>' + Math.round(j.fc) + '</b> bpm</span>' : '') +
           (C.isNum(j.rpe) ? '<span>RPE ' + badgeRPE(j.rpe) + '</span>' : '');
       } else h += '<span class="muet petit">' + (role === 'athlete' ? (passe ? 'Pas encore saisie' : 'À venir') : 'Pas encore de retour') + '</span>';
       h += '<span class="espace"></span>';

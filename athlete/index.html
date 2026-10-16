@@ -385,7 +385,7 @@ var Core = (function () {
   var JOURS_LONGS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
   // Colonnes « partie entraîneur » et « partie athlète » du tableau PLAN
   var CHAMPS_COACH = ['eveil', 'educ', 'corps', 'rac', 'profil', 'type', 'consignes'];
-  var CHAMPS_ATHLETE = ['km', 'dureeSec', 'dplus', 'rpe', 'notes'];
+  var CHAMPS_ATHLETE = ['km', 'dureeSec', 'dplus', 'rpe', 'notes', 'fc'];
   // Réaction de l'entraîneur à une séance saisie : écrite par l'entraîneur, conservée lors d'un import Excel
   var CHAMP_REACTION = 'reaction';
   // Champs de la fiche gardés côté entraîneur quand un classeur Excel est réimporté
@@ -612,7 +612,7 @@ var Core = (function () {
   /* ---------- Bilans ---------- */
   function estRepos(j) { return /^REPOS\b/i.test(texte(j && j.corps)); }
   function aContenuCoach(j) { return !!j && CHAMPS_COACH.some(function (k) { return texte(j[k]) !== ''; }); }
-  function aRetour(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec) || isNum(j.rpe) || isNum(j.dplus) || texte(j.notes) !== ''); }
+  function aRetour(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec) || isNum(j.rpe) || isNum(j.dplus) || isNum(j.fc) || texte(j.notes) !== ''); }
   // Somme des km et durées, moyenne des RPE renseignés (comme =SUM et =AVERAGE du tableau)
   function bilanJours(jours) {
     var r = { km: 0, dureeSec: 0, rpeMoy: null, nbRpe: 0, prevues: 0, faites: 0 }, sRpe = 0;
@@ -681,7 +681,7 @@ var Core = (function () {
     var r = {};
     CHAMPS_COACH.concat([CHAMP_REACTION], CHAMPS_ATHLETE).forEach(function (k) {
       var v = j[k];
-      if (k === 'km' || k === 'dureeSec' || k === 'rpe' || k === 'dplus') { if (isNum(v)) r[k] = v; }
+      if (k === 'km' || k === 'dureeSec' || k === 'rpe' || k === 'dplus' || k === 'fc') { if (isNum(v)) r[k] = v; }
       else if (texte(v) !== '') r[k] = texte(v);
     });
     if (texte(j.majA) !== '') r.majA = texte(j.majA);
@@ -1319,6 +1319,12 @@ var Core = (function () {
       var r = resumeCoach(a, '2026-10-15');
       return r.nonRealisees.length === 1 && r.nonRealisees[0].date === '2026-10-12' && r.nonRealisees[0].raison === 'Fatigue' && r.nonRealisees[0].message === 'Trop de travail';
     }],
+    ['FC moyenne : gardée sur le téléphone si le service (version 1) la renvoie sans FC pour la même saisie', function () {
+      var local = { id: 'x', jours: { '2026-10-13': { corps: 'EF', km: 10, fc: 150, majA: '2026-10-13T19:00:00Z' } } };
+      var recu = { id: 'x', jours: { '2026-10-13': { corps: 'EF', km: 10, majA: '2026-10-13T19:00:00Z' } } };
+      var r = fusionner(local, recu, 'serveur', {});
+      return r.jours['2026-10-13'].fc === 150 && aRetour({ fc: 140 });
+    }],
     ['Chaussures : km = km de départ + km des séances associées ; séance sans km ou paire inconnue ignorée', function () {
       var ch = { liste: [{ id: 'c1', nom: 'A', kmDepart: 120 }, { id: 'c2', nom: 'B', kmDepart: 0 }], parDate: { '2026-10-01': 'c1', '2026-10-02': 'c1', '2026-10-03': 'c2', '2026-10-04': 'c9', '2026-10-05': 'c2' } };
       var jours = { '2026-10-01': { km: 10.5 }, '2026-10-02': { km: 8 }, '2026-10-03': { km: 12.25 }, '2026-10-04': { km: 30 }, '2026-10-05': { dureeSec: 1800 } };
@@ -1490,6 +1496,7 @@ var UI = (function () {
           (C.isNum(j.dureeSec) ? '<span><b>' + C.formatDuree(j.dureeSec) + '</b></span>' : '') +
           (allure ? '<span>' + C.formatAllure(allure) + '</span>' : '') +
           (C.isNum(j.dplus) ? '<span>D+ ' + Math.round(j.dplus) + ' m</span>' : '') +
+          (C.isNum(j.fc) ? '<span>FC moy. <b>' + Math.round(j.fc) + '</b> bpm</span>' : '') +
           (C.isNum(j.rpe) ? '<span>RPE ' + badgeRPE(j.rpe) + '</span>' : '');
       } else h += '<span class="muet petit">' + (role === 'athlete' ? (passe ? 'Pas encore saisie' : 'À venir') : 'Pas encore de retour') + '</span>';
       h += '<span class="espace"></span>';
@@ -2082,7 +2089,8 @@ var UI = (function () {
       [['dh', 'h', Math.floor(ds / 3600), '1'], ['dm', 'min', Math.floor(ds % 3600 / 60), '15'], ['ds', 's', ds % 60, '45']].map(function (x) {
         return '<label><input name="' + x[0] + '" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="' + (aDuree ? x[2] : '') + '" placeholder="' + x[3] + '" aria-label="' + ({ h: 'heures', min: 'minutes', s: 'secondes' })[x[1]] + '"><span>' + x[1] + '</span></label>';
       }).join('') + '</div></div>' +
-      '<label>D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (C.isNum(j.dplus) ? Math.round(j.dplus) : '') + '" placeholder="150"></label></div>' +
+      '<label>D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (C.isNum(j.dplus) ? Math.round(j.dplus) : '') + '" placeholder="150"></label>' +
+      '<label>FC moyenne (bpm)<input name="fc" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="' + (C.isNum(j.fc) ? Math.round(j.fc) : '') + '" placeholder="145"></label></div>' +
       (function () {
         var ch = chaussures(), act = ch.liste.filter(function (c) { return !c.retiree || ch.parDate[date] === c.id; });
         if (!act.length) return '';
@@ -2114,13 +2122,14 @@ var UI = (function () {
     f.onsubmit = function (ev) {
       ev.preventDefault();
       var d = new FormData(f), err = [];
-      var km = C.parseNumberFR(d.get('km')), du = lireDuree(d), dp = C.parseNumberFR(d.get('dplus')), rpe = d.get('rpe') ? Number(d.get('rpe')) : null;
+      var km = C.parseNumberFR(d.get('km')), du = lireDuree(d), dp = C.parseNumberFR(d.get('dplus')), fc = C.parseNumberFR(d.get('fc')), rpe = d.get('rpe') ? Number(d.get('rpe')) : null;
       if (km !== null && !(km >= 0 && km < 400)) err.push('Distance : nombre attendu, ex. 12,5');
       if (du !== null && !(du > 0 && du < 172800)) err.push('Durée : heures, minutes (0 à 59) et secondes (0 à 59)');
       if (dp !== null && !(dp >= 0 && dp < 20000)) err.push('D+ : nombre de mètres');
+      if (fc !== null && !(fc >= 30 && fc <= 250 && Math.round(fc) === fc)) err.push('FC moyenne : nombre entier de battements par minute, entre 30 et 250');
       if (km === null && du === null && rpe === null && !C.texte(d.get('notes'))) err.push('Renseigne au moins la distance ou la durée');
       if (err.length) { var e = $('#erreurSaisie'); e.hidden = false; e.textContent = err.join(' · '); return; }
-      var n = Object.assign({}, j, { km: km, dureeSec: du, dplus: dp, rpe: rpe, notes: d.get('notes') });
+      var n = Object.assign({}, j, { km: km, dureeSec: du, dplus: dp, rpe: rpe, fc: fc, notes: d.get('notes') });
       var chx = d.get('chaussure'), ch = chaussures();
       if (chx) ch.parDate[date] = chx; else delete ch.parDate[date];
       enregistrer(date, n); boite.close();

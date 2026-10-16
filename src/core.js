@@ -6,7 +6,7 @@ var Core = (function () {
   var JOURS_LONGS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
   // Colonnes « partie entraîneur » et « partie athlète » du tableau PLAN
   var CHAMPS_COACH = ['eveil', 'educ', 'corps', 'rac', 'profil', 'type', 'consignes'];
-  var CHAMPS_ATHLETE = ['km', 'dureeSec', 'dplus', 'rpe', 'notes'];
+  var CHAMPS_ATHLETE = ['km', 'dureeSec', 'dplus', 'rpe', 'notes', 'fc'];
   // Réaction de l'entraîneur à une séance saisie : écrite par l'entraîneur, conservée lors d'un import Excel
   var CHAMP_REACTION = 'reaction';
   // Champs de la fiche gardés côté entraîneur quand un classeur Excel est réimporté
@@ -233,7 +233,7 @@ var Core = (function () {
   /* ---------- Bilans ---------- */
   function estRepos(j) { return /^REPOS\b/i.test(texte(j && j.corps)); }
   function aContenuCoach(j) { return !!j && CHAMPS_COACH.some(function (k) { return texte(j[k]) !== ''; }); }
-  function aRetour(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec) || isNum(j.rpe) || isNum(j.dplus) || texte(j.notes) !== ''); }
+  function aRetour(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec) || isNum(j.rpe) || isNum(j.dplus) || isNum(j.fc) || texte(j.notes) !== ''); }
   // Somme des km et durées, moyenne des RPE renseignés (comme =SUM et =AVERAGE du tableau)
   function bilanJours(jours) {
     var r = { km: 0, dureeSec: 0, rpeMoy: null, nbRpe: 0, prevues: 0, faites: 0 }, sRpe = 0;
@@ -302,7 +302,7 @@ var Core = (function () {
     var r = {};
     CHAMPS_COACH.concat([CHAMP_REACTION], CHAMPS_ATHLETE).forEach(function (k) {
       var v = j[k];
-      if (k === 'km' || k === 'dureeSec' || k === 'rpe' || k === 'dplus') { if (isNum(v)) r[k] = v; }
+      if (k === 'km' || k === 'dureeSec' || k === 'rpe' || k === 'dplus' || k === 'fc') { if (isNum(v)) r[k] = v; }
       else if (texte(v) !== '') r[k] = texte(v);
     });
     if (texte(j.majA) !== '') r.majA = texte(j.majA);
@@ -939,6 +939,12 @@ var Core = (function () {
       var a = { jours: { '2026-10-12': { corps: 'VMA', type: 'VMA', notes: noteNonRealisee('Fatigue', 'Trop de travail') }, '2026-10-01': { corps: 'EF', notes: noteNonRealisee('Météo', '') } } };
       var r = resumeCoach(a, '2026-10-15');
       return r.nonRealisees.length === 1 && r.nonRealisees[0].date === '2026-10-12' && r.nonRealisees[0].raison === 'Fatigue' && r.nonRealisees[0].message === 'Trop de travail';
+    }],
+    ['FC moyenne : gardée sur le téléphone si le service (version 1) la renvoie sans FC pour la même saisie', function () {
+      var local = { id: 'x', jours: { '2026-10-13': { corps: 'EF', km: 10, fc: 150, majA: '2026-10-13T19:00:00Z' } } };
+      var recu = { id: 'x', jours: { '2026-10-13': { corps: 'EF', km: 10, majA: '2026-10-13T19:00:00Z' } } };
+      var r = fusionner(local, recu, 'serveur', {});
+      return r.jours['2026-10-13'].fc === 150 && aRetour({ fc: 140 });
     }],
     ['Chaussures : km = km de départ + km des séances associées ; séance sans km ou paire inconnue ignorée', function () {
       var ch = { liste: [{ id: 'c1', nom: 'A', kmDepart: 120 }, { id: 'c2', nom: 'B', kmDepart: 0 }], parDate: { '2026-10-01': 'c1', '2026-10-02': 'c1', '2026-10-03': 'c2', '2026-10-04': 'c9', '2026-10-05': 'c2' } };

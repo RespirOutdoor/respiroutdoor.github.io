@@ -13,17 +13,18 @@
  *
  * Règle de fusion : chaque information a un seul propriétaire.
  *  - L'entraîneur écrit la partie entraîneur (séance, éveil, éduc, RAC, profil, type, consignes, réaction).
- *  - L'athlète écrit la partie athlète (km, durée, D+, RPE, notes). Une publication de l'entraîneur
+ *  - L'athlète écrit la partie athlète (km, durée, D+, RPE, FC moyenne, notes). Une publication de l'entraîneur
  *    ne l'écrase jamais : elle ne peut que remplir un jour encore vide.
  */
 
-var VERSION_SERVICE = 1;
+var VERSION_SERVICE = 2; // 2 : FC moyenne de la séance
 var CHAMPS_COACH = ['eveil', 'educ', 'corps', 'rac', 'profil', 'type', 'consignes', 'reaction'];
-var CHAMPS_ATHLETE = ['km', 'dureeSec', 'dplus', 'rpe', 'notes'];
-var NUMERIQUES = { km: [0, 400], dureeSec: [0, 172800], dplus: [0, 20000], rpe: [1, 10] };
-var COL_JOURS = ['date'].concat(CHAMPS_COACH, CHAMPS_ATHLETE, ['majA', 'recu']);
+var CHAMPS_ATHLETE = ['km', 'dureeSec', 'dplus', 'rpe', 'notes', 'fc'];
+var NUMERIQUES = { km: [0, 400], dureeSec: [0, 172800], dplus: [0, 20000], rpe: [1, 10], fc: [30, 250] };
+// Colonnes des onglets J_… : les nouvelles colonnes sont ajoutées à la fin pour ne pas décaler les données déjà enregistrées
+var COL_JOURS = ['date'].concat(CHAMPS_COACH, ['km', 'dureeSec', 'dplus', 'rpe', 'notes'], ['majA', 'recu'], ['fc']);
 var ENTETES_JOURS = ['Date', 'Éveil (min)', 'Éduc (min)', 'Corps de séance', 'RAC (min)', 'Profil', 'Type', 'Consignes',
-  'Réaction du coach', 'KM', 'Durée (s)', 'D+ (m)', 'RPE', 'Notes', 'Saisi le', 'Reçu le'];
+  'Réaction du coach', 'KM', 'Durée (s)', 'D+ (m)', 'RPE', 'Notes', 'Saisi le', 'Reçu le', 'FC moy. (bpm)'];
 var COL_ATHLETES = ['id', 'prenom', 'nom', 'code', 'fiche', 'mot', 'majPlan', 'lienOuvert', 'derniereSync'];
 var ENTETES_ATHLETES = ['Identifiant', 'Prénom', 'Nom', 'Code du lien', 'Fiche (technique)', 'Mot du coach',
   'Plan publié le', 'Lien ouvert le', 'Dernière synchro'];
@@ -267,6 +268,9 @@ function ecrireJours_(id, tous) {
     var r = tous[d]; r.date = d;
     return COL_JOURS.map(function (k) { return r[k] == null ? '' : r[k]; });
   }).filter(function (l) { return l.slice(1).some(function (v) { return v !== ''; }); });
+  // Onglet créé avec une version précédente du service : compléter la ligne d'en-têtes
+  var tete = sh.getRange(1, 1, 1, ENTETES_JOURS.length).getValues()[0];
+  if (tete.some(function (v) { return v === '' || v == null; })) sh.getRange(1, 1, 1, ENTETES_JOURS.length).setValues([ENTETES_JOURS]);
   if (lignes.length) sh.getRange(2, 1, lignes.length, COL_JOURS.length).setValues(lignes);
   if (avant > lignes.length) sh.getRange(lignes.length + 2, 1, avant - lignes.length, COL_JOURS.length).clearContent();
 }

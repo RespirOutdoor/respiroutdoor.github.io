@@ -388,7 +388,7 @@ var Core = (function () {
   var JOURS_LONGS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
   // Colonnes « partie entraîneur » et « partie athlète » du tableau PLAN
   var CHAMPS_COACH = ['eveil', 'educ', 'corps', 'rac', 'profil', 'type', 'consignes'];
-  var CHAMPS_ATHLETE = ['km', 'dureeSec', 'dplus', 'rpe', 'notes'];
+  var CHAMPS_ATHLETE = ['km', 'dureeSec', 'dplus', 'rpe', 'notes', 'fc'];
   // Réaction de l'entraîneur à une séance saisie : écrite par l'entraîneur, conservée lors d'un import Excel
   var CHAMP_REACTION = 'reaction';
   // Champs de la fiche gardés côté entraîneur quand un classeur Excel est réimporté
@@ -615,7 +615,7 @@ var Core = (function () {
   /* ---------- Bilans ---------- */
   function estRepos(j) { return /^REPOS\b/i.test(texte(j && j.corps)); }
   function aContenuCoach(j) { return !!j && CHAMPS_COACH.some(function (k) { return texte(j[k]) !== ''; }); }
-  function aRetour(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec) || isNum(j.rpe) || isNum(j.dplus) || texte(j.notes) !== ''); }
+  function aRetour(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec) || isNum(j.rpe) || isNum(j.dplus) || isNum(j.fc) || texte(j.notes) !== ''); }
   // Somme des km et durées, moyenne des RPE renseignés (comme =SUM et =AVERAGE du tableau)
   function bilanJours(jours) {
     var r = { km: 0, dureeSec: 0, rpeMoy: null, nbRpe: 0, prevues: 0, faites: 0 }, sRpe = 0;
@@ -684,7 +684,7 @@ var Core = (function () {
     var r = {};
     CHAMPS_COACH.concat([CHAMP_REACTION], CHAMPS_ATHLETE).forEach(function (k) {
       var v = j[k];
-      if (k === 'km' || k === 'dureeSec' || k === 'rpe' || k === 'dplus') { if (isNum(v)) r[k] = v; }
+      if (k === 'km' || k === 'dureeSec' || k === 'rpe' || k === 'dplus' || k === 'fc') { if (isNum(v)) r[k] = v; }
       else if (texte(v) !== '') r[k] = texte(v);
     });
     if (texte(j.majA) !== '') r.majA = texte(j.majA);
@@ -1322,6 +1322,12 @@ var Core = (function () {
       var r = resumeCoach(a, '2026-10-15');
       return r.nonRealisees.length === 1 && r.nonRealisees[0].date === '2026-10-12' && r.nonRealisees[0].raison === 'Fatigue' && r.nonRealisees[0].message === 'Trop de travail';
     }],
+    ['FC moyenne : gardée sur le téléphone si le service (version 1) la renvoie sans FC pour la même saisie', function () {
+      var local = { id: 'x', jours: { '2026-10-13': { corps: 'EF', km: 10, fc: 150, majA: '2026-10-13T19:00:00Z' } } };
+      var recu = { id: 'x', jours: { '2026-10-13': { corps: 'EF', km: 10, majA: '2026-10-13T19:00:00Z' } } };
+      var r = fusionner(local, recu, 'serveur', {});
+      return r.jours['2026-10-13'].fc === 150 && aRetour({ fc: 140 });
+    }],
     ['Chaussures : km = km de départ + km des séances associées ; séance sans km ou paire inconnue ignorée', function () {
       var ch = { liste: [{ id: 'c1', nom: 'A', kmDepart: 120 }, { id: 'c2', nom: 'B', kmDepart: 0 }], parDate: { '2026-10-01': 'c1', '2026-10-02': 'c1', '2026-10-03': 'c2', '2026-10-04': 'c9', '2026-10-05': 'c2' } };
       var jours = { '2026-10-01': { km: 10.5 }, '2026-10-02': { km: 8 }, '2026-10-03': { km: 12.25 }, '2026-10-04': { km: 30 }, '2026-10-05': { dureeSec: 1800 } };
@@ -1493,6 +1499,7 @@ var UI = (function () {
           (C.isNum(j.dureeSec) ? '<span><b>' + C.formatDuree(j.dureeSec) + '</b></span>' : '') +
           (allure ? '<span>' + C.formatAllure(allure) + '</span>' : '') +
           (C.isNum(j.dplus) ? '<span>D+ ' + Math.round(j.dplus) + ' m</span>' : '') +
+          (C.isNum(j.fc) ? '<span>FC moy. <b>' + Math.round(j.fc) + '</b> bpm</span>' : '') +
           (C.isNum(j.rpe) ? '<span>RPE ' + badgeRPE(j.rpe) + '</span>' : '');
       } else h += '<span class="muet petit">' + (role === 'athlete' ? (passe ? 'Pas encore saisie' : 'À venir') : 'Pas encore de retour') + '</span>';
       h += '<span class="espace"></span>';
@@ -1995,7 +2002,7 @@ var UI = (function () {
       '<div class="champs"><label>Éveil (min.)<input name="eveil" value="' + esc(j.eveil) + '"></label><label>Éduc (min.)<input name="educ" value="' + esc(j.educ) + '"></label><label>RAC (min.)<input name="rac" value="' + esc(j.rac) + '"></label>' +
       '<label>Profil<input name="profil" list="dlProfils" value="' + esc(j.profil) + '"></label><label>Type<input name="type" list="dlTypes" value="' + esc(j.type) + '"></label></div>' +
       '<label>Consignes<input name="consignes" value="' + esc(j.consignes) + '"></label>' +
-      (C.aRetour(j) ? '<p class="muet petit">Saisie de l\'athlète (non modifiable ici) : ' + [C.isNum(j.km) ? C.nombreFR(j.km, 2) + ' km' : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.rpe) ? 'RPE ' + j.rpe : ''].filter(Boolean).join(' · ') + '</p>' : '') +
+      (C.aRetour(j) ? '<p class="muet petit">Saisie de l\'athlète (non modifiable ici) : ' + [C.isNum(j.km) ? C.nombreFR(j.km, 2) + ' km' : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.rpe) ? 'RPE ' + j.rpe : '', C.isNum(j.fc) ? 'FC moy. ' + Math.round(j.fc) + ' bpm' : ''].filter(Boolean).join(' · ') + '</p>' : '') +
       datalist('dlProfils', (E.legende || {}).profils) + datalist('dlTypes', (E.legende || {}).types) +
       '<div class="pied">' + (C.aContenuCoach(j) ? '<button type="button" class="danger" data-x="vider">Vider la séance</button>' : '') +
       '<button type="button" class="sec" data-x="annuler">Annuler</button><button value="ok">Enregistrer</button></div></form>';
@@ -2286,11 +2293,11 @@ var UI = (function () {
   }
   function exportCsv() {
     var a = athlete(), dates = Object.keys(a.jours).sort();
-    var l = [['Semaine', 'Jour', 'Date', 'Éveil (min.)', 'Éduc (min.)', 'Corps de séance', 'RAC (min.)', 'Profil', 'Type', 'Phase', 'Cycle', 'Consignes', 'KM', 'Durée', 'D+ (m)', 'RPE', 'Notes perso', 'Réaction du coach']];
+    var l = [['Semaine', 'Jour', 'Date', 'Éveil (min.)', 'Éduc (min.)', 'Corps de séance', 'RAC (min.)', 'Profil', 'Type', 'Phase', 'Cycle', 'Consignes', 'KM', 'Durée', 'D+ (m)', 'RPE', 'FC moy. (bpm)', 'Notes perso', 'Réaction du coach']];
     dates.forEach(function (d) {
       var j = a.jours[d], s = UI.semaineDe(a, d), w = (a.semaines || {})[s] || {};
       l.push(['S' + s, C.JOURS[C.dayOfWeek(d)], C.formatDateFR(d), j.eveil || '', j.educ || '', j.corps || '', j.rac || '', j.profil || '', j.type || '', w.phase || '', w.cycle || '', j.consignes || '',
-        C.isNum(j.km) ? C.nombreFR(j.km, 3) : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.dplus) ? Math.round(j.dplus) : '', C.isNum(j.rpe) ? C.nombreFR(j.rpe, 1) : '', j.notes || '', j.reaction || '']);
+        C.isNum(j.km) ? C.nombreFR(j.km, 3) : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.dplus) ? Math.round(j.dplus) : '', C.isNum(j.rpe) ? C.nombreFR(j.rpe, 1) : '', C.isNum(j.fc) ? Math.round(j.fc) : '', j.notes || '', j.reaction || '']);
     });
     telecharger(horodatage() + '_PLAN_' + (a.nom || '').toUpperCase() + '.csv', '﻿' + C.versCSV(l), 'text/csv;charset=utf-8');
   }

@@ -48,6 +48,25 @@ test('Athlète : saisie enregistrée (nombres relus comme nombres) puis visible 
   const j = c.athletes.MORERA_SYLVAIN.jours['2026-10-13'];
   vrai(j.km === 10.26 && j.dureeSec === 2751 && j.rpe === 9 && j.notes === 'Belle séance' && j.majA === '2026-10-13T19:00:00.000Z', JSON.stringify(j));
 });
+test('FC moyenne : enregistrée, relue comme nombre, visible par l\'entraîneur ; FC 260 refusée', () => {
+  const { s, cle } = preparer();
+  vrai(s.appel({ action: 'athlete.saisir', code: 'K7Q2XA', jours: { '2026-10-13': { km: 10, fc: 152, majA: '2026-10-13T19:00:00.000Z' } } }).ok);
+  vrai(s.appel({ action: 'athlete.lire', code: 'K7Q2XA' }).jours['2026-10-13'].fc === 152);
+  vrai(s.appel({ action: 'coach.lire', cle }).athletes.MORERA_SYLVAIN.jours['2026-10-13'].fc === 152);
+  vrai(/valeur invalide/.test(s.appel({ action: 'athlete.saisir', code: 'K7Q2XA', jours: { '2026-10-13': { fc: 260 } } }).erreur));
+});
+test('Onglet créé par la version 1 (16 colonnes) : données non décalées, en-tête FC ajoutée', () => {
+  const { s } = preparer();
+  vrai(s.appel({ action: 'athlete.saisir', code: 'K7Q2XA', jours: { '2026-10-13': { km: 8, rpe: 4, notes: 'ok', majA: '2026-10-13T19:00:00.000Z' } } }).ok);
+  const f = s.feuilles['J_MORERA_SYLVAIN'];
+  f.cellules.forEach(l => { l.length = Math.min(l.length, 16); }); // retire la colonne FC comme dans un ancien onglet
+  let j = s.appel({ action: 'athlete.lire', code: 'K7Q2XA' }).jours['2026-10-13'];
+  vrai(j.km === 8 && j.rpe === 4 && j.notes === 'ok' && j.fc === '', JSON.stringify(j));
+  vrai(s.appel({ action: 'athlete.saisir', code: 'K7Q2XA', jours: { '2026-10-13': { km: 8, rpe: 4, notes: 'ok', fc: 148, majA: '2026-10-13T20:00:00.000Z' } } }).ok);
+  j = s.appel({ action: 'athlete.lire', code: 'K7Q2XA' }).jours['2026-10-13'];
+  vrai(j.km === 8 && j.rpe === 4 && j.notes === 'ok' && j.fc === 148, JSON.stringify(j));
+  vrai(f.cellules[0][16] === 'FC moy. (bpm)' && f.cellules[0][13] === 'Notes', JSON.stringify(f.cellules[0]));
+});
 test('Nouvelle publication de l\'entraîneur (nouvel Excel) : plan remplacé, saisie de l\'athlète intacte', () => {
   const { s, cle, athlete } = preparer();
   s.appel({ action: 'athlete.saisir', code: 'K7Q2XA', jours: { '2026-10-13': { km: 10, rpe: 8, majA: '2026-10-13T19:00:00.000Z' } } });

@@ -290,7 +290,8 @@
       [['dh', 'h', Math.floor(ds / 3600), '1'], ['dm', 'min', Math.floor(ds % 3600 / 60), '15'], ['ds', 's', ds % 60, '45']].map(function (x) {
         return '<label><input name="' + x[0] + '" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="' + (aDuree ? x[2] : '') + '" placeholder="' + x[3] + '" aria-label="' + ({ h: 'heures', min: 'minutes', s: 'secondes' })[x[1]] + '"><span>' + x[1] + '</span></label>';
       }).join('') + '</div></div>' +
-      '<label>D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (C.isNum(j.dplus) ? Math.round(j.dplus) : '') + '" placeholder="150"></label></div>' +
+      '<label>D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (C.isNum(j.dplus) ? Math.round(j.dplus) : '') + '" placeholder="150"></label>' +
+      '<label>FC moyenne (bpm)<input name="fc" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="' + (C.isNum(j.fc) ? Math.round(j.fc) : '') + '" placeholder="145"></label></div>' +
       (function () {
         var ch = chaussures(), act = ch.liste.filter(function (c) { return !c.retiree || ch.parDate[date] === c.id; });
         if (!act.length) return '';
@@ -322,13 +323,14 @@
     f.onsubmit = function (ev) {
       ev.preventDefault();
       var d = new FormData(f), err = [];
-      var km = C.parseNumberFR(d.get('km')), du = lireDuree(d), dp = C.parseNumberFR(d.get('dplus')), rpe = d.get('rpe') ? Number(d.get('rpe')) : null;
+      var km = C.parseNumberFR(d.get('km')), du = lireDuree(d), dp = C.parseNumberFR(d.get('dplus')), fc = C.parseNumberFR(d.get('fc')), rpe = d.get('rpe') ? Number(d.get('rpe')) : null;
       if (km !== null && !(km >= 0 && km < 400)) err.push('Distance : nombre attendu, ex. 12,5');
       if (du !== null && !(du > 0 && du < 172800)) err.push('Durée : heures, minutes (0 à 59) et secondes (0 à 59)');
       if (dp !== null && !(dp >= 0 && dp < 20000)) err.push('D+ : nombre de mètres');
+      if (fc !== null && !(fc >= 30 && fc <= 250 && Math.round(fc) === fc)) err.push('FC moyenne : nombre entier de battements par minute, entre 30 et 250');
       if (km === null && du === null && rpe === null && !C.texte(d.get('notes'))) err.push('Renseigne au moins la distance ou la durée');
       if (err.length) { var e = $('#erreurSaisie'); e.hidden = false; e.textContent = err.join(' · '); return; }
-      var n = Object.assign({}, j, { km: km, dureeSec: du, dplus: dp, rpe: rpe, notes: d.get('notes') });
+      var n = Object.assign({}, j, { km: km, dureeSec: du, dplus: dp, rpe: rpe, fc: fc, notes: d.get('notes') });
       var chx = d.get('chaussure'), ch = chaussures();
       if (chx) ch.parDate[date] = chx; else delete ch.parDate[date];
       enregistrer(date, n); boite.close();

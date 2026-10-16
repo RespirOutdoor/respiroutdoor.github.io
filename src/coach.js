@@ -200,7 +200,7 @@
       '<div class="champs"><label>Éveil (min.)<input name="eveil" value="' + esc(j.eveil) + '"></label><label>Éduc (min.)<input name="educ" value="' + esc(j.educ) + '"></label><label>RAC (min.)<input name="rac" value="' + esc(j.rac) + '"></label>' +
       '<label>Profil<input name="profil" list="dlProfils" value="' + esc(j.profil) + '"></label><label>Type<input name="type" list="dlTypes" value="' + esc(j.type) + '"></label></div>' +
       '<label>Consignes<input name="consignes" value="' + esc(j.consignes) + '"></label>' +
-      (C.aRetour(j) ? '<p class="muet petit">Saisie de l\'athlète (non modifiable ici) : ' + [C.isNum(j.km) ? C.nombreFR(j.km, 2) + ' km' : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.rpe) ? 'RPE ' + j.rpe : ''].filter(Boolean).join(' · ') + '</p>' : '') +
+      (C.aRetour(j) ? '<p class="muet petit">Saisie de l\'athlète (non modifiable ici) : ' + [C.isNum(j.km) ? C.nombreFR(j.km, 2) + ' km' : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.rpe) ? 'RPE ' + j.rpe : '', C.isNum(j.fc) ? 'FC moy. ' + Math.round(j.fc) + ' bpm' : ''].filter(Boolean).join(' · ') + '</p>' : '') +
       datalist('dlProfils', (E.legende || {}).profils) + datalist('dlTypes', (E.legende || {}).types) +
       '<div class="pied">' + (C.aContenuCoach(j) ? '<button type="button" class="danger" data-x="vider">Vider la séance</button>' : '') +
       '<button type="button" class="sec" data-x="annuler">Annuler</button><button value="ok">Enregistrer</button></div></form>';
@@ -491,11 +491,11 @@
   }
   function exportCsv() {
     var a = athlete(), dates = Object.keys(a.jours).sort();
-    var l = [['Semaine', 'Jour', 'Date', 'Éveil (min.)', 'Éduc (min.)', 'Corps de séance', 'RAC (min.)', 'Profil', 'Type', 'Phase', 'Cycle', 'Consignes', 'KM', 'Durée', 'D+ (m)', 'RPE', 'Notes perso', 'Réaction du coach']];
+    var l = [['Semaine', 'Jour', 'Date', 'Éveil (min.)', 'Éduc (min.)', 'Corps de séance', 'RAC (min.)', 'Profil', 'Type', 'Phase', 'Cycle', 'Consignes', 'KM', 'Durée', 'D+ (m)', 'RPE', 'FC moy. (bpm)', 'Notes perso', 'Réaction du coach']];
     dates.forEach(function (d) {
       var j = a.jours[d], s = UI.semaineDe(a, d), w = (a.semaines || {})[s] || {};
       l.push(['S' + s, C.JOURS[C.dayOfWeek(d)], C.formatDateFR(d), j.eveil || '', j.educ || '', j.corps || '', j.rac || '', j.profil || '', j.type || '', w.phase || '', w.cycle || '', j.consignes || '',
-        C.isNum(j.km) ? C.nombreFR(j.km, 3) : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.dplus) ? Math.round(j.dplus) : '', C.isNum(j.rpe) ? C.nombreFR(j.rpe, 1) : '', j.notes || '', j.reaction || '']);
+        C.isNum(j.km) ? C.nombreFR(j.km, 3) : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.dplus) ? Math.round(j.dplus) : '', C.isNum(j.rpe) ? C.nombreFR(j.rpe, 1) : '', C.isNum(j.fc) ? Math.round(j.fc) : '', j.notes || '', j.reaction || '']);
     });
     telecharger(horodatage() + '_PLAN_' + (a.nom || '').toUpperCase() + '.csv', '﻿' + C.versCSV(l), 'text/csv;charset=utf-8');
   }
