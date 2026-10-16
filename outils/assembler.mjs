@@ -10,7 +10,7 @@ const racine = join(dirname(fileURLToPath(import.meta.url)), '..');
 const lire = p => readFileSync(join(racine, p), 'utf8');
 const logo = 'data:image/png;base64,' + readFileSync(join(racine, 'icons', 'logo.png')).toString('base64');
 const defauts = JSON.stringify(JSON.parse(lire('src/defauts.json'))).replace(/<\//g, '<\\/');
-const commun = { __STYLES__: lire('src/styles.css').trim(), __CORE__: lire('src/core.js').trim(), __DEFAUTS__: defauts, __COMMUN__: lire('src/commun.js').trim(), __LOGO__: logo };
+const commun = { __STYLES__: lire('src/styles.css').trim(), __CORE__: lire('src/core.js').trim(), __DEFAUTS__: defauts, __COMMUN__: lire('src/commun.js').trim(), __AIDE__: lire('src/aide.js').trim(), __LOGO__: logo };
 
 function assembler(modele, app, sortie) {
   let html = lire(modele);
