@@ -259,7 +259,7 @@
       }).join('') + '</div></fieldset>' +
       '<label>Message pour ton entraîneur (facultatif)<textarea name="message" maxlength="1500" placeholder="ex. Douleur au mollet depuis hier, je préfère me reposer.">' + esc(nf.message) + '</textarea></label>' +
       '<p class="muet petit">Ton entraîneur le verra dans son application, dans les alertes de son tableau de suivi.</p>' +
-      '<div class="pied">' + (C.nonRealisee(j) ? '<button type="button" class="danger" data-x="annulerNf">Retirer « pas réalisée »</button>' : '') +
+      '<div class="pied">' + (C.nonRealisee(j) ? '<button type="button" class="danger" data-x="annulerNf">Retirer</button>' : '') +
       '<button type="button" class="sec" data-x="annuler">Annuler</button><button>Envoyer</button></div></form>';
     boite.innerHTML = h; boite.showModal();
     var f = $('form', boite);
@@ -301,7 +301,7 @@
       '<fieldset><legend>Ressenti (RPE)</legend>' + UI.htmlBarreRPE(j.rpe) +
       '<p class="muet petit">À noter 30 min après la séance : 1 très facile → 10 effort maximal.</p></fieldset>' +
       '<label>Notes (ressenti, douleurs, conditions…)<textarea name="notes" maxlength="2000">' + esc(j.notes) + '</textarea></label>' +
-      '<p class="alerte" id="erreurSaisie" hidden></p><div class="pied">' + (C.aRetour(j) ? '<button type="button" class="danger" data-x="effacer">Effacer ma saisie</button>' : '') +
+      '<p class="alerte" id="erreurSaisie" hidden></p><div class="pied">' + (C.aRetour(j) ? '<button type="button" class="danger" data-x="effacer">Effacer</button>' : '') +
       '<button type="button" class="sec" data-x="annuler">Annuler</button><button>Enregistrer</button></div></form>';
     boite.innerHTML = h; boite.showModal();
     var f = $('form', boite);
