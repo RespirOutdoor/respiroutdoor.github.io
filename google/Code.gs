@@ -17,7 +17,7 @@
  *    ne l'écrase jamais : elle ne peut que remplir un jour encore vide.
  */
 
-var VERSION_SERVICE = 2; // 2 : FC moyenne de la séance
+var VERSION_SERVICE = 3; // 2 : FC moyenne de la séance ; 3 : récupération des athlètes sur un nouvel appareil
 var CHAMPS_COACH = ['eveil', 'educ', 'corps', 'rac', 'profil', 'type', 'consignes', 'reaction'];
 var CHAMPS_ATHLETE = ['km', 'dureeSec', 'dplus', 'rpe', 'notes', 'fc'];
 var NUMERIQUES = { km: [0, 400], dureeSec: [0, 172800], dplus: [0, 20000], rpe: [1, 10], fc: [30, 250] };
@@ -73,6 +73,7 @@ function traiter_(c) {
     'coach.verifier': function () { verifierCle_(c.cle); return { ok: true, version: VERSION_SERVICE }; },
     'coach.publier': function () { verifierCle_(c.cle); return coachPublier_(c.athlete, c.jours); },
     'coach.lire': function () { verifierCle_(c.cle); return coachLire_(c.depuis); },
+    'coach.recuperer': function () { verifierCle_(c.cle); return coachRecuperer_(c.ids); },
     'coach.commun': function () { verifierCle_(c.cle); return coachCommun_(c); },
     'coach.supprimer': function () { verifierCle_(c.cle); return coachSupprimer_(c.id); }
   };
@@ -166,6 +167,19 @@ function coachLire_(depuis) {
       jours[d] = partie_(r, CHAMPS_ATHLETE.concat(['majA']));
     });
     res.athletes[a.id] = { lienOuvert: a.lienOuvert || '', derniereSync: a.derniereSync || '', majPlan: a.majPlan || '', jours: jours };
+  });
+  return res;
+}
+
+// Fiche et plan complet des athlètes demandés (tous si ids est vide) : pour retrouver ses athlètes sur un nouvel appareil
+function coachRecuperer_(ids) {
+  var res = { ok: true, athletes: [], commun: lireCommun_() };
+  lireAthletes_().forEach(function (a) {
+    if (ids && ids.length && ids.indexOf(a.id) < 0) return;
+    var jours = {}, tous = lireJours_(a.id);
+    Object.keys(tous).forEach(function (d) { jours[d] = partie_(tous[d], CHAMPS_COACH.concat(CHAMPS_ATHLETE, ['majA'])); });
+    res.athletes.push({ id: a.id, prenom: a.prenom, nom: a.nom, code: a.code, motCoach: a.mot || '', fiche: lireJSON_(a.fiche, {}), jours: jours,
+      suivi: { lienOuvert: a.lienOuvert || '', derniereSync: a.derniereSync || '', majPlan: a.majPlan || '' } });
   });
   return res;
 }

@@ -36,6 +36,27 @@
   function ficheAEnvoyer(a) { var x = JSON.parse(JSON.stringify(a)); delete x.jours; delete x.suivi; return x; }
   function appel(corps) { corps.cle = E.reglages.cle; return UI.appelService(urlService(), corps); }
 
+  // Ajoute les athlètes renvoyés par le service (fiche, code du lien, plan et saisies) ; légende et protocoles s'ils manquent ici
+  function recupererAthletes(r) {
+    var n = 0;
+    (r.athletes || []).forEach(function (x) {
+      if (parId(x.id)) return;
+      var jours = {};
+      Object.keys(x.jours || {}).forEach(function (d) { var j = C.nettoyerJour(x.jours[d]); if (Object.keys(j).length) jours[d] = j; });
+      var a = Object.assign({}, x.fiche || {}, { id: x.id, prenom: x.prenom, nom: x.nom, code: x.code, motCoach: x.motCoach || '', jours: jours, suivi: x.suivi || {} });
+      E.athletes.push(a); n++;
+    });
+    var cm = r.commun || {};
+    if (cm.legende && cm.legende.types && cm.legende.types.length && !(E.legende && E.legende.types && E.legende.types.length)) E.legende = cm.legende;
+    if (cm.protos && cm.protos.length && !(E.protos && E.protos.length)) E.protos = cm.protos;
+    if (cm.motGlobal && !E.motGlobal) E.motGlobal = cm.motGlobal;
+    if (n) {
+      if (!parId(E.courant)) E.courant = E.athletes[0].id;
+      toast(n + ' athlète(s) récupéré(s) depuis ton tableur Google');
+      rendre();
+    }
+    return n;
+  }
   function synchroniser(manuel) {
     if (!syncConfiguree()) { if (manuel) toast('Synchronisation non configurée : Réglages → Synchronisation'); rendreStatut(); return Promise.resolve(); }
     if (enCours) return enCours;
@@ -63,6 +84,19 @@
         }, Promise.resolve());
       })
       .then(function () { return appel({ action: 'coach.lire', depuis: E.sync.depuis }); })
+      .then(function (res) {
+        // Athlètes présents dans le tableur Google mais pas sur cet appareil (nouvel ordinateur ou téléphone) : on les récupère
+        var manquants = Object.keys(res.athletes || {}).filter(function (id) { return !parId(id) && E.aSupprimer.indexOf(id) < 0; });
+        if (!manquants.length) return res;
+        return appel({ action: 'coach.recuperer', ids: manquants }).then(function (r) {
+          E.sync.serviceAncien = false;
+          recupererAthletes(r);
+          return res;
+        }, function (e) {
+          if (/action inconnue/.test(e.message)) { E.sync.serviceAncien = manquants.length; return res; }
+          throw e;
+        });
+      })
       .then(function (res) {
         var nouveaux = 0, nonFaites = [];
         Object.keys(res.athletes || {}).forEach(function (id) {
@@ -134,7 +168,8 @@
     var aj = auj();
     var h = '<section class="carte"><div class="ligne"><h2 class="espace">Mes athlètes</h2>' +
       '<button class="sec" data-act="sync">Synchroniser</button><button class="sec" data-act="importXlsx">Importer un Excel</button><button data-act="nouvelAthlete">Nouvel athlète</button></div>' +
-      (syncConfiguree() ? '' : '<p class="alerte">La synchronisation n\'est pas configurée : les athlètes ne reçoivent pas encore leur plan. <a href="#/reglages">Configurer</a></p>') + '</section><!--alertes-->';
+      (syncConfiguree() ? '' : '<p class="alerte">La synchronisation n\'est pas configurée : les athlètes ne reçoivent pas encore leur plan. <a href="#/reglages">Configurer</a></p>') +
+      (E.sync.serviceAncien ? '<p class="alerte">' + E.sync.serviceAncien + ' athlète(s) de ton tableur Google ne sont pas encore sur cet appareil. Pour les récupérer, mets à jour le script Google (Extensions → Apps Script, nouveau Code.gs, puis Déployer → Gérer les déploiements → Nouvelle version), puis touche « Synchroniser ».</p>' : '') + '</section><!--alertes-->';
     h += '<section class="carte"><h3>Mot du coach à tous</h3><p class="muet petit">Affiché en haut de l\'application de chaque athlète.</p>' +
       '<form id="fMot"><label class="sr" for="motGlobal">Mot du coach</label><textarea id="motGlobal" maxlength="500" placeholder="ex. Semaine de récupération pour tout le monde : on lève le pied !">' + esc(E.motGlobal) + '</textarea>' +
       '<div class="ligne" style="justify-content:flex-end;margin-top:8px"><button>Publier le mot</button></div></form></section>';

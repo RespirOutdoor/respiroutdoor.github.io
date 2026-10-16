@@ -67,6 +67,16 @@ test('Onglet créé par la version 1 (16 colonnes) : données non décalées, en
   vrai(j.km === 8 && j.rpe === 4 && j.notes === 'ok' && j.fc === 148, JSON.stringify(j));
   vrai(f.cellules[0][16] === 'FC moy. (bpm)' && f.cellules[0][13] === 'Notes', JSON.stringify(f.cellules[0]));
 });
+test('Nouvel appareil de l\'entraîneur : fiche, code, plan et saisies récupérés ; clé exigée', () => {
+  const { s, cle } = preparer();
+  vrai(s.appel({ action: 'athlete.saisir', code: 'K7Q2XA', jours: { '2026-10-13': { km: 9, fc: 150, majA: '2026-10-13T19:00:00.000Z' } } }).ok);
+  vrai(s.appel({ action: 'coach.recuperer', cle: 'faux', ids: [] }).ok === false);
+  const r = s.appel({ action: 'coach.recuperer', cle, ids: ['MORERA_SYLVAIN'] });
+  const a = r.athletes[0];
+  vrai(r.ok && r.athletes.length === 1 && a.code === 'K7Q2XA' && a.prenom === 'SYLVAIN' && a.fiche.vma === 19.6 && a.fiche.objectif === 'Cross' && a.motCoach === 'Bonne semaine', JSON.stringify(a));
+  vrai(a.jours['2026-10-13'].type === 'VMAC' && a.jours['2026-10-13'].km === 9 && a.jours['2026-10-13'].fc === 150 && a.jours['2026-10-14'].corps === 'REPOS', JSON.stringify(a.jours));
+  vrai(s.appel({ action: 'coach.recuperer', cle, ids: ['AUTRE'] }).athletes.length === 0);
+});
 test('Nouvelle publication de l\'entraîneur (nouvel Excel) : plan remplacé, saisie de l\'athlète intacte', () => {
   const { s, cle, athlete } = preparer();
   s.appel({ action: 'athlete.saisir', code: 'K7Q2XA', jours: { '2026-10-13': { km: 10, rpe: 8, majA: '2026-10-13T19:00:00.000Z' } } });
