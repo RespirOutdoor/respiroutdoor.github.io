@@ -64,16 +64,21 @@
       })
       .then(function () { return appel({ action: 'coach.lire', depuis: E.sync.depuis }); })
       .then(function (res) {
-        var nouveaux = 0;
+        var nouveaux = 0, nonFaites = [];
         Object.keys(res.athletes || {}).forEach(function (id) {
           var a = parId(id), info = res.athletes[id];
           if (!a) return;
           a.suivi = { lienOuvert: info.lienOuvert, derniereSync: info.derniereSync, majPlan: info.majPlan };
+          Object.keys(info.jours || {}).forEach(function (d) {
+            var nf = C.nonRealisee(info.jours[d]);
+            if (nf && !C.nonRealisee((a.jours || {})[d])) nonFaites.push(UI.prenom(a) + ' : ' + UI.jourCourt(d) + (nf.raison ? ' (' + nf.raison + ')' : ''));
+          });
           var n = Object.keys(info.jours || {}).length;
           if (n) { a.jours = C.fusionner(a, { jours: info.jours }, 'retours').jours; nouveaux += n; }
         });
         E.sync.depuis = res.heure; E.sync.derniere = UI.maintenant(); E.sync.erreur = '';
-        if (manuel) toast(nouveaux ? nouveaux + ' saisie(s) reçue(s)' : 'Tout est à jour');
+        if (nonFaites.length) toast('⚠ Séance pas réalisée — ' + nonFaites.join(' · '));
+        else if (manuel) toast(nouveaux ? nouveaux + ' saisie(s) reçue(s)' : 'Tout est à jour');
         return nouveaux;
       })
       .catch(function (e) { E.sync.erreur = e.message; if (manuel) toast('Synchronisation impossible : ' + e.message); return 0; })
@@ -129,7 +134,7 @@
     var aj = auj();
     var h = '<section class="carte"><div class="ligne"><h2 class="espace">Mes athlètes</h2>' +
       '<button class="sec" data-act="sync">Synchroniser</button><button class="sec" data-act="importXlsx">Importer un Excel</button><button data-act="nouvelAthlete">Nouvel athlète</button></div>' +
-      (syncConfiguree() ? '' : '<p class="alerte">La synchronisation n\'est pas configurée : les athlètes ne reçoivent pas encore leur plan. <a href="#/reglages">Configurer</a></p>') + '</section>';
+      (syncConfiguree() ? '' : '<p class="alerte">La synchronisation n\'est pas configurée : les athlètes ne reçoivent pas encore leur plan. <a href="#/reglages">Configurer</a></p>') + '</section><!--alertes-->';
     h += '<section class="carte"><h3>Mot du coach à tous</h3><p class="muet petit">Affiché en haut de l\'application de chaque athlète.</p>' +
       '<form id="fMot"><label class="sr" for="motGlobal">Mot du coach</label><textarea id="motGlobal" maxlength="500" placeholder="ex. Semaine de récupération pour tout le monde : on lève le pied !">' + esc(E.motGlobal) + '</textarea>' +
       '<div class="ligne" style="justify-content:flex-end;margin-top:8px"><button>Publier le mot</button></div></form></section>';
@@ -141,11 +146,20 @@
     var lignes = E.athletes.map(function (a) { return { a: a, r: C.resumeCoach(a, aj) }; });
     lignes.sort(function (x, y) { return (y.r.alerte - x.r.alerte) || nomComplet(x.a).localeCompare(nomComplet(y.a)); });
     var nbAlertes = lignes.filter(function (l) { return l.r.alerte; }).length;
+    // Séances signalées « pas réalisées » par les athlètes (7 derniers jours)
+    var nf = [];
+    lignes.forEach(function (l) { l.r.nonRealisees.forEach(function (x) { nf.push(Object.assign({ a: l.a }, x)); }); });
+    nf.sort(function (x, y) { return x.date < y.date ? 1 : x.date > y.date ? -1 : 0; });
+    if (nf.length) h = h.replace('<!--alertes-->', '<section class="carte alerte-nf"><h3>⚠ Séances pas réalisées (7 derniers jours)</h3><ul class="liste-nf">' + nf.map(function (x) {
+      return '<li><div class="ligne"><b class="espace">' + esc(nomComplet(x.a)) + '</b><button class="discret" data-act="ouvrirAthlete" data-id="' + esc(x.a.id) + '">Voir le plan</button></div>' +
+        '<div class="petit">' + esc(UI.jourCourt(x.date)) + (x.corps ? ' · ' + esc(x.corps) : '') + (x.raison ? ' · <b>' + esc(x.raison) + '</b>' : '') + '</div>' +
+        (x.message ? '<div class="note">« ' + esc(x.message) + ' »</div>' : '') + '</li>';
+    }).join('') + '</ul></section>');
     h += '<section class="carte"><h3>Semaine en cours</h3>' + (nbAlertes ? '<p class="alerte petit">⚠ ' + nbAlertes + ' athlète(s) sans retour sur au moins 2 séances prévues des 14 derniers jours.</p>' : '') +
       '<div class="tableau"><table><thead><tr><th>Athlète</th><th class="num">Séances</th><th class="num">KM</th><th class="num">RPE moy.</th><th>Dernière saisie</th><th>Lien</th></tr></thead><tbody>' +
       lignes.map(function (l) {
         var a = l.a, r = l.r, s = a.suivi || {};
-        return '<tr class="cliquable" data-act="ouvrirAthlete" data-id="' + esc(a.id) + '"><td>' + (r.alerte ? '<span class="voyant" title="' + r.sansRetour.length + ' séance(s) prévue(s) sans retour">⚠</span> ' : '') + '<b>' + esc(nomComplet(a)) + '</b></td>' +
+        return '<tr class="cliquable" data-act="ouvrirAthlete" data-id="' + esc(a.id) + '"><td>' + (r.alerte ? '<span class="voyant" title="' + r.sansRetour.length + ' séance(s) prévue(s) sans retour">⚠</span> ' : '') + (r.nonRealisees.length ? '<span class="pas-faite" title="Séance(s) pas réalisée(s) cette semaine">' + r.nonRealisees.length + ' non faite' + (r.nonRealisees.length > 1 ? 's' : '') + '</span> ' : '') + '<b>' + esc(nomComplet(a)) + '</b></td>' +
           '<td class="num">' + r.semaine.prevuesFaites + ' / ' + r.semaine.prevuesADate + '</td>' +
           '<td class="num">' + (r.semaine.km ? C.nombreFR(r.semaine.km, 1) : '') + '</td>' +
           '<td class="num">' + (r.rpeMoy !== null ? C.nombreFR(r.rpeMoy, 1) : '') + '</td>' +

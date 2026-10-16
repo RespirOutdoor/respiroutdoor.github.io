@@ -209,7 +209,7 @@
     if (mots.length) h += '<section class="carte mot"><h3>💬 Le mot de ton coach</h3>' + mots.map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + '</section>';
     // Séance d'hier pas encore saisie
     var hier = C.addDays(aj, -1), jh = a.jours[hier];
-    if (jh && C.estPrevue(jh) && !C.aRetour(jh)) h += '<section class="alerte ligne"><span class="espace">Ta séance d\'hier (' + esc(jh.corps) + ') n\'est pas encore saisie.</span><button data-act="saisir" data-date="' + hier + '">Saisir</button></section>';
+    if (jh && C.estPrevue(jh) && !C.aRetour(jh)) h += '<section class="alerte ligne"><span class="espace">Ta séance d\'hier (' + esc(jh.corps) + ') n\'est pas encore saisie.</span><button class="sec" data-act="pasFaite" data-date="' + hier + '">Pas réalisée</button><button data-act="saisir" data-date="' + hier + '">Saisir</button></section>';
     // Séance du jour
     h += '<h2 class="titre-section">Aujourd\'hui</h2>';
     if (C.estPrevue(j) || C.aRetour(j)) h += UI.carteJour(a, aj, j, aj, { role: 'athlete' });
@@ -250,8 +250,37 @@
     if (n.some(isNaN) || n[1] > 59 || n[2] > 59) return NaN;
     return n[0] * 3600 + n[1] * 60 + n[2];
   }
+  // Séance prévue non faite : raison + message pour l'entraîneur (envoyés avec la synchronisation, dans la note)
+  function pasFaite(date) {
+    var a = A.athlete, j = a.jours[date] || {}, nf = C.nonRealisee(j) || { raison: '', message: '' };
+    var h = '<form class="boite"><h2>Séance pas réalisée</h2><p class="muet">' + C.JOURS_LONGS[C.dayOfWeek(date)] + ' ' + C.formatDateFR(date) + (j.corps ? ' · <b>' + esc(j.corps) + '</b>' : '') + '</p>' +
+      '<fieldset><legend>Raison</legend><div class="raisons">' + C.RAISONS_NON_FAITE.map(function (r) {
+        return '<label><input type="radio" name="raison" value="' + esc(r) + '"' + (r === nf.raison ? ' checked' : '') + '><span>' + esc(r) + '</span></label>';
+      }).join('') + '</div></fieldset>' +
+      '<label>Message pour ton entraîneur (facultatif)<textarea name="message" maxlength="1500" placeholder="ex. Douleur au mollet depuis hier, je préfère me reposer.">' + esc(nf.message) + '</textarea></label>' +
+      '<p class="muet petit">Ton entraîneur le verra dans son application, dans les alertes de son tableau de suivi.</p>' +
+      '<div class="pied">' + (C.nonRealisee(j) ? '<button type="button" class="danger" data-x="annulerNf">Retirer « pas réalisée »</button>' : '') +
+      '<button type="button" class="sec" data-x="annuler">Annuler</button><button>Envoyer</button></div></form>';
+    boite.innerHTML = h; boite.showModal();
+    var f = $('form', boite);
+    $('[data-x="annuler"]', f).onclick = function () { boite.close(); };
+    var an = $('[data-x="annulerNf"]', f);
+    if (an) an.onclick = function () {
+      var n = Object.assign({}, j); C.CHAMPS_ATHLETE.forEach(function (k) { delete n[k]; });
+      enregistrer(date, n, 'Séance remise à saisir'); boite.close();
+    };
+    f.onsubmit = function (ev) {
+      ev.preventDefault();
+      var d = new FormData(f), n = Object.assign({}, j);
+      C.CHAMPS_ATHLETE.forEach(function (k) { delete n[k]; });
+      n.notes = C.noteNonRealisee(d.get('raison') || '', d.get('message') || '');
+      delete chaussures().parDate[date];
+      enregistrer(date, n, 'Envoyé à ton entraîneur'); boite.close();
+    };
+  }
   function saisir(date) {
     var a = A.athlete, j = a.jours[date] || {};
+    if (C.nonRealisee(j)) j = Object.assign({}, j, { notes: '' }); // saisir la séance finalement faite remplace « pas réalisée »
     var aDuree = C.isNum(j.dureeSec) && j.dureeSec > 0, ds = aDuree ? Math.round(j.dureeSec) : 0;
     var h = '<form class="boite"><h2>' + C.JOURS_LONGS[C.dayOfWeek(date)] + ' ' + C.formatDateFR(date) + '</h2>' +
       (j.corps ? '<p class="muet">Prévu : <b>' + esc(j.corps) + '</b></p>' : '') +
@@ -305,13 +334,13 @@
       enregistrer(date, n); boite.close();
     };
   }
-  function enregistrer(date, j) {
+  function enregistrer(date, j, message) {
     var a = A.athlete;
     j.majA = UI.maintenant();
     var n = C.nettoyerJour(j);
     a.jours[date] = n;
     A.enAttente[date] = true;
-    sauver().then(function () { toast('Séance enregistrée 👏'); rendre(); synchroniser(false); });
+    sauver().then(function () { toast(message || 'Séance enregistrée 👏'); rendre(); synchroniser(false); });
   }
 
   /* ---------- Actions ---------- */
@@ -321,6 +350,7 @@
     if (b.dataset.v) { vue = b.dataset.v; rendre(); window.scrollTo(0, 0); return; }
     var act = b.dataset.act, a = A.athlete;
     if (act === 'saisir') saisir(b.dataset.date);
+    else if (act === 'pasFaite') pasFaite(b.dataset.date);
     else if (act === 'sync') synchroniser(true);
     else if (act === 'semPrec') { semaineAffichee = Math.max(1, semaineAffichee - 1); rendre(); }
     else if (act === 'semSuiv') { semaineAffichee++; rendre(); }

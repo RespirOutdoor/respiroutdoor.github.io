@@ -311,3 +311,19 @@ dl.codes dt:last-of-type, dl.codes dd:last-of-type { border-bottom: 0; }
 .jauge { height: 6px; border-radius: 3px; background: var(--bord); margin-top: 6px; overflow: hidden; max-width: 160px; }
 .jauge span { display: block; height: 100%; background: var(--vert); border-radius: 3px; }
 .jauge.pleine span { background: var(--alerte); }
+
+/* Séance pas réalisée */
+.pas-faite { display: inline-block; font-size: .78rem; font-weight: 700; color: #fff; background: var(--alerte); border-radius: 99px; padding: 2px 10px; white-space: nowrap; }
+:root[data-theme="dark"] .pas-faite { color: #2A1A10; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pas-faite { color: #2A1A10; } }
+.alerte-nf { border-left: 5px solid var(--alerte); }
+ul.liste-nf { list-style: none; margin: 0; padding: 0; }
+ul.liste-nf li { padding: 8px 0; border-bottom: 1px solid var(--bord); }
+ul.liste-nf li:last-child { border-bottom: 0; }
+ul.liste-nf .note { font-style: italic; color: var(--texte-2); margin-top: 4px; white-space: pre-wrap; }
+.raisons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.raisons label { margin: 0; }
+.raisons input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.raisons span { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--bord); border-radius: 99px; font-weight: 600; color: var(--texte); cursor: pointer; }
+.raisons input:checked + span { background: var(--vert-fonce); border-color: var(--vert-fonce); color: var(--carte); }
+.raisons input:focus-visible + span { outline: 3px solid var(--vert); outline-offset: 2px; }

@@ -377,6 +377,14 @@ var Core = (function () {
       annee: { du: an + '-01-01', au: an + '-12-31', precDu: anP + '-01-01', precAu: memeJourAnP }
     };
   }
+  // Séance « pas réalisée » : signalée par l'athlète dans la note, sous la forme « [PAS RÉALISÉE · raison] message ».
+  // La note est déjà synchronisée avec le service Google : aucun changement du script de l'entraîneur n'est nécessaire.
+  var RAISONS_NON_FAITE = ['Malade', 'Blessure / douleur', 'Fatigue', 'Manque de temps', 'Météo', 'Autre'];
+  function nonRealisee(j) {
+    var m = /^\[PAS RÉALISÉE(?: · ([^\]]*))?\]\s*([\s\S]*)$/.exec(texte(j && j.notes));
+    return m ? { raison: m[1] || '', message: m[2] || '' } : null;
+  }
+  function noteNonRealisee(raison, message) { return '[PAS RÉALISÉE' + (texte(raison) ? ' · ' + texte(raison).replace(/[\[\]]/g, '') : '') + '] ' + texte(message); }
   function estPrevue(j) { return aContenuCoach(j) && !estRepos(j); }
   function estFaite(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec)); }
   // Bilan du « du » au « au » inclus ; « auj » sert à compter les séances prévues déjà passées
@@ -444,7 +452,9 @@ var Core = (function () {
       return d < auj && d >= depuis && (!der || d > der) && estPrevue(j) && !aRetour(j);
     }).sort();
     var rpe = bilanJours(Object.keys(athlete.jours || {}).filter(function (d) { return d >= lun && d <= addDays(lun, 6); }).map(function (d) { return athlete.jours[d]; })).rpeMoy;
-    return { semaine: b, rpeMoy: rpe, derniere: der, sansRetour: manquees, alerte: manquees.length >= 2 };
+    var nonFaites = Object.keys(athlete.jours || {}).filter(function (d) { return d <= auj && d >= addDays(auj, -7) && nonRealisee(athlete.jours[d]); }).sort().reverse()
+      .map(function (d) { var n = nonRealisee(athlete.jours[d]); return { date: d, corps: athlete.jours[d].corps || '', raison: n.raison, message: n.message }; });
+    return { semaine: b, rpeMoy: rpe, derniere: der, sansRetour: manquees, alerte: manquees.length >= 2, nonRealisees: nonFaites };
   }
   function competitionsAVenir(athletes, auj, nbJours) {
     var fin = addDays(auj, nbJours), out = [];
@@ -920,6 +930,16 @@ var Core = (function () {
       return libelleRPE(1).couleur === '#4879C6' && libelleRPE(10).couleur === '#C54135' && libelleRPE(10).texte === '#FFFFFF' &&
         libelleRPE(2).couleur === '#57A4D3' && libelleRPE(4).couleur === '#61C58B' && libelleRPE(4).texte === '#000000';
     }],
+    ['Séance pas réalisée : note « [PAS RÉALISÉE · Malade] Fièvre » lue ; sans raison ; note ordinaire ignorée ; non comptée comme faite', function () {
+      var n = noteNonRealisee('Malade', 'Fièvre'), a = nonRealisee({ notes: n }), b = nonRealisee({ notes: noteNonRealisee('', '') }), j = { corps: 'VMA', notes: n };
+      return n === '[PAS RÉALISÉE · Malade] Fièvre' && a.raison === 'Malade' && a.message === 'Fièvre' && b.raison === '' && b.message === '' &&
+        nonRealisee({ notes: 'Bonne séance' }) === null && !estFaite(j) && aRetour(j);
+    }],
+    ['Suivi entraîneur : séance pas réalisée des 7 derniers jours remontée avec sa raison', function () {
+      var a = { jours: { '2026-10-12': { corps: 'VMA', type: 'VMA', notes: noteNonRealisee('Fatigue', 'Trop de travail') }, '2026-10-01': { corps: 'EF', notes: noteNonRealisee('Météo', '') } } };
+      var r = resumeCoach(a, '2026-10-15');
+      return r.nonRealisees.length === 1 && r.nonRealisees[0].date === '2026-10-12' && r.nonRealisees[0].raison === 'Fatigue' && r.nonRealisees[0].message === 'Trop de travail';
+    }],
     ['Chaussures : km = km de départ + km des séances associées ; séance sans km ou paire inconnue ignorée', function () {
       var ch = { liste: [{ id: 'c1', nom: 'A', kmDepart: 120 }, { id: 'c2', nom: 'B', kmDepart: 0 }], parDate: { '2026-10-01': 'c1', '2026-10-02': 'c1', '2026-10-03': 'c2', '2026-10-04': 'c9', '2026-10-05': 'c2' } };
       var jours = { '2026-10-01': { km: 10.5 }, '2026-10-02': { km: 8 }, '2026-10-03': { km: 12.25 }, '2026-10-04': { km: 30 }, '2026-10-05': { dureeSec: 1800 } };
@@ -944,7 +964,7 @@ var Core = (function () {
     TZ: TZ, SCHEMA_VERSION: SCHEMA_VERSION, JOURS: JOURS, JOURS_LONGS: JOURS_LONGS, CHAMPS_COACH: CHAMPS_COACH, CHAMPS_ATHLETE: CHAMPS_ATHLETE,
     ZONES_DEFAUT: ZONES_DEFAUT, CHAMP_REACTION: CHAMP_REACTION, aDonneesAthlete: aDonneesAthlete, periodes: periodes, bilanPeriode: bilanPeriode,
     estPrevue: estPrevue, estFaite: estFaite, records: records, derniereSaisie: derniereSaisie, resumeCoach: resumeCoach, competitionsAVenir: competitionsAVenir,
-    genererCode: genererCode, slugNom: slugNom, lienAthlete: lienAthlete, codeDepuisLien: codeDepuisLien, ECHELLE_RPE: ECHELLE_RPE, DEGRADE_RPE: DEGRADE_RPE, libelleRPE: libelleRPE, kmChaussures: kmChaussures, pad2: pad2, isNum: isNum, texte: texte, parseNumberFR: parseNumberFR, nombreFR: nombreFR,
+    genererCode: genererCode, slugNom: slugNom, lienAthlete: lienAthlete, codeDepuisLien: codeDepuisLien, ECHELLE_RPE: ECHELLE_RPE, DEGRADE_RPE: DEGRADE_RPE, libelleRPE: libelleRPE, kmChaussures: kmChaussures, RAISONS_NON_FAITE: RAISONS_NON_FAITE, nonRealisee: nonRealisee, noteNonRealisee: noteNonRealisee, pad2: pad2, isNum: isNum, texte: texte, parseNumberFR: parseNumberFR, nombreFR: nombreFR,
     isValidISODate: isValidISODate, parseDateFR: parseDateFR, formatDateFR: formatDateFR, addDays: addDays, daysBetween: daysBetween,
     dayOfWeek: dayOfWeek, weekStart: weekStart, todayParis: todayParis, excelSerialToISO: excelSerialToISO,
     numSemaine: numSemaine, lundiSemaine: lundiSemaine, formatDuree: formatDuree, parseDuree: parseDuree, formatTemps: formatTemps,
