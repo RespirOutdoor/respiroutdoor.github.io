@@ -17,7 +17,7 @@
  *    ne l'écrase jamais : elle ne peut que remplir un jour encore vide.
  */
 
-var VERSION_SERVICE = 3; // 2 : FC moyenne de la séance ; 3 : récupération des athlètes sur un nouvel appareil
+var VERSION_SERVICE = 4; // 2 : FC moyenne ; 3 : récupération des athlètes sur un nouvel appareil ; 4 : plan et mot du coach partagés entre les appareils de l'entraîneur
 var CHAMPS_COACH = ['eveil', 'educ', 'corps', 'rac', 'profil', 'type', 'consignes', 'reaction'];
 var CHAMPS_ATHLETE = ['km', 'dureeSec', 'dplus', 'rpe', 'notes', 'fc'];
 var NUMERIQUES = { km: [0, 400], dureeSec: [0, 172800], dplus: [0, 20000], rpe: [1, 10], fc: [30, 250] };
@@ -157,7 +157,7 @@ function coachPublier_(athlete, jours) {
 }
 
 function coachLire_(depuis) {
-  var res = { ok: true, heure: new Date().toISOString(), athletes: {} };
+  var res = { ok: true, heure: new Date().toISOString(), athletes: {}, commun: lireCommun_() };
   lireAthletes_().forEach(function (a) {
     var jours = {}, tous = lireJours_(a.id);
     Object.keys(tous).forEach(function (d) {

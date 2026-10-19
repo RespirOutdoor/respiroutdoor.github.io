@@ -30,10 +30,12 @@
   function urlService() { return E.reglages.service || config.service || ''; }
   function syncConfiguree() { return !!(urlService() && E.reglages.cle); }
   function marquer(a) { E.aPublier[a.id] = UI.maintenant(); a.maj = UI.maintenant(); planifierSync(); }
+  // Jours modifiés ici et pas encore envoyés : ils ne sont pas remplacés par un plan modifié sur un autre appareil ('*' : tout le plan, après un import)
+  function marquerJour(a, date) { E.joursModifies = E.joursModifies || {}; (E.joursModifies[a.id] = E.joursModifies[a.id] || {})[date] = 1; }
   function marquerCommun() { E.communAPublier = true; planifierSync(); }
   var minuteur = null, enCours = null;
   function planifierSync() { clearTimeout(minuteur); minuteur = setTimeout(function () { synchroniser(false); }, 1500); }
-  function ficheAEnvoyer(a) { var x = JSON.parse(JSON.stringify(a)); delete x.jours; delete x.suivi; return x; }
+  function ficheAEnvoyer(a) { var x = JSON.parse(JSON.stringify(a)); delete x.jours; delete x.suivi; delete x.planVu; return x; }
   function appel(corps) { corps.cle = E.reglages.cle; return UI.appelService(urlService(), corps); }
 
   // Ajoute les athlètes renvoyés par le service (fiche, code du lien, plan et saisies) ; légende et protocoles s'ils manquent ici
@@ -57,6 +59,29 @@
     }
     return n;
   }
+  // Plan modifié sur un autre appareil de l'entraîneur : partie entraîneur et fiche du service, saisies de l'athlète gardées.
+  // Si cet appareil a des changements pas encore envoyés, sa fiche et ses jours modifiés sont gardés, puis envoyés.
+  function appliquerPlanDistant(x, majPlan) {
+    var a = parId(x.id); if (!a) return;
+    var mod = (E.joursModifies || {})[a.id] || {}, attente = !!E.aPublier[a.id];
+    if (attente && mod['*']) { a.planVu = majPlan; return; }
+    var jours = {};
+    Object.keys(x.jours || {}).forEach(function (d) { var j = C.nettoyerJour(x.jours[d]); if (Object.keys(j).length) jours[d] = j; });
+    var res = C.fusionner(a, Object.assign({}, x.fiche || {}, { id: x.id, prenom: x.prenom, nom: x.nom, code: x.code, motCoach: x.motCoach || '', jours: jours }), 'excel');
+    if (attente) {
+      Object.keys(a).forEach(function (k) { if (k !== 'jours') res[k] = a[k]; });
+      Object.keys(mod).forEach(function (d) {
+        var l = a.jours[d] || {}, r = res.jours[d] || {}, n = {};
+        C.CHAMPS_ATHLETE.concat(['majA']).forEach(function (k) { if (r[k] !== undefined) n[k] = r[k]; });
+        C.CHAMPS_COACH.concat([C.CHAMP_REACTION]).forEach(function (k) { if (l[k] !== undefined) n[k] = l[k]; });
+        n = C.nettoyerJour(n);
+        if (Object.keys(n).length) res.jours[d] = n; else delete res.jours[d];
+      });
+    }
+    res.suivi = a.suivi; res.planVu = majPlan;
+    E.athletes[E.athletes.indexOf(a)] = res;
+    return true;
+  }
   function synchroniser(manuel) {
     if (!syncConfiguree()) { if (manuel) toast('Synchronisation non configurée : Réglages → Synchronisation'); rendreStatut(); return Promise.resolve(); }
     if (enCours) return enCours;
@@ -71,31 +96,47 @@
         if (!E.communAPublier) return;
         return appel({ action: 'coach.commun', legende: E.legende, protos: E.protos, motGlobal: E.motGlobal }).then(function () { E.communAPublier = false; });
       })
-      .then(function () {
+      .then(function () { return appel({ action: 'coach.lire', depuis: E.sync.depuis }); })
+      .then(function (res) {
+        // Mot du coach, légende et protocoles modifiés sur un autre appareil
+        var cm = res.commun;
+        if (cm && !E.communAPublier) {
+          if (cm.legende && cm.legende.types && cm.legende.types.length) E.legende = cm.legende;
+          if (cm.protos && cm.protos.length) E.protos = cm.protos;
+          E.motGlobal = cm.motGlobal || '';
+        }
+        // Athlètes absents de cet appareil, et plans modifiés sur un autre appareil depuis la dernière synchronisation
+        var manquants = Object.keys(res.athletes || {}).filter(function (id) { return !parId(id) && E.aSupprimer.indexOf(id) < 0; });
+        var modifies = Object.keys(res.athletes || {}).filter(function (id) { var a = parId(id), m = res.athletes[id].majPlan; return a && m && String(m) > String(a.planVu || ''); });
+        if (!manquants.length && !modifies.length) return res;
+        return appel({ action: 'coach.recuperer', ids: manquants.concat(modifies) }).then(function (r) {
+          E.sync.serviceAncien = false; E.sync.planAncien = 0;
+          recupererAthletes(r);
+          var maj = 0;
+          (r.athletes || []).forEach(function (x) {
+            if (modifies.indexOf(x.id) >= 0 && appliquerPlanDistant(x, res.athletes[x.id].majPlan)) maj++;
+            else if (manquants.indexOf(x.id) >= 0) { var a = parId(x.id); if (a) a.planVu = res.athletes[x.id].majPlan; }
+          });
+          if (maj && (vue === 'plan' || vue === 'athletes') && !boite.open) rendre();
+          return res;
+        }, function (e) {
+          if (/action inconnue/.test(e.message)) { E.sync.serviceAncien = manquants.length; E.sync.planAncien = modifies.length; return res; }
+          throw e;
+        });
+      })
+      .then(function (res) {
+        // Envoi des changements de cet appareil, après avoir intégré ceux des autres appareils
         return Object.keys(E.aPublier).reduce(function (p, id) {
           return p.then(function () {
             var a = parId(id), marque = E.aPublier[id];
             if (!a) { delete E.aPublier[id]; return; }
             assurerCode(a);
-            return appel({ action: 'coach.publier', athlete: ficheAEnvoyer(a), jours: a.jours }).then(function () {
-              if (E.aPublier[id] === marque) delete E.aPublier[id]; // modifié pendant l'envoi : sera renvoyé
+            return appel({ action: 'coach.publier', athlete: ficheAEnvoyer(a), jours: a.jours }).then(function (r) {
+              if (r && r.majPlan) a.planVu = r.majPlan;
+              if (E.aPublier[id] === marque) { delete E.aPublier[id]; if (E.joursModifies) delete E.joursModifies[id]; } // modifié pendant l'envoi : sera renvoyé
             });
           });
-        }, Promise.resolve());
-      })
-      .then(function () { return appel({ action: 'coach.lire', depuis: E.sync.depuis }); })
-      .then(function (res) {
-        // Athlètes présents dans le tableur Google mais pas sur cet appareil (nouvel ordinateur ou téléphone) : on les récupère
-        var manquants = Object.keys(res.athletes || {}).filter(function (id) { return !parId(id) && E.aSupprimer.indexOf(id) < 0; });
-        if (!manquants.length) return res;
-        return appel({ action: 'coach.recuperer', ids: manquants }).then(function (r) {
-          E.sync.serviceAncien = false;
-          recupererAthletes(r);
-          return res;
-        }, function (e) {
-          if (/action inconnue/.test(e.message)) { E.sync.serviceAncien = manquants.length; return res; }
-          throw e;
-        });
+        }, Promise.resolve()).then(function () { return res; });
       })
       .then(function (res) {
         var nouveaux = 0, nonFaites = [];
@@ -169,6 +210,7 @@
     var h = '<section class="carte"><div class="ligne"><h2 class="espace">Mes athlètes</h2>' +
       '<button class="sec" data-act="sync">Synchroniser</button><button class="sec" data-act="importXlsx">Importer un Excel</button><button data-act="nouvelAthlete">Nouvel athlète</button></div>' +
       (syncConfiguree() ? '' : '<p class="alerte">La synchronisation n\'est pas configurée : les athlètes ne reçoivent pas encore leur plan. <a href="#/reglages">Configurer</a></p>') +
+      (E.sync.planAncien && !E.sync.serviceAncien ? '<p class="alerte">Des plans ont été modifiés sur un autre de tes appareils. Pour les voir ici, mets à jour le script Google (Extensions → Apps Script, nouveau Code.gs, puis Déployer → Gérer les déploiements → Nouvelle version), puis touche « Synchroniser ». En attendant, évite de modifier ces plans sur cet appareil.</p>' : '') +
       (E.sync.serviceAncien ? '<p class="alerte">' + E.sync.serviceAncien + ' athlète(s) de ton tableur Google ne sont pas encore sur cet appareil. Pour les récupérer, mets à jour le script Google (Extensions → Apps Script, nouveau Code.gs, puis Déployer → Gérer les déploiements → Nouvelle version), puis touche « Synchroniser ».</p>' : '') + '</section><!--alertes-->';
     h += '<section class="carte"><h3>Mot du coach à tous</h3><p class="muet petit">Affiché en haut de l\'application de chaque athlète.</p>' +
       '<form id="fMot"><label class="sr" for="motGlobal">Mot du coach</label><textarea id="motGlobal" maxlength="500" placeholder="ex. Semaine de récupération pour tout le monde : on lève le pied !">' + esc(E.motGlobal) + '</textarea>' +
@@ -252,6 +294,7 @@
     };
   }
   function majJour(a, date, j) {
+    marquerJour(a, date);
     var n = C.nettoyerJour(j);
     if (Object.keys(n).length) a.jours[date] = n; else delete a.jours[date];
     marquer(a);
@@ -407,6 +450,7 @@
       for (var i = 0; i < 7; i++) {
         var src = a.jours[C.addDays(l1, i)] || {}, d2 = C.addDays(l2, i), dst = Object.assign({}, a.jours[d2] || {});
         C.CHAMPS_COACH.forEach(function (k) { if (src[k] !== undefined) dst[k] = src[k]; else delete dst[k]; });
+        marquerJour(a, d2);
         var nn = C.nettoyerJour(dst);
         if (Object.keys(nn).length) a.jours[d2] = nn; else delete a.jours[d2];
       }
@@ -496,7 +540,7 @@
         if (r.legende && r.legende.types.length) E.legende = enrichirFamilles(r.legende);
         if (r.protos && r.protos.length) E.protos = r.protos;
         E.courant = res.id; semaineAffichee = null;
-        marquer(res); marquerCommun();
+        marquerJour(res, '*'); marquer(res); marquerCommun();
         return sauver().then(function () {
           boite.innerHTML = '<form class="boite"><h2>' + (local ? 'Plan mis à jour' : 'Athlète ajouté') + ' : ' + esc(nomComplet(res)) + '</h2>' +
             '<ul class="petit">' + r.rapport.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' +
