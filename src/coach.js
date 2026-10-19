@@ -161,6 +161,7 @@
         enCours = null;
         return sauver().then(function () {
           rendreStatut();
+          if (!E.sync.erreur) chargerMessages(vue === 'messages');
           if (nouveaux && !boite.open && (vue === 'athletes' || vue === 'plan')) rendre();
         });
       });
@@ -188,10 +189,11 @@
   }
   function rendre() {
     rendreEntete();
+    majPastille();
     $$('nav.onglets a').forEach(function (a) { if (a.dataset.v === vue) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     var a = athlete();
     ({
-      athletes: vueAthletes, plan: vuePlan, legende: function () { UI.vueLegende(main); },
+      athletes: vueAthletes, plan: vuePlan, messages: vueMessages, legende: function () { UI.vueLegende(main); },
       allures: function () { if (!a) { main.innerHTML = vueVide(); return; } UI.vueAllures(main, a, true, function (x) { marquer(x); sauver().then(rendre); }); },
       protos: function () { UI.vueProtos(main, a, true); }, reglages: vueReglages, tests: vueTests
     }[vue] || vueAthletes)();
@@ -202,6 +204,72 @@
       '<p class="muet">Importe un classeur Excel (onglets PLAN, LEGENDE, ALLURES, PROTOS) ou crée un athlète.</p>' +
       '<div class="ligne" style="justify-content:center"><button data-act="importXlsx">Importer un classeur Excel</button>' +
       '<button class="sec" data-act="nouvelAthlete">Créer un athlète</button></div></div>';
+  }
+
+  /* ---------- MESSAGES avec les athlètes ---------- */
+  var chargementMsg = null, filAthlete = null;
+  function nonLus(id) { return (E.messages || []).filter(function (m) { return m.de === 'athlete' && !m.lu && (!id || m.athlete === id); }).length; }
+  function majPastille() {
+    var b = $('nav.onglets a[data-v="messages"]'); if (!b) return;
+    var n = nonLus(), p = b.querySelector('.pastille');
+    if (!n) { if (p) p.remove(); return; }
+    if (!p) { p = document.createElement('span'); p.className = 'pastille'; b.appendChild(p); }
+    p.textContent = n > 9 ? '9+' : n; p.setAttribute('aria-label', n + ' message(s) non lu(s)');
+  }
+  // lus : marque comme lus les messages de l'athlète affiché
+  function chargerMessages(lus) {
+    if (!syncConfiguree() || chargementMsg) return chargementMsg || Promise.resolve();
+    var avant = {}; (E.messages || []).forEach(function (m) { avant[m.id] = 1; });
+    var a = athlete(), aMarquer = lus && a && nonLus(a.id), empreinte = JSON.stringify(E.messages || []);
+    chargementMsg = (aMarquer ? appel({ action: 'coach.lus', id: a.id }) : Promise.resolve()).then(function () { return appel({ action: 'coach.messages' }); }).then(function (r) {
+      var nouveaux = (r.messages || []).filter(function (m) { return m.de === 'athlete' && !avant[m.id] && !m.lu; });
+      E.messages = r.messages || []; E.messagerie = 'ok';
+      if (nouveaux.length && E.messagesConnus && !(vue === 'messages' && a && nouveaux.every(function (m) { return m.athlete === a.id; }))) {
+        var noms = []; nouveaux.forEach(function (m) { var x = parId(m.athlete), n = x ? UI.prenom(x) || nomComplet(x) : '?'; if (noms.indexOf(n) < 0) noms.push(n); });
+        toast('✉ Nouveau message de ' + noms.join(', '));
+      }
+      E.messagesConnus = true;
+    }, function (e) { if (/action inconnue/.test(e.message)) E.messagerie = 'indispo'; })
+      .then(function () { chargementMsg = null; return sauver(); })
+      .then(function () { majPastille(); if (!boite.open && (vue === 'messages' || vue === 'athletes') && JSON.stringify(E.messages || []) !== empreinte) rendre(); });
+    return chargementMsg;
+  }
+  function heureMsg(iso) { var d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); }
+  function vueMessages() {
+    if (!syncConfiguree()) { main.innerHTML = '<section class="carte"><h2>Messages</h2><p class="alerte">Configure la synchronisation (Réglages) pour échanger avec tes athlètes.</p></section>'; return; }
+    if (E.messagerie === 'indispo') { main.innerHTML = '<section class="carte"><h2>Messages</h2><p class="alerte">La messagerie demande le script Google à jour (version 5) : Extensions → Apps Script, nouveau Code.gs, puis Déployer → Gérer les déploiements → Nouvelle version. Touche ensuite « Synchroniser ».</p></section>'; return; }
+    if (!E.athletes.length) { main.innerHTML = vueVide(); return; }
+    var dernier = {};
+    (E.messages || []).forEach(function (m) { dernier[m.athlete] = m; });
+    var liste = E.athletes.slice().sort(function (x, y) {
+      var dx = (dernier[x.id] || {}).envoye || '', dy = (dernier[y.id] || {}).envoye || '';
+      return dx < dy ? 1 : dx > dy ? -1 : nomComplet(x).localeCompare(nomComplet(y));
+    });
+    var a = athlete(), brouillon = a && filAthlete === a.id ? ($('#msgTexte') || {}).value || '' : '';
+    filAthlete = a ? a.id : null;
+    var h = '<div class="messagerie-coach"><section class="carte conversations"><h2>Messages</h2><ul class="convs">' + liste.map(function (x) {
+      var d = dernier[x.id], n = nonLus(x.id);
+      return '<li><button type="button" class="conv' + (a && x.id === a.id ? ' choisie' : '') + '" data-act="msgAthlete" data-id="' + esc(x.id) + '"><b>' + esc(nomComplet(x)) + '</b>' + (n ? '<span class="pastille">' + n + '</span>' : '') +
+        '<span class="apercu">' + (d ? (d.de === 'coach' ? 'Toi : ' : '') + esc(d.texte.slice(0, 60)) : 'Aucun message') + '</span></button></li>';
+    }).join('') + '</ul></section>';
+    h += '<section class="carte messagerie"><h2>' + (a ? esc(nomComplet(a)) : '') + '</h2><div id="fil" class="fil" aria-live="polite">' +
+      ((E.messages || []).filter(function (m) { return a && m.athlete === a.id; }).map(function (m) {
+        return '<div class="bulle ' + (m.de === 'coach' ? 'moi' : 'lui') + '"><div class="txt">' + esc(m.texte) + '</div><div class="quand">' + heureMsg(m.envoye) + (m.de === 'coach' && m.lu ? ' · lu' : '') + '</div></div>';
+      }).join('') || '<p class="muet" style="text-align:center">Pas encore de message avec cet athlète.</p>') +
+      '</div><form id="fMsg" class="envoi"><label class="sr" for="msgTexte">Ton message</label><textarea id="msgTexte" maxlength="2000" rows="2" placeholder="Écris à ' + esc(a ? UI.prenom(a) || nomComplet(a) : '') + '…"></textarea><button>Envoyer</button></form></section></div>';
+    main.innerHTML = h;
+    if (brouillon && $('#fMsg').dataset) $('#msgTexte').value = brouillon;
+    var fil = $('#fil'); fil.scrollTop = fil.scrollHeight;
+    if (a && nonLus(a.id)) chargerMessages(true);
+    $('#fMsg').onsubmit = function (ev) {
+      ev.preventDefault();
+      var t = $('#msgTexte'), texte = t.value.trim(), btn = $('#fMsg button');
+      if (!texte || !a) return;
+      btn.disabled = true;
+      appel({ action: 'coach.ecrire', id: a.id, texte: texte }).then(function (r) {
+        E.messages = (E.messages || []).concat([r.message]); t.value = ''; sauver(); rendre(); $('#msgTexte') && $('#msgTexte').focus();
+      }, function (e) { toast('Message non envoyé : ' + e.message); btn.disabled = false; });
+    };
   }
 
   /* ---------- ATHLÈTES (tableau de bord entraîneur) ---------- */
@@ -236,7 +304,7 @@
       '<div class="tableau"><table><thead><tr><th>Athlète</th><th class="num">Séances</th><th class="num">KM</th><th class="num">RPE moy.</th><th>Dernière saisie</th><th>Lien</th></tr></thead><tbody>' +
       lignes.map(function (l) {
         var a = l.a, r = l.r, s = a.suivi || {};
-        return '<tr class="cliquable" data-act="ouvrirAthlete" data-id="' + esc(a.id) + '"><td>' + (r.alerte ? '<span class="voyant" title="' + r.sansRetour.length + ' séance(s) prévue(s) sans retour">⚠</span> ' : '') + (r.nonRealisees.length ? '<span class="pas-faite" title="Séance(s) pas réalisée(s) cette semaine">' + r.nonRealisees.length + ' non faite' + (r.nonRealisees.length > 1 ? 's' : '') + '</span> ' : '') + '<b>' + esc(nomComplet(a)) + '</b></td>' +
+        return '<tr class="cliquable" data-act="ouvrirAthlete" data-id="' + esc(a.id) + '"><td>' + (r.alerte ? '<span class="voyant" title="' + r.sansRetour.length + ' séance(s) prévue(s) sans retour">⚠</span> ' : '') + (nonLus(a.id) ? '<span class="pastille" title="Message(s) non lu(s)">✉ ' + nonLus(a.id) + '</span> ' : '') + (r.nonRealisees.length ? '<span class="pas-faite" title="Séance(s) pas réalisée(s) cette semaine">' + r.nonRealisees.length + ' non faite' + (r.nonRealisees.length > 1 ? 's' : '') + '</span> ' : '') + '<b>' + esc(nomComplet(a)) + '</b></td>' +
           '<td class="num">' + r.semaine.prevuesFaites + ' / ' + r.semaine.prevuesADate + '</td>' +
           '<td class="num">' + (r.semaine.km ? C.nombreFR(r.semaine.km, 1) : '') + '</td>' +
           '<td class="num">' + (r.rpeMoy !== null ? C.nombreFR(r.rpeMoy, 1) : '') + '</td>' +
@@ -604,6 +672,7 @@
     else if (act === 'ficheAthlete') ficheAthlete(false);
     else if (act === 'nouvelAthlete') ficheAthlete(true);
     else if (act === 'envoyerLien') envoyerLien();
+    else if (act === 'msgAthlete') { E.courant = b.dataset.id; sauver(); rendre(); var f = $('#fil'); if (f) f.scrollIntoView({ block: 'nearest' }); }
     else if (act === 'ouvrirAthlete') { E.courant = b.dataset.id; semaineAffichee = null; sauver(); location.hash = '#/plan'; }
     else if (act === 'editProto') editProto(+b.dataset.i);
     else if (act === 'importXlsx') importXlsx();
@@ -633,6 +702,7 @@
   window.addEventListener('online', function () { synchroniser(false); });
   setInterval(function () { if (document.visibilityState === 'visible') synchroniser(false); }, 120000);
   setInterval(rendreStatut, 30000);
+  setInterval(function () { if (vue === 'messages' && document.visibilityState === 'visible') chargerMessages(true); }, 30000);
 
   Promise.all([Store.charger(), UI.chargerConfig('config.json')]).then(function (r) {
     var d = r[0]; config = r[1] || {};

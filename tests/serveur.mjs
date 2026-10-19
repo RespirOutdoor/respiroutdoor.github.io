@@ -77,6 +77,26 @@ test('Nouvel appareil de l\'entraîneur : fiche, code, plan et saisies récupér
   vrai(a.jours['2026-10-13'].type === 'VMAC' && a.jours['2026-10-13'].km === 9 && a.jours['2026-10-13'].fc === 150 && a.jours['2026-10-14'].corps === 'REPOS', JSON.stringify(a.jours));
   vrai(s.appel({ action: 'coach.recuperer', cle, ids: ['AUTRE'] }).athletes.length === 0);
 });
+test('Messagerie : athlète et entraîneur s\'écrivent, messages lus marqués, cloisonnement par athlète', () => {
+  const { s, cle } = preparer();
+  vrai(s.appel({ action: 'coach.publier', cle, athlete: { id: 'AUTRE', prenom: 'B', nom: 'C', code: 'ZZZZZ2' }, jours: {} }).ok);
+  const m1 = s.appel({ action: 'athlete.ecrire', code: 'K7Q2XA', texte: 'Bonjour coach' });
+  vrai(m1.ok && m1.message.de === 'athlete' && m1.message.athlete === 'MORERA_SYLVAIN', JSON.stringify(m1));
+  vrai(s.appel({ action: 'coach.ecrire', cle, id: 'MORERA_SYLVAIN', texte: 'Salut Sylvain' }).ok);
+  vrai(s.appel({ action: 'coach.ecrire', cle, id: 'AUTRE', texte: 'Pour B' }).ok);
+  vrai(s.appel({ action: 'athlete.ecrire', code: 'K7Q2XA', texte: '   ' }).ok === false);
+  vrai(s.appel({ action: 'coach.ecrire', cle: 'faux', id: 'MORERA_SYLVAIN', texte: 'x' }).ok === false);
+  let r = s.appel({ action: 'athlete.messages', code: 'K7Q2XA' });
+  vrai(r.messages.length === 2 && r.messages[0].texte === 'Bonjour coach' && r.messages[1].texte === 'Salut Sylvain' && !r.messages[1].lu, JSON.stringify(r.messages));
+  r = s.appel({ action: 'athlete.messages', code: 'K7Q2XA', lus: true });
+  vrai(r.messages[1].lu !== '' && r.messages[0].lu === '', 'lecture athlète');
+  let c = s.appel({ action: 'coach.messages', cle });
+  vrai(c.messages.length === 3 && c.messages.filter(m => m.de === 'athlete' && !m.lu).length === 1);
+  vrai(s.appel({ action: 'coach.lus', cle, id: 'MORERA_SYLVAIN' }).ok);
+  c = s.appel({ action: 'coach.messages', cle });
+  vrai(c.messages.filter(m => m.de === 'athlete' && !m.lu).length === 0);
+  vrai(s.appel({ action: 'athlete.messages', code: 'ZZZZZ2' }).messages.length === 1);
+});
 test('Nouvelle publication de l\'entraîneur (nouvel Excel) : plan remplacé, saisie de l\'athlète intacte', () => {
   const { s, cle, athlete } = preparer();
   s.appel({ action: 'athlete.saisir', code: 'K7Q2XA', jours: { '2026-10-13': { km: 10, rpe: 8, majA: '2026-10-13T19:00:00.000Z' } } });

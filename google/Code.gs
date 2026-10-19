@@ -17,7 +17,10 @@
  *    ne l'écrase jamais : elle ne peut que remplir un jour encore vide.
  */
 
-var VERSION_SERVICE = 4; // 2 : FC moyenne ; 3 : récupération des athlètes sur un nouvel appareil ; 4 : plan et mot du coach partagés entre les appareils de l'entraîneur
+var VERSION_SERVICE = 5; // 2 : FC moyenne ; 3 : récupération des athlètes sur un nouvel appareil ; 4 : plan et mot du coach partagés entre les appareils de l'entraîneur ; 5 : messagerie
+var COL_MESSAGES = ['id', 'athlete', 'de', 'texte', 'envoye', 'lu'];
+var ENTETES_MESSAGES = ['Identifiant', 'Athlète', 'De', 'Message', 'Envoyé le', 'Lu le'];
+var TAILLE_MAX_MESSAGE = 2000;
 var CHAMPS_COACH = ['eveil', 'educ', 'corps', 'rac', 'profil', 'type', 'consignes', 'reaction'];
 var CHAMPS_ATHLETE = ['km', 'dureeSec', 'dplus', 'rpe', 'notes', 'fc'];
 var NUMERIQUES = { km: [0, 400], dureeSec: [0, 172800], dplus: [0, 20000], rpe: [1, 10], fc: [30, 250] };
@@ -75,7 +78,12 @@ function traiter_(c) {
     'coach.lire': function () { verifierCle_(c.cle); return coachLire_(c.depuis); },
     'coach.recuperer': function () { verifierCle_(c.cle); return coachRecuperer_(c.ids); },
     'coach.commun': function () { verifierCle_(c.cle); return coachCommun_(c); },
-    'coach.supprimer': function () { verifierCle_(c.cle); return coachSupprimer_(c.id); }
+    'coach.supprimer': function () { verifierCle_(c.cle); return coachSupprimer_(c.id); },
+    'athlete.messages': function () { var a = athleteParCode_(c.code); if (c.lus) marquerLus_(a.id, 'coach'); return { ok: true, messages: lireMessages_(a.id) }; },
+    'athlete.ecrire': function () { var a = athleteParCode_(c.code); return { ok: true, message: ecrireMessage_(a.id, 'athlete', c.texte) }; },
+    'coach.messages': function () { verifierCle_(c.cle); return { ok: true, messages: lireMessages_(null) }; },
+    'coach.ecrire': function () { verifierCle_(c.cle); if (!trouverAthlete_('id', c.id)) throw new Error('athlète inconnu'); return { ok: true, message: ecrireMessage_(c.id, 'coach', c.texte) }; },
+    'coach.lus': function () { verifierCle_(c.cle); marquerLus_(c.id, 'athlete'); return { ok: true }; }
   };
   if (!actions[c.action]) throw new Error('action inconnue');
   var verrou = LockService.getScriptLock();
@@ -119,6 +127,42 @@ function athleteSaisir_(code, jours) {
   a.derniereSync = new Date().toISOString();
   ecrireAthlete_(a);
   return { ok: true, jours: acceptes, refuses: refuses };
+}
+
+/* ---------- Messagerie (onglet « Messages ») ---------- */
+function athleteParCode_(code) {
+  var a = trouverAthlete_('code', normCode_(code));
+  if (!a) throw new Error('lien inconnu ou remplacé : demande un nouveau lien à ton entraîneur');
+  return a;
+}
+function feuilleMessages_() { return feuilleAvecEntetes_(SpreadsheetApp.getActiveSpreadsheet(), 'Messages', ENTETES_MESSAGES); }
+// Messages d'un athlète (tous les athlètes si id est vide), du plus ancien au plus récent
+function lireMessages_(id) {
+  var sh = feuilleMessages_(), n = sh.getLastRow() - 1, res = [];
+  if (n <= 0) return res;
+  sh.getRange(2, 1, n, COL_MESSAGES.length).getValues().forEach(function (l, i) {
+    var m = { _ligne: i + 2 };
+    COL_MESSAGES.forEach(function (k, c) { m[k] = texteCellule_(l[c], k); });
+    if (m.id && (!id || m.athlete === id)) res.push(m);
+  });
+  return res.sort(function (x, y) { return x.envoye < y.envoye ? -1 : x.envoye > y.envoye ? 1 : 0; })
+    .map(function (m) { delete m._ligne; return m; });
+}
+function ecrireMessage_(id, de, texte) {
+  texte = String(texte == null ? '' : texte).trim();
+  if (!texte) throw new Error('message vide');
+  if (texte.length > TAILLE_MAX_MESSAGE) throw new Error('message trop long');
+  var sh = feuilleMessages_(), m = { id: Utilities.getUuid(), athlete: id, de: de, texte: texte, envoye: new Date().toISOString(), lu: '' };
+  sh.getRange(Math.max(sh.getLastRow(), 1) + 1, 1, 1, COL_MESSAGES.length).setValues([COL_MESSAGES.map(function (k) { return m[k]; })]);
+  return m;
+}
+// Marque comme lus les messages reçus par l'autre personne : de = auteur des messages concernés
+function marquerLus_(id, de) {
+  var sh = feuilleMessages_(), n = sh.getLastRow() - 1;
+  if (n <= 0) return;
+  var r = sh.getRange(2, 1, n, COL_MESSAGES.length), v = r.getValues(), maintenant = new Date().toISOString(), change = false;
+  v.forEach(function (l) { if (l[1] === id && l[2] === de && !l[5]) { l[5] = maintenant; change = true; } });
+  if (change) r.setValues(v);
 }
 
 /* ---------- Entraîneur ---------- */

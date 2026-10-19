@@ -53,7 +53,8 @@
       })
       .then(function (ok) {
         enCours = null;
-        return sauver().then(function () { rendreStatut(); if (!boite.open && (ok || !A.athlete || A.lienInvalide)) rendre(); });
+        if (ok) verifierReactions();
+        return sauver().then(function () { rendreStatut(); if (!boite.open && (ok || !A.athlete || A.lienInvalide)) rendre(); if (ok) chargerMessages(vue === 'messages'); });
       });
     return enCours;
   }
@@ -86,7 +87,8 @@
     if (A.lienInvalide) main.innerHTML = '<p class="alerte">Ce lien n\'est plus reconnu : ton entraîneur a peut-être créé un nouveau lien. Ouvre le dernier lien qu\'il t\'a envoyé.</p>';
     else main.innerHTML = '';
     var cont = document.createElement('div'); main.appendChild(cont);
-    ({ accueil: vueAccueil, plan: vuePlan, allures: function (m) { UI.vueAllures(m, a, false); }, legende: function (m) { UI.vueLegende(m); }, protos: function (m) { UI.vueProtos(m, a, false); } }[vue] || vueAccueil)(cont);
+    majPastilles();
+    ({ accueil: vueAccueil, plan: vuePlan, messages: vueMessages, allures: function (m) { UI.vueAllures(m, a, false); }, legende: function (m) { UI.vueLegende(m); }, protos: function (m) { UI.vueProtos(m, a, false); } }[vue] || vueAccueil)(cont);
   }
 
   function vueBienvenue() {
@@ -105,9 +107,91 @@
     };
   }
   function changerCode(c) {
-    if (c !== A.code) { A.code = c; A.athlete = null; A.enAttente = {}; A.sync = { derniere: '', erreur: '' }; }
+    if (c !== A.code) { A.code = c; A.athlete = null; A.enAttente = {}; A.sync = { derniere: '', erreur: '' }; A.messages = []; A.messagesConnus = false; A.reactionsVues = null; A.reactionsSignalees = {}; }
     A.lienInvalide = false;
     sauver().then(function () { rendre(); synchroniser(false); });
+  }
+
+  /* ---------- Réactions de l'entraîneur pas encore vues ---------- */
+  function reactionsNouvelles() {
+    var a = A.athlete, vues = A.reactionsVues || {};
+    if (!a) return [];
+    return Object.keys(a.jours || {}).filter(function (d) { var r = C.texte(a.jours[d].reaction); return r && vues[d] !== r; }).sort().reverse();
+  }
+  function verifierReactions() {
+    var a = A.athlete; if (!a) return;
+    if (!A.reactionsVues) { A.reactionsVues = {}; Object.keys(a.jours || {}).forEach(function (d) { if (a.jours[d].reaction) A.reactionsVues[d] = a.jours[d].reaction; }); return; }
+    var n = reactionsNouvelles(), dejaSignalees = A.reactionsSignalees || {};
+    var inedites = n.filter(function (d) { return dejaSignalees[d] !== a.jours[d].reaction; });
+    if (inedites.length) {
+      toast('💬 Ton entraîneur a réagi à ' + (inedites.length > 1 ? inedites.length + ' séances' : 'ta séance du ' + UI.jourCourt(inedites[0])));
+      A.reactionsSignalees = A.reactionsSignalees || {};
+      inedites.forEach(function (d) { A.reactionsSignalees[d] = a.jours[d].reaction; });
+    }
+  }
+  function marquerReactionsVues() {
+    var a = A.athlete; A.reactionsVues = A.reactionsVues || {};
+    reactionsNouvelles().forEach(function (d) { A.reactionsVues[d] = a.jours[d].reaction; });
+    sauver().then(rendre);
+  }
+  function carteReactions() {
+    var a = A.athlete, n = reactionsNouvelles();
+    if (!n.length) return '';
+    return '<section class="carte nouveau"><div class="ligne"><h3 class="espace" style="margin:0">💬 Ton entraîneur a réagi</h3><button class="sec" data-act="reactionsVues">Vu</button></div><ul class="liste-nf">' +
+      n.slice(0, 5).map(function (d) { var j = a.jours[d]; return '<li><div class="petit">' + esc(UI.jourCourt(d)) + (j.corps ? ' · ' + esc(j.corps) : '') + '</div><div class="reaction">' + esc(j.reaction) + '</div></li>'; }).join('') +
+      '</ul></section>';
+  }
+
+  /* ---------- MESSAGES avec l'entraîneur ---------- */
+  var chargementMessages = null;
+  function nonLus() { return (A.messages || []).filter(function (m) { return m.de === 'coach' && !m.lu; }).length; }
+  function majPastilles() {
+    [['accueil', reactionsNouvelles().length], ['messages', nonLus()]].forEach(function (x) {
+      var b = $('nav.onglets button[data-v="' + x[0] + '"]'); if (!b) return;
+      var p = b.querySelector('.pastille');
+      if (!x[1]) { if (p) p.remove(); return; }
+      if (!p) { p = document.createElement('span'); p.className = 'pastille'; b.appendChild(p); }
+      p.textContent = x[1] > 9 ? '9+' : x[1]; p.setAttribute('aria-label', x[1] + ' nouveau(x)');
+    });
+  }
+  function chargerMessages(lus) {
+    if (!A.code || !config.service || chargementMessages) return chargementMessages || Promise.resolve();
+    var avant = {}; (A.messages || []).forEach(function (m) { avant[m.id] = 1; });
+    chargementMessages = UI.appelService(config.service, { action: 'athlete.messages', code: A.code, lus: !!lus }).then(function (r) {
+      var nouveaux = (r.messages || []).filter(function (m) { return m.de === 'coach' && !avant[m.id] && !m.lu; });
+      A.messages = r.messages || []; A.messagerie = 'ok';
+      if (nouveaux.length && A.messagesConnus && vue !== 'messages') toast('✉ Nouveau message de ton entraîneur');
+      A.messagesConnus = true;
+    }, function (e) { if (/action inconnue/.test(e.message)) A.messagerie = 'indispo'; })
+      .then(function () { chargementMessages = null; return sauver(); })
+      .then(function () { majPastilles(); if (vue === 'messages' && !boite.open) dessinerFil(); });
+    return chargementMessages;
+  }
+  function heureMsg(iso) { var d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); }
+  function dessinerFil() {
+    var fil = $('#fil'); if (!fil) return;
+    var ms = A.messages || [];
+    fil.innerHTML = ms.length ? ms.map(function (m) {
+      return '<div class="bulle ' + (m.de === 'athlete' ? 'moi' : 'lui') + '"><div class="txt">' + esc(m.texte) + '</div><div class="quand">' + heureMsg(m.envoye) + (m.de === 'athlete' && m.lu ? ' · lu' : '') + '</div></div>';
+    }).join('') : '<p class="muet" style="text-align:center">Pas encore de message. Écris à ton entraîneur ici : il le verra dans son application.</p>';
+    fil.scrollTop = fil.scrollHeight;
+  }
+  function vueMessages(m) {
+    if (A.messagerie === 'indispo') { m.innerHTML = '<section class="carte"><h2>Messages</h2><p class="muet">La messagerie sera disponible dès que ton entraîneur aura mis à jour son service Google.</p></section>'; return; }
+    m.innerHTML = '<section class="carte messagerie"><h2>Messages avec ton entraîneur</h2><div id="fil" class="fil" aria-live="polite"></div>' +
+      '<form id="fMsg" class="envoi"><label class="sr" for="msgTexte">Ton message</label><textarea id="msgTexte" maxlength="2000" rows="2" placeholder="Écris ton message…"></textarea><button>Envoyer</button></form></section>';
+    dessinerFil();
+    if (nonLus() || !A.messagesConnus) chargerMessages(true);
+    $('#fMsg').onsubmit = function (ev) {
+      ev.preventDefault();
+      var t = $('#msgTexte'), texte = t.value.trim(), btn = $('#fMsg button');
+      if (!texte) return;
+      btn.disabled = true;
+      UI.appelService(config.service, { action: 'athlete.ecrire', code: A.code, texte: texte }).then(function (r) {
+        A.messages = (A.messages || []).concat([r.message]); t.value = ''; dessinerFil(); sauver();
+      }, function (e) { toast(/action inconnue/.test(e.message) ? 'Messagerie pas encore disponible' : 'Message non envoyé : vérifie ta connexion'); })
+        .then(function () { btn.disabled = false; });
+    };
   }
 
   /* ---------- ACCUEIL : tableau de bord ---------- */
@@ -205,6 +289,7 @@
   }
   function vueAccueil(m) {
     var a = A.athlete, aj = auj(), j = a.jours[aj] || {}, h = '';
+    h += carteReactions();
     var mots = [A.commun.motGlobal, a.motCoach].filter(function (x) { return C.texte(x); });
     if (mots.length) h += '<section class="carte mot"><h3>💬 Le mot de ton coach</h3>' + mots.map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + '</section>';
     // Séance d'hier pas encore saisie
@@ -360,19 +445,21 @@
     else if (act === 'allerSem') { semaineAffichee = +b.dataset.n; rendre(); window.scrollTo(0, 0); }
     else if (act === 'imprimer') window.print();
     else if (act === 'chaussures') gererChaussures();
+    else if (act === 'reactionsVues') marquerReactionsVues();
   });
   $('#statutSync').addEventListener('click', function () { synchroniser(true); });
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') synchroniser(false); });
   window.addEventListener('online', function () { synchroniser(false); });
   window.addEventListener('hashchange', function () { var c = C.codeDepuisLien(decodeURIComponent(location.hash.slice(1))); if (c && c !== A.code) changerCode(c); });
   setInterval(rendreStatut, 30000);
+  setInterval(function () { if (vue === 'messages' && document.visibilityState === 'visible') chargerMessages(true); }, 30000);
 
   Promise.all([Store.charger(), UI.chargerConfig('../config.json')]).then(function (r) {
     var d = r[0]; config = r[1] || {};
     if (d) { A = Object.assign(A, d); A.enAttente = A.enAttente || {}; }
     UI.appliquerTheme(A.reglages && A.reglages.theme);
     var c = C.codeDepuisLien(decodeURIComponent(location.hash.slice(1)));
-    if (c && c !== A.code) { A.code = c; A.athlete = null; A.enAttente = {}; A.lienInvalide = false; }
+    if (c && c !== A.code) { A.code = c; A.athlete = null; A.enAttente = {}; A.lienInvalide = false; A.messages = []; A.messagesConnus = false; A.reactionsVues = null; A.reactionsSignalees = {}; }
     rendre();
     synchroniser(false);
   });
