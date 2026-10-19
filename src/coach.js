@@ -145,14 +145,15 @@
           if (!a) return;
           a.suivi = { lienOuvert: info.lienOuvert, derniereSync: info.derniereSync, majPlan: info.majPlan };
           Object.keys(info.jours || {}).forEach(function (d) {
-            var nf = C.nonRealisee(info.jours[d]);
-            if (nf && !C.nonRealisee((a.jours || {})[d])) nonFaites.push(UI.prenom(a) + ' : ' + UI.jourCourt(d) + (nf.raison ? ' (' + nf.raison + ')' : ''));
+            var nf = C.nonRealisee(info.jours[d]), dc = C.decalee(info.jours[d]), avant = (a.jours || {})[d];
+            if (nf && !C.nonRealisee(avant)) nonFaites.push(UI.prenom(a) + ' : ' + UI.jourCourt(d) + ' pas réalisée' + (nf.raison ? ' (' + nf.raison + ')' : ''));
+            if (dc && (!C.decalee(avant) || C.decalee(avant).au !== dc.au)) nonFaites.push(UI.prenom(a) + ' : ' + UI.jourCourt(d) + ' décalée au ' + UI.jourCourt(dc.au) + (dc.raison ? ' (' + dc.raison + ')' : ''));
           });
           var n = Object.keys(info.jours || {}).length;
           if (n) { a.jours = C.fusionner(a, { jours: info.jours }, 'retours').jours; nouveaux += n; }
         });
         E.sync.depuis = res.heure; E.sync.derniere = UI.maintenant(); E.sync.erreur = '';
-        if (nonFaites.length) toast('⚠ Séance pas réalisée — ' + nonFaites.join(' · '));
+        if (nonFaites.length) toast('⚠ ' + nonFaites.join(' · '));
         else if (manuel) toast(nouveaux ? nouveaux + ' saisie(s) reçue(s)' : 'Tout est à jour');
         return nouveaux;
       })
@@ -293,18 +294,21 @@
     var nbAlertes = lignes.filter(function (l) { return l.r.alerte; }).length;
     // Séances signalées « pas réalisées » par les athlètes (7 derniers jours)
     var nf = [];
-    lignes.forEach(function (l) { l.r.nonRealisees.forEach(function (x) { nf.push(Object.assign({ a: l.a }, x)); }); });
+    lignes.forEach(function (l) {
+      l.r.nonRealisees.forEach(function (x) { nf.push(Object.assign({ a: l.a, etat: 'Pas réalisée' }, x)); });
+      l.r.decalees.forEach(function (x) { nf.push(Object.assign({ a: l.a, etat: 'Décalée au ' + UI.jourCourt(x.au) + (x.enRetard ? ' · pas encore saisie' : '') }, x)); });
+    });
     nf.sort(function (x, y) { return x.date < y.date ? 1 : x.date > y.date ? -1 : 0; });
-    if (nf.length) h = h.replace('<!--alertes-->', '<section class="carte alerte-nf"><h3>⚠ Séances pas réalisées (7 derniers jours)</h3><ul class="liste-nf">' + nf.map(function (x) {
+    if (nf.length) h = h.replace('<!--alertes-->', '<section class="carte alerte-nf"><h3>⚠ Séances pas réalisées ou décalées</h3><ul class="liste-nf">' + nf.map(function (x) {
       return '<li><div class="ligne"><b class="espace">' + esc(nomComplet(x.a)) + '</b><button class="discret" data-act="ouvrirAthlete" data-id="' + esc(x.a.id) + '">Voir le plan</button></div>' +
-        '<div class="petit">' + esc(UI.jourCourt(x.date)) + (x.corps ? ' · ' + esc(x.corps) : '') + (x.raison ? ' · <b>' + esc(x.raison) + '</b>' : '') + '</div>' +
+        '<div class="petit">' + esc(UI.jourCourt(x.date)) + (x.corps ? ' · ' + esc(x.corps) : '') + '</div><div class="petit"><b>' + esc(x.etat) + '</b>' + (x.raison ? ' · ' + esc(x.raison) : '') + '</div>' +
         (x.message ? '<div class="note">« ' + esc(x.message) + ' »</div>' : '') + '</li>';
     }).join('') + '</ul></section>');
     h += '<section class="carte"><h3>Semaine en cours</h3>' + (nbAlertes ? '<p class="alerte petit">⚠ ' + nbAlertes + ' athlète(s) sans retour sur au moins 2 séances prévues des 14 derniers jours.</p>' : '') +
       '<div class="tableau"><table><thead><tr><th>Athlète</th><th class="num">Séances</th><th class="num">KM</th><th class="num">RPE moy.</th><th>Dernière saisie</th><th>Lien</th></tr></thead><tbody>' +
       lignes.map(function (l) {
         var a = l.a, r = l.r, s = a.suivi || {};
-        return '<tr class="cliquable" data-act="ouvrirAthlete" data-id="' + esc(a.id) + '"><td>' + (r.alerte ? '<span class="voyant" title="' + r.sansRetour.length + ' séance(s) prévue(s) sans retour">⚠</span> ' : '') + (nonLus(a.id) ? '<span class="pastille" title="Message(s) non lu(s)">✉ ' + nonLus(a.id) + '</span> ' : '') + (r.nonRealisees.length ? '<span class="pas-faite" title="Séance(s) pas réalisée(s) cette semaine">' + r.nonRealisees.length + ' non faite' + (r.nonRealisees.length > 1 ? 's' : '') + '</span> ' : '') + '<b>' + esc(nomComplet(a)) + '</b></td>' +
+        return '<tr class="cliquable" data-act="ouvrirAthlete" data-id="' + esc(a.id) + '"><td>' + (r.alerte ? '<span class="voyant" title="' + r.sansRetour.length + ' séance(s) prévue(s) sans retour">⚠</span> ' : '') + (nonLus(a.id) ? '<span class="pastille" title="Message(s) non lu(s)">✉ ' + nonLus(a.id) + '</span> ' : '') + (r.decalees.length ? '<span class="decalee" title="Séance(s) décalée(s)">' + r.decalees.length + ' décalée' + (r.decalees.length > 1 ? 's' : '') + '</span> ' : '') + (r.nonRealisees.length ? '<span class="pas-faite" title="Séance(s) pas réalisée(s) cette semaine">' + r.nonRealisees.length + ' non faite' + (r.nonRealisees.length > 1 ? 's' : '') + '</span> ' : '') + '<b>' + esc(nomComplet(a)) + '</b></td>' +
           '<td class="num">' + r.semaine.prevuesFaites + ' / ' + r.semaine.prevuesADate + '</td>' +
           '<td class="num">' + (r.semaine.km ? C.nombreFR(r.semaine.km, 1) : '') + '</td>' +
           '<td class="num">' + (r.rpeMoy !== null ? C.nombreFR(r.rpeMoy, 1) : '') + '</td>' +

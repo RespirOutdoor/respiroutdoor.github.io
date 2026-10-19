@@ -385,6 +385,11 @@ button.conv.choisie { border-color: var(--vert); background: var(--vert-clair); 
 :root[data-theme="dark"] button.conv { color: var(--texte); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button.conv { color: var(--texte); } }
 .carte.nouveau { border-left: 5px solid var(--vert); }
+.decalee { display: inline-block; font-size: .78rem; font-weight: 700; color: var(--carte); background: var(--vert-fonce); border-radius: 99px; padding: 2px 10px; white-space: nowrap; }
+label.choix { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; font-size: 1rem; color: var(--texte); font-weight: 400; margin-bottom: 8px; }
+label.choix > input[type="radio"] { width: 22px; height: 22px; min-height: 0; margin: 0; accent-color: var(--vert-fonce); }
+label.choix > span { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+label.choix input[type="date"] { width: auto; max-width: 100%; margin: 0; min-height: 40px; }
 </style>
 </head>
 <body class="coach">
@@ -810,6 +815,17 @@ var Core = (function () {
     var m = /^\[PAS RÉALISÉE(?: · ([^\]]*))?\]\s*([\s\S]*)$/.exec(texte(j && j.notes));
     return m ? { raison: m[1] || '', message: m[2] || '' } : null;
   }
+  // Séance décalée : « [DÉCALÉE AU 2026-10-20 · raison] message » ; une fois faite : « [FAITE LE 2026-10-20] notes »
+  function decalee(j) {
+    var m = /^\[DÉCALÉE AU (\d{4}-\d{2}-\d{2})(?: · ([^\]]*))?\]\s*([\s\S]*)$/.exec(texte(j && j.notes));
+    return m ? { au: m[1], raison: m[2] || '', message: m[3] || '' } : null;
+  }
+  function noteDecalee(au, raison, message) { return '[DÉCALÉE AU ' + au + (texte(raison) ? ' · ' + texte(raison).replace(/[\[\]]/g, '') : '') + '] ' + texte(message); }
+  function faiteLe(j) {
+    var m = /^\[FAITE LE (\d{4}-\d{2}-\d{2})\]\s*([\s\S]*)$/.exec(texte(j && j.notes));
+    return m ? { le: m[1], notes: m[2] || '' } : null;
+  }
+  function noteFaiteLe(le, notes) { return '[FAITE LE ' + le + '] ' + texte(notes); }
   function noteNonRealisee(raison, message) { return '[PAS RÉALISÉE' + (texte(raison) ? ' · ' + texte(raison).replace(/[\[\]]/g, '') : '') + '] ' + texte(message); }
   function estPrevue(j) { return aContenuCoach(j) && !estRepos(j); }
   function estFaite(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec)); }
@@ -880,7 +896,10 @@ var Core = (function () {
     var rpe = bilanJours(Object.keys(athlete.jours || {}).filter(function (d) { return d >= lun && d <= addDays(lun, 6); }).map(function (d) { return athlete.jours[d]; })).rpeMoy;
     var nonFaites = Object.keys(athlete.jours || {}).filter(function (d) { return d <= auj && d >= addDays(auj, -7) && nonRealisee(athlete.jours[d]); }).sort().reverse()
       .map(function (d) { var n = nonRealisee(athlete.jours[d]); return { date: d, corps: athlete.jours[d].corps || '', raison: n.raison, message: n.message }; });
-    return { semaine: b, rpeMoy: rpe, derniere: der, sansRetour: manquees, alerte: manquees.length >= 2, nonRealisees: nonFaites };
+    // Séances décalées pas encore faites, prévues dans les 14 derniers jours
+    var decalees = Object.keys(athlete.jours || {}).filter(function (d) { return d <= auj && d >= addDays(auj, -14) && decalee(athlete.jours[d]); }).sort().reverse()
+      .map(function (d) { var n = decalee(athlete.jours[d]); return { date: d, au: n.au, corps: athlete.jours[d].corps || '', raison: n.raison, message: n.message, enRetard: n.au < auj }; });
+    return { semaine: b, rpeMoy: rpe, derniere: der, sansRetour: manquees, alerte: manquees.length >= 2, nonRealisees: nonFaites, decalees: decalees };
   }
   function competitionsAVenir(athletes, auj, nbJours) {
     var fin = addDays(auj, nbJours), out = [];
@@ -1372,6 +1391,17 @@ var Core = (function () {
       var r = fusionner(local, recu, 'serveur', {});
       return r.jours['2026-10-13'].fc === 150 && aRetour({ fc: 140 });
     }],
+    ['Séance décalée : « [DÉCALÉE AU …] » et « [FAITE LE …] » lus ; pas « pas réalisée » ; pas comptée tant qu\'elle n\'est pas faite', function () {
+      var n = noteDecalee('2026-10-20', 'Manque de temps', 'Anniversaire'), d = decalee({ notes: n }), j = { corps: 'VMA', notes: n };
+      var f = faiteLe({ notes: noteFaiteLe('2026-10-20', 'Bonnes jambes'), km: 10 });
+      return n === '[DÉCALÉE AU 2026-10-20 · Manque de temps] Anniversaire' && d.au === '2026-10-20' && d.raison === 'Manque de temps' && d.message === 'Anniversaire' &&
+        nonRealisee(j) === null && !estFaite(j) && aRetour(j) && f.le === '2026-10-20' && f.notes === 'Bonnes jambes' && decalee({ notes: 'ok' }) === null && faiteLe({ notes: 'ok' }) === null;
+    }],
+    ['Suivi entraîneur : séance décalée remontée avec sa nouvelle date, « en retard » si la date est passée', function () {
+      var a = { jours: { '2026-10-19': { corps: 'VMA', notes: noteDecalee('2026-10-20', 'Manque de temps', '') }, '2026-10-12': { corps: 'EF', notes: noteDecalee('2026-10-13', '', '') } } };
+      var r1 = resumeCoach(a, '2026-10-19'), r2 = resumeCoach(a, '2026-10-22');
+      return r1.decalees.length === 2 && r1.decalees[0].au === '2026-10-20' && !r1.decalees[0].enRetard && r1.decalees[1].enRetard && r2.decalees[0].enRetard && r1.nonRealisees.length === 0;
+    }],
     ['Chaussures : km = km de départ + km des séances associées ; séance sans km ou paire inconnue ignorée', function () {
       var ch = { liste: [{ id: 'c1', nom: 'A', kmDepart: 120 }, { id: 'c2', nom: 'B', kmDepart: 0 }], parDate: { '2026-10-01': 'c1', '2026-10-02': 'c1', '2026-10-03': 'c2', '2026-10-04': 'c9', '2026-10-05': 'c2' } };
       var jours = { '2026-10-01': { km: 10.5 }, '2026-10-02': { km: 8 }, '2026-10-03': { km: 12.25 }, '2026-10-04': { km: 30 }, '2026-10-05': { dureeSec: 1800 } };
@@ -1396,7 +1426,7 @@ var Core = (function () {
     TZ: TZ, SCHEMA_VERSION: SCHEMA_VERSION, JOURS: JOURS, JOURS_LONGS: JOURS_LONGS, CHAMPS_COACH: CHAMPS_COACH, CHAMPS_ATHLETE: CHAMPS_ATHLETE,
     ZONES_DEFAUT: ZONES_DEFAUT, CHAMP_REACTION: CHAMP_REACTION, aDonneesAthlete: aDonneesAthlete, periodes: periodes, bilanPeriode: bilanPeriode,
     estPrevue: estPrevue, estFaite: estFaite, records: records, derniereSaisie: derniereSaisie, resumeCoach: resumeCoach, competitionsAVenir: competitionsAVenir,
-    genererCode: genererCode, slugNom: slugNom, lienAthlete: lienAthlete, codeDepuisLien: codeDepuisLien, ECHELLE_RPE: ECHELLE_RPE, DEGRADE_RPE: DEGRADE_RPE, libelleRPE: libelleRPE, kmChaussures: kmChaussures, RAISONS_NON_FAITE: RAISONS_NON_FAITE, nonRealisee: nonRealisee, noteNonRealisee: noteNonRealisee, pad2: pad2, isNum: isNum, texte: texte, parseNumberFR: parseNumberFR, nombreFR: nombreFR,
+    genererCode: genererCode, slugNom: slugNom, lienAthlete: lienAthlete, codeDepuisLien: codeDepuisLien, ECHELLE_RPE: ECHELLE_RPE, DEGRADE_RPE: DEGRADE_RPE, libelleRPE: libelleRPE, kmChaussures: kmChaussures, RAISONS_NON_FAITE: RAISONS_NON_FAITE, nonRealisee: nonRealisee, noteNonRealisee: noteNonRealisee, decalee: decalee, noteDecalee: noteDecalee, faiteLe: faiteLe, noteFaiteLe: noteFaiteLe, pad2: pad2, isNum: isNum, texte: texte, parseNumberFR: parseNumberFR, nombreFR: nombreFR,
     isValidISODate: isValidISODate, parseDateFR: parseDateFR, formatDateFR: formatDateFR, addDays: addDays, daysBetween: daysBetween,
     dayOfWeek: dayOfWeek, weekStart: weekStart, todayParis: todayParis, excelSerialToISO: excelSerialToISO,
     numSemaine: numSemaine, lundiSemaine: lundiSemaine, formatDuree: formatDuree, parseDuree: parseDuree, formatTemps: formatTemps,
@@ -1534,11 +1564,13 @@ var UI = (function () {
         (lt ? '<div><b>' + esc(lt.entree.code) + '</b>' + (lt.variante ? ' (variante « ' + esc(j.type) + ' »)' : '') + ' : ' + esc(lt.entree.desc) + '</div>' : '') +
         (lp ? '<div><b>' + esc(lp.entree.code) + '</b> : ' + esc(lp.entree.desc) + '</div>' : '') + '</details>';
     }
-    var aRet = C.aRetour(j), passe = date <= aj, nf = C.nonRealisee(j);
+    var aRet = C.aRetour(j), passe = date <= aj, nf = C.nonRealisee(j), dc = C.decalee(j), fl = C.faiteLe(j);
     if (aRet || (!repos && !vide)) {
       h += '<div class="retour">';
       if (nf) h += '<span class="pas-faite">Pas réalisée</span>' + (nf.raison ? '<span class="muet">' + esc(nf.raison) + '</span>' : '');
+      else if (dc) h += '<span class="decalee">Décalée au ' + esc(jourCourt(dc.au)) + '</span>' + (dc.raison ? '<span class="muet">' + esc(dc.raison) + '</span>' : '');
       else if (aRet) {
+        if (fl) h += '<span class="muet">Faite le ' + esc(jourCourt(fl.le)) + '</span>';
         h += (C.isNum(j.km) ? '<span><b>' + C.nombreFR(j.km, 2) + '</b> km</span>' : '') +
           (C.isNum(j.dureeSec) ? '<span><b>' + C.formatDuree(j.dureeSec) + '</b></span>' : '') +
           (allure ? '<span>' + C.formatAllure(allure) + '</span>' : '') +
@@ -1551,13 +1583,13 @@ var UI = (function () {
         if (aRet) h += '<button class="discret noprint" data-act="reagir" data-date="' + date + '">' + (j.reaction ? 'Ma réaction' : 'Réagir') + '</button>';
         h += '<button class="discret noprint" data-act="editJour" data-date="' + date + '">Modifier</button>';
       } else if (passe || aRet) {
-        if (nf) h += '<button class="discret noprint" data-act="pasFaite" data-date="' + date + '">Modifier</button><button class="discret noprint" data-act="saisir" data-date="' + date + '">Je l\'ai faite</button>';
+        if (nf || dc) h += '<button class="discret noprint" data-act="pasFaite" data-date="' + date + '">Modifier</button><button class="discret noprint" data-act="saisir" data-date="' + date + '">' + (dc ? 'Saisir ma séance' : 'Je l\'ai faite') + '</button>';
         else {
           if (!aRet && C.estPrevue(j)) h += '<button class="discret noprint" data-act="pasFaite" data-date="' + date + '">Pas réalisée</button>';
           h += '<button class="discret noprint" data-act="saisir" data-date="' + date + '">' + (aRet ? 'Modifier ma saisie' : 'Saisir ma séance') + '</button>';
         }
       }
-      var note = nf ? nf.message : j.notes;
+      var note = nf ? nf.message : dc ? dc.message : fl ? fl.notes : j.notes;
       if (C.texte(note)) h += '<div class="note">« ' + esc(note) + ' »</div>';
       if (j.reaction) h += '<div class="reaction">' + (role === 'coach' ? 'Ta réaction' : 'Ton entraîneur') + ' : ' + esc(j.reaction) + '</div>';
       h += '</div>';
@@ -1991,14 +2023,15 @@ var UI = (function () {
           if (!a) return;
           a.suivi = { lienOuvert: info.lienOuvert, derniereSync: info.derniereSync, majPlan: info.majPlan };
           Object.keys(info.jours || {}).forEach(function (d) {
-            var nf = C.nonRealisee(info.jours[d]);
-            if (nf && !C.nonRealisee((a.jours || {})[d])) nonFaites.push(UI.prenom(a) + ' : ' + UI.jourCourt(d) + (nf.raison ? ' (' + nf.raison + ')' : ''));
+            var nf = C.nonRealisee(info.jours[d]), dc = C.decalee(info.jours[d]), avant = (a.jours || {})[d];
+            if (nf && !C.nonRealisee(avant)) nonFaites.push(UI.prenom(a) + ' : ' + UI.jourCourt(d) + ' pas réalisée' + (nf.raison ? ' (' + nf.raison + ')' : ''));
+            if (dc && (!C.decalee(avant) || C.decalee(avant).au !== dc.au)) nonFaites.push(UI.prenom(a) + ' : ' + UI.jourCourt(d) + ' décalée au ' + UI.jourCourt(dc.au) + (dc.raison ? ' (' + dc.raison + ')' : ''));
           });
           var n = Object.keys(info.jours || {}).length;
           if (n) { a.jours = C.fusionner(a, { jours: info.jours }, 'retours').jours; nouveaux += n; }
         });
         E.sync.depuis = res.heure; E.sync.derniere = UI.maintenant(); E.sync.erreur = '';
-        if (nonFaites.length) toast('⚠ Séance pas réalisée — ' + nonFaites.join(' · '));
+        if (nonFaites.length) toast('⚠ ' + nonFaites.join(' · '));
         else if (manuel) toast(nouveaux ? nouveaux + ' saisie(s) reçue(s)' : 'Tout est à jour');
         return nouveaux;
       })
@@ -2139,18 +2172,21 @@ var UI = (function () {
     var nbAlertes = lignes.filter(function (l) { return l.r.alerte; }).length;
     // Séances signalées « pas réalisées » par les athlètes (7 derniers jours)
     var nf = [];
-    lignes.forEach(function (l) { l.r.nonRealisees.forEach(function (x) { nf.push(Object.assign({ a: l.a }, x)); }); });
+    lignes.forEach(function (l) {
+      l.r.nonRealisees.forEach(function (x) { nf.push(Object.assign({ a: l.a, etat: 'Pas réalisée' }, x)); });
+      l.r.decalees.forEach(function (x) { nf.push(Object.assign({ a: l.a, etat: 'Décalée au ' + UI.jourCourt(x.au) + (x.enRetard ? ' · pas encore saisie' : '') }, x)); });
+    });
     nf.sort(function (x, y) { return x.date < y.date ? 1 : x.date > y.date ? -1 : 0; });
-    if (nf.length) h = h.replace('<!--alertes-->', '<section class="carte alerte-nf"><h3>⚠ Séances pas réalisées (7 derniers jours)</h3><ul class="liste-nf">' + nf.map(function (x) {
+    if (nf.length) h = h.replace('<!--alertes-->', '<section class="carte alerte-nf"><h3>⚠ Séances pas réalisées ou décalées</h3><ul class="liste-nf">' + nf.map(function (x) {
       return '<li><div class="ligne"><b class="espace">' + esc(nomComplet(x.a)) + '</b><button class="discret" data-act="ouvrirAthlete" data-id="' + esc(x.a.id) + '">Voir le plan</button></div>' +
-        '<div class="petit">' + esc(UI.jourCourt(x.date)) + (x.corps ? ' · ' + esc(x.corps) : '') + (x.raison ? ' · <b>' + esc(x.raison) + '</b>' : '') + '</div>' +
+        '<div class="petit">' + esc(UI.jourCourt(x.date)) + (x.corps ? ' · ' + esc(x.corps) : '') + '</div><div class="petit"><b>' + esc(x.etat) + '</b>' + (x.raison ? ' · ' + esc(x.raison) : '') + '</div>' +
         (x.message ? '<div class="note">« ' + esc(x.message) + ' »</div>' : '') + '</li>';
     }).join('') + '</ul></section>');
     h += '<section class="carte"><h3>Semaine en cours</h3>' + (nbAlertes ? '<p class="alerte petit">⚠ ' + nbAlertes + ' athlète(s) sans retour sur au moins 2 séances prévues des 14 derniers jours.</p>' : '') +
       '<div class="tableau"><table><thead><tr><th>Athlète</th><th class="num">Séances</th><th class="num">KM</th><th class="num">RPE moy.</th><th>Dernière saisie</th><th>Lien</th></tr></thead><tbody>' +
       lignes.map(function (l) {
         var a = l.a, r = l.r, s = a.suivi || {};
-        return '<tr class="cliquable" data-act="ouvrirAthlete" data-id="' + esc(a.id) + '"><td>' + (r.alerte ? '<span class="voyant" title="' + r.sansRetour.length + ' séance(s) prévue(s) sans retour">⚠</span> ' : '') + (nonLus(a.id) ? '<span class="pastille" title="Message(s) non lu(s)">✉ ' + nonLus(a.id) + '</span> ' : '') + (r.nonRealisees.length ? '<span class="pas-faite" title="Séance(s) pas réalisée(s) cette semaine">' + r.nonRealisees.length + ' non faite' + (r.nonRealisees.length > 1 ? 's' : '') + '</span> ' : '') + '<b>' + esc(nomComplet(a)) + '</b></td>' +
+        return '<tr class="cliquable" data-act="ouvrirAthlete" data-id="' + esc(a.id) + '"><td>' + (r.alerte ? '<span class="voyant" title="' + r.sansRetour.length + ' séance(s) prévue(s) sans retour">⚠</span> ' : '') + (nonLus(a.id) ? '<span class="pastille" title="Message(s) non lu(s)">✉ ' + nonLus(a.id) + '</span> ' : '') + (r.decalees.length ? '<span class="decalee" title="Séance(s) décalée(s)">' + r.decalees.length + ' décalée' + (r.decalees.length > 1 ? 's' : '') + '</span> ' : '') + (r.nonRealisees.length ? '<span class="pas-faite" title="Séance(s) pas réalisée(s) cette semaine">' + r.nonRealisees.length + ' non faite' + (r.nonRealisees.length > 1 ? 's' : '') + '</span> ' : '') + '<b>' + esc(nomComplet(a)) + '</b></td>' +
           '<td class="num">' + r.semaine.prevuesFaites + ' / ' + r.semaine.prevuesADate + '</td>' +
           '<td class="num">' + (r.semaine.km ? C.nombreFR(r.semaine.km, 1) : '') + '</td>' +
           '<td class="num">' + (r.rpeMoy !== null ? C.nombreFR(r.rpeMoy, 1) : '') + '</td>' +
@@ -2605,6 +2641,8 @@ var Aide = (function () {
       '<ol><li>Dans ton tableur Google : <b>Extensions → Apps Script</b>.</li><li>Remplace tout le contenu par le nouveau Code.gs, puis <b>Enregistrer</b>.</li><li><b>Déployer → Gérer les déploiements</b> → crayon → Version : <b>Nouvelle version</b> → <b>Déployer</b>.</li></ol><p>L\'adresse du service et ta clé ne changent pas.</p>' },
     { id: 'nonfaite', q: 'Séances « pas réalisées »', m: 'pas realisee realise non faite manquee annulee absent malade blesse blessure raison', r:
       '<p>Quand un athlète signale une séance « pas réalisée », tu reçois un message à la synchronisation. L\'onglet Athlètes affiche aussi la section « Séances pas réalisées (7 derniers jours) », avec la raison et son message. Tu peux y réagir depuis son plan comme pour une autre séance.</p>', a: ['Ouvrir les athlètes', '#/athletes'] },
+    { id: 'decalee', q: 'Séances décalées', m: 'decaler decalee decale reporter reportee reporte lendemain demain autre jour plus tard', r:
+      '<p>Un athlète qui ne peut pas faire sa séance le jour prévu touche <b>Pas réalisée</b>, puis <b>Je la décale au…</b> et choisit un jour (jusqu\'à 7 jours). Tu le vois dans la section « Séances pas réalisées ou décalées » de l\'onglet Athlètes, avec « pas encore saisie » si la nouvelle date est passée.</p><p>Le jour venu, l\'athlète saisit sa séance depuis son accueil. Elle reste rattachée au jour prévu dans le plan, avec la mention « Faite le … ».</p>', a: ['Ouvrir les athlètes', '#/athletes'] },
     { id: 'alerte', q: 'Que signifie l\'alerte ⚠ ?', m: 'alerte triangle attention sans retour oubli relance retard rouge', r:
       '<p>Le ⚠ devant un athlète signifie qu\'au moins 2 séances prévues des 14 derniers jours n\'ont pas de retour depuis sa dernière saisie. C\'est le moment de le relancer.</p>', a: ['Ouvrir les athlètes', '#/athletes'] },
     { id: 'rpe', q: 'Le RPE (ressenti)', m: 'rpe ressenti effort intensite echelle couleur difficulte', r:

@@ -119,11 +119,13 @@ var UI = (function () {
         (lt ? '<div><b>' + esc(lt.entree.code) + '</b>' + (lt.variante ? ' (variante « ' + esc(j.type) + ' »)' : '') + ' : ' + esc(lt.entree.desc) + '</div>' : '') +
         (lp ? '<div><b>' + esc(lp.entree.code) + '</b> : ' + esc(lp.entree.desc) + '</div>' : '') + '</details>';
     }
-    var aRet = C.aRetour(j), passe = date <= aj, nf = C.nonRealisee(j);
+    var aRet = C.aRetour(j), passe = date <= aj, nf = C.nonRealisee(j), dc = C.decalee(j), fl = C.faiteLe(j);
     if (aRet || (!repos && !vide)) {
       h += '<div class="retour">';
       if (nf) h += '<span class="pas-faite">Pas réalisée</span>' + (nf.raison ? '<span class="muet">' + esc(nf.raison) + '</span>' : '');
+      else if (dc) h += '<span class="decalee">Décalée au ' + esc(jourCourt(dc.au)) + '</span>' + (dc.raison ? '<span class="muet">' + esc(dc.raison) + '</span>' : '');
       else if (aRet) {
+        if (fl) h += '<span class="muet">Faite le ' + esc(jourCourt(fl.le)) + '</span>';
         h += (C.isNum(j.km) ? '<span><b>' + C.nombreFR(j.km, 2) + '</b> km</span>' : '') +
           (C.isNum(j.dureeSec) ? '<span><b>' + C.formatDuree(j.dureeSec) + '</b></span>' : '') +
           (allure ? '<span>' + C.formatAllure(allure) + '</span>' : '') +
@@ -136,13 +138,13 @@ var UI = (function () {
         if (aRet) h += '<button class="discret noprint" data-act="reagir" data-date="' + date + '">' + (j.reaction ? 'Ma réaction' : 'Réagir') + '</button>';
         h += '<button class="discret noprint" data-act="editJour" data-date="' + date + '">Modifier</button>';
       } else if (passe || aRet) {
-        if (nf) h += '<button class="discret noprint" data-act="pasFaite" data-date="' + date + '">Modifier</button><button class="discret noprint" data-act="saisir" data-date="' + date + '">Je l\'ai faite</button>';
+        if (nf || dc) h += '<button class="discret noprint" data-act="pasFaite" data-date="' + date + '">Modifier</button><button class="discret noprint" data-act="saisir" data-date="' + date + '">' + (dc ? 'Saisir ma séance' : 'Je l\'ai faite') + '</button>';
         else {
           if (!aRet && C.estPrevue(j)) h += '<button class="discret noprint" data-act="pasFaite" data-date="' + date + '">Pas réalisée</button>';
           h += '<button class="discret noprint" data-act="saisir" data-date="' + date + '">' + (aRet ? 'Modifier ma saisie' : 'Saisir ma séance') + '</button>';
         }
       }
-      var note = nf ? nf.message : j.notes;
+      var note = nf ? nf.message : dc ? dc.message : fl ? fl.notes : j.notes;
       if (C.texte(note)) h += '<div class="note">« ' + esc(note) + ' »</div>';
       if (j.reaction) h += '<div class="reaction">' + (role === 'coach' ? 'Ta réaction' : 'Ton entraîneur') + ' : ' + esc(j.reaction) + '</div>';
       h += '</div>';

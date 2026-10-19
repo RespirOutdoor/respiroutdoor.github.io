@@ -384,6 +384,17 @@ var Core = (function () {
     var m = /^\[PAS RÉALISÉE(?: · ([^\]]*))?\]\s*([\s\S]*)$/.exec(texte(j && j.notes));
     return m ? { raison: m[1] || '', message: m[2] || '' } : null;
   }
+  // Séance décalée : « [DÉCALÉE AU 2026-10-20 · raison] message » ; une fois faite : « [FAITE LE 2026-10-20] notes »
+  function decalee(j) {
+    var m = /^\[DÉCALÉE AU (\d{4}-\d{2}-\d{2})(?: · ([^\]]*))?\]\s*([\s\S]*)$/.exec(texte(j && j.notes));
+    return m ? { au: m[1], raison: m[2] || '', message: m[3] || '' } : null;
+  }
+  function noteDecalee(au, raison, message) { return '[DÉCALÉE AU ' + au + (texte(raison) ? ' · ' + texte(raison).replace(/[\[\]]/g, '') : '') + '] ' + texte(message); }
+  function faiteLe(j) {
+    var m = /^\[FAITE LE (\d{4}-\d{2}-\d{2})\]\s*([\s\S]*)$/.exec(texte(j && j.notes));
+    return m ? { le: m[1], notes: m[2] || '' } : null;
+  }
+  function noteFaiteLe(le, notes) { return '[FAITE LE ' + le + '] ' + texte(notes); }
   function noteNonRealisee(raison, message) { return '[PAS RÉALISÉE' + (texte(raison) ? ' · ' + texte(raison).replace(/[\[\]]/g, '') : '') + '] ' + texte(message); }
   function estPrevue(j) { return aContenuCoach(j) && !estRepos(j); }
   function estFaite(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec)); }
@@ -454,7 +465,10 @@ var Core = (function () {
     var rpe = bilanJours(Object.keys(athlete.jours || {}).filter(function (d) { return d >= lun && d <= addDays(lun, 6); }).map(function (d) { return athlete.jours[d]; })).rpeMoy;
     var nonFaites = Object.keys(athlete.jours || {}).filter(function (d) { return d <= auj && d >= addDays(auj, -7) && nonRealisee(athlete.jours[d]); }).sort().reverse()
       .map(function (d) { var n = nonRealisee(athlete.jours[d]); return { date: d, corps: athlete.jours[d].corps || '', raison: n.raison, message: n.message }; });
-    return { semaine: b, rpeMoy: rpe, derniere: der, sansRetour: manquees, alerte: manquees.length >= 2, nonRealisees: nonFaites };
+    // Séances décalées pas encore faites, prévues dans les 14 derniers jours
+    var decalees = Object.keys(athlete.jours || {}).filter(function (d) { return d <= auj && d >= addDays(auj, -14) && decalee(athlete.jours[d]); }).sort().reverse()
+      .map(function (d) { var n = decalee(athlete.jours[d]); return { date: d, au: n.au, corps: athlete.jours[d].corps || '', raison: n.raison, message: n.message, enRetard: n.au < auj }; });
+    return { semaine: b, rpeMoy: rpe, derniere: der, sansRetour: manquees, alerte: manquees.length >= 2, nonRealisees: nonFaites, decalees: decalees };
   }
   function competitionsAVenir(athletes, auj, nbJours) {
     var fin = addDays(auj, nbJours), out = [];
@@ -946,6 +960,17 @@ var Core = (function () {
       var r = fusionner(local, recu, 'serveur', {});
       return r.jours['2026-10-13'].fc === 150 && aRetour({ fc: 140 });
     }],
+    ['Séance décalée : « [DÉCALÉE AU …] » et « [FAITE LE …] » lus ; pas « pas réalisée » ; pas comptée tant qu\'elle n\'est pas faite', function () {
+      var n = noteDecalee('2026-10-20', 'Manque de temps', 'Anniversaire'), d = decalee({ notes: n }), j = { corps: 'VMA', notes: n };
+      var f = faiteLe({ notes: noteFaiteLe('2026-10-20', 'Bonnes jambes'), km: 10 });
+      return n === '[DÉCALÉE AU 2026-10-20 · Manque de temps] Anniversaire' && d.au === '2026-10-20' && d.raison === 'Manque de temps' && d.message === 'Anniversaire' &&
+        nonRealisee(j) === null && !estFaite(j) && aRetour(j) && f.le === '2026-10-20' && f.notes === 'Bonnes jambes' && decalee({ notes: 'ok' }) === null && faiteLe({ notes: 'ok' }) === null;
+    }],
+    ['Suivi entraîneur : séance décalée remontée avec sa nouvelle date, « en retard » si la date est passée', function () {
+      var a = { jours: { '2026-10-19': { corps: 'VMA', notes: noteDecalee('2026-10-20', 'Manque de temps', '') }, '2026-10-12': { corps: 'EF', notes: noteDecalee('2026-10-13', '', '') } } };
+      var r1 = resumeCoach(a, '2026-10-19'), r2 = resumeCoach(a, '2026-10-22');
+      return r1.decalees.length === 2 && r1.decalees[0].au === '2026-10-20' && !r1.decalees[0].enRetard && r1.decalees[1].enRetard && r2.decalees[0].enRetard && r1.nonRealisees.length === 0;
+    }],
     ['Chaussures : km = km de départ + km des séances associées ; séance sans km ou paire inconnue ignorée', function () {
       var ch = { liste: [{ id: 'c1', nom: 'A', kmDepart: 120 }, { id: 'c2', nom: 'B', kmDepart: 0 }], parDate: { '2026-10-01': 'c1', '2026-10-02': 'c1', '2026-10-03': 'c2', '2026-10-04': 'c9', '2026-10-05': 'c2' } };
       var jours = { '2026-10-01': { km: 10.5 }, '2026-10-02': { km: 8 }, '2026-10-03': { km: 12.25 }, '2026-10-04': { km: 30 }, '2026-10-05': { dureeSec: 1800 } };
@@ -970,7 +995,7 @@ var Core = (function () {
     TZ: TZ, SCHEMA_VERSION: SCHEMA_VERSION, JOURS: JOURS, JOURS_LONGS: JOURS_LONGS, CHAMPS_COACH: CHAMPS_COACH, CHAMPS_ATHLETE: CHAMPS_ATHLETE,
     ZONES_DEFAUT: ZONES_DEFAUT, CHAMP_REACTION: CHAMP_REACTION, aDonneesAthlete: aDonneesAthlete, periodes: periodes, bilanPeriode: bilanPeriode,
     estPrevue: estPrevue, estFaite: estFaite, records: records, derniereSaisie: derniereSaisie, resumeCoach: resumeCoach, competitionsAVenir: competitionsAVenir,
-    genererCode: genererCode, slugNom: slugNom, lienAthlete: lienAthlete, codeDepuisLien: codeDepuisLien, ECHELLE_RPE: ECHELLE_RPE, DEGRADE_RPE: DEGRADE_RPE, libelleRPE: libelleRPE, kmChaussures: kmChaussures, RAISONS_NON_FAITE: RAISONS_NON_FAITE, nonRealisee: nonRealisee, noteNonRealisee: noteNonRealisee, pad2: pad2, isNum: isNum, texte: texte, parseNumberFR: parseNumberFR, nombreFR: nombreFR,
+    genererCode: genererCode, slugNom: slugNom, lienAthlete: lienAthlete, codeDepuisLien: codeDepuisLien, ECHELLE_RPE: ECHELLE_RPE, DEGRADE_RPE: DEGRADE_RPE, libelleRPE: libelleRPE, kmChaussures: kmChaussures, RAISONS_NON_FAITE: RAISONS_NON_FAITE, nonRealisee: nonRealisee, noteNonRealisee: noteNonRealisee, decalee: decalee, noteDecalee: noteDecalee, faiteLe: faiteLe, noteFaiteLe: noteFaiteLe, pad2: pad2, isNum: isNum, texte: texte, parseNumberFR: parseNumberFR, nombreFR: nombreFR,
     isValidISODate: isValidISODate, parseDateFR: parseDateFR, formatDateFR: formatDateFR, addDays: addDays, daysBetween: daysBetween,
     dayOfWeek: dayOfWeek, weekStart: weekStart, todayParis: todayParis, excelSerialToISO: excelSerialToISO,
     numSemaine: numSemaine, lundiSemaine: lundiSemaine, formatDuree: formatDuree, parseDuree: parseDuree, formatTemps: formatTemps,

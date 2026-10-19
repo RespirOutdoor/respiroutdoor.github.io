@@ -289,7 +289,7 @@
   }
   function vueAccueil(m) {
     var a = A.athlete, aj = auj(), j = a.jours[aj] || {}, h = '';
-    h += carteReactions();
+    h += carteReactions() + carteDecalees();
     var mots = [A.commun.motGlobal, a.motCoach].filter(function (x) { return C.texte(x); });
     if (mots.length) h += '<section class="carte mot"><h3>💬 Le mot de ton coach</h3>' + mots.map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + '</section>';
     // Séance d'hier pas encore saisie
@@ -336,18 +336,24 @@
     return n[0] * 3600 + n[1] * 60 + n[2];
   }
   // Séance prévue non faite : raison + message pour l'entraîneur (envoyés avec la synchronisation, dans la note)
+  // Séance prévue non faite ce jour-là : pas faite du tout, ou décalée à un autre jour ; raison et message pour l'entraîneur
   function pasFaite(date) {
-    var a = A.athlete, j = a.jours[date] || {}, nf = C.nonRealisee(j) || { raison: '', message: '' };
-    var h = '<form class="boite"><h2>Séance pas réalisée</h2><p class="muet">' + C.JOURS_LONGS[C.dayOfWeek(date)] + ' ' + C.formatDateFR(date) + (j.corps ? ' · <b>' + esc(j.corps) + '</b>' : '') + '</p>' +
+    var a = A.athlete, j = a.jours[date] || {}, aj = auj(), nf = C.nonRealisee(j), dc = C.decalee(j), x = nf || dc || { raison: '', message: '' };
+    var min = date >= aj ? C.addDays(date, 1) : aj, max = C.addDays(aj, 7), au = dc && dc.au >= min && dc.au <= max ? dc.au : min;
+    var h = '<form class="boite"><h2>Séance pas faite ce jour-là</h2><p class="muet">' + C.JOURS_LONGS[C.dayOfWeek(date)] + ' ' + C.formatDateFR(date) + (j.corps ? ' · <b>' + esc(j.corps) + '</b>' : '') + '</p>' +
+      '<fieldset><legend>Que veux-tu faire ?</legend>' +
+      '<label class="choix"><input type="radio" name="quoi" value="decale"' + (nf ? '' : ' checked') + '> <span><b>Je la décale</b> au <input type="date" name="au" value="' + au + '" min="' + min + '" max="' + max + '" aria-label="Nouvelle date"></span></label>' +
+      '<label class="choix"><input type="radio" name="quoi" value="pas"' + (nf ? ' checked' : '') + '> <span><b>Je ne la ferai pas</b></span></label></fieldset>' +
       '<fieldset><legend>Raison</legend><div class="raisons">' + C.RAISONS_NON_FAITE.map(function (r) {
-        return '<label><input type="radio" name="raison" value="' + esc(r) + '"' + (r === nf.raison ? ' checked' : '') + '><span>' + esc(r) + '</span></label>';
+        return '<label><input type="radio" name="raison" value="' + esc(r) + '"' + (r === x.raison ? ' checked' : '') + '><span>' + esc(r) + '</span></label>';
       }).join('') + '</div></fieldset>' +
-      '<label>Message pour ton entraîneur (facultatif)<textarea name="message" maxlength="1500" placeholder="ex. Douleur au mollet depuis hier, je préfère me reposer.">' + esc(nf.message) + '</textarea></label>' +
-      '<p class="muet petit">Ton entraîneur le verra dans son application, dans les alertes de son tableau de suivi.</p>' +
-      '<div class="pied">' + (C.nonRealisee(j) ? '<button type="button" class="danger" data-x="annulerNf">Retirer</button>' : '') +
+      '<label>Message pour ton entraîneur (facultatif)<textarea name="message" maxlength="1500" placeholder="ex. Pas le temps ce soir, je la fais demain.">' + esc(x.message) + '</textarea></label>' +
+      '<p class="alerte" id="erreurNf" hidden></p><p class="muet petit">Ton entraîneur le verra dans son application, dans les alertes de son tableau de suivi.</p>' +
+      '<div class="pied">' + (nf || dc ? '<button type="button" class="danger" data-x="annulerNf">Retirer</button>' : '') +
       '<button type="button" class="sec" data-x="annuler">Annuler</button><button>Envoyer</button></div></form>';
     boite.innerHTML = h; boite.showModal();
     var f = $('form', boite);
+    f.elements.au.onfocus = f.elements.au.onchange = function () { f.querySelector('input[name="quoi"][value="decale"]').checked = true; };
     $('[data-x="annuler"]', f).onclick = function () { boite.close(); };
     var an = $('[data-x="annulerNf"]', f);
     if (an) an.onclick = function () {
@@ -356,19 +362,33 @@
     };
     f.onsubmit = function (ev) {
       ev.preventDefault();
-      var d = new FormData(f), n = Object.assign({}, j);
+      var d = new FormData(f), n = Object.assign({}, j), decale = d.get('quoi') === 'decale', jour = String(d.get('au') || '');
+      if (decale && !(jour >= min && jour <= max)) { var e = $('#erreurNf', f); e.hidden = false; e.textContent = 'Choisis une date entre le ' + C.formatDateFR(min) + ' et le ' + C.formatDateFR(max) + '.'; return; }
       C.CHAMPS_ATHLETE.forEach(function (k) { delete n[k]; });
-      n.notes = C.noteNonRealisee(d.get('raison') || '', d.get('message') || '');
+      n.notes = decale ? C.noteDecalee(jour, d.get('raison') || '', d.get('message') || '') : C.noteNonRealisee(d.get('raison') || '', d.get('message') || '');
       delete chaussures().parDate[date];
-      enregistrer(date, n, 'Envoyé à ton entraîneur'); boite.close();
+      enregistrer(date, n, decale ? 'Séance décalée au ' + UI.jourCourt(jour) : 'Envoyé à ton entraîneur'); boite.close();
     };
   }
+  // Séances décalées à aujourd'hui (ou à un jour déjà passé) et pas encore saisies
+  function carteDecalees() {
+    var a = A.athlete, aj = auj(), l = Object.keys(a.jours || {}).filter(function (d) { var x = C.decalee(a.jours[d]); return x && x.au <= aj; }).sort();
+    if (!l.length) return '';
+    return '<section class="carte nouveau"><h3>Séance' + (l.length > 1 ? 's' : '') + ' décalée' + (l.length > 1 ? 's' : '') + ' à faire</h3><ul class="liste-nf">' + l.map(function (d) {
+      var j = a.jours[d], x = C.decalee(j);
+      return '<li><div class="ligne"><div class="espace"><b>' + esc(j.corps || 'Séance') + '</b><div class="petit muet">Prévue ' + esc(UI.jourCourt(d)) + ' · décalée au ' + esc(UI.jourCourt(x.au)) + '</div></div><button data-act="saisir" data-date="' + d + '">Saisir</button></div></li>';
+    }).join('') + '</ul></section>';
+  }
   function saisir(date) {
-    var a = A.athlete, j = a.jours[date] || {};
-    if (C.nonRealisee(j)) j = Object.assign({}, j, { notes: '' }); // saisir la séance finalement faite remplace « pas réalisée »
+    var a = A.athlete, j = a.jours[date] || {}, aj = auj();
+    // Séance décalée ou déjà faite un autre jour : on demande la date réelle, gardée dans la note
+    var dc = C.decalee(j), fl = C.faiteLe(j), autreJour = dc || fl, le = fl ? fl.le : (dc && dc.au <= aj ? dc.au : aj);
+    if (C.nonRealisee(j) || dc) j = Object.assign({}, j, { notes: '' }); // saisir la séance finalement faite remplace « pas réalisée » ou « décalée »
+    else if (fl) j = Object.assign({}, j, { notes: fl.notes });
     var aDuree = C.isNum(j.dureeSec) && j.dureeSec > 0, ds = aDuree ? Math.round(j.dureeSec) : 0;
     var h = '<form class="boite"><h2>' + C.JOURS_LONGS[C.dayOfWeek(date)] + ' ' + C.formatDateFR(date) + '</h2>' +
       (j.corps ? '<p class="muet">Prévu : <b>' + esc(j.corps) + '</b></p>' : '') +
+      (autreJour ? '<label>Faite le<input type="date" name="le" value="' + le + '" min="' + date + '" max="' + aj + '"></label>' : '') +
       '<div class="champs"><label>Distance (km)<input name="km" inputmode="decimal" value="' + (C.isNum(j.km) ? C.nombreFR(j.km, 3) : '') + '" placeholder="12,5"></label>' +
       // Durée en trois cases chiffrées : le pavé numérique de l'iPhone n'a pas de « : »
       '<div class="duree-hms"><span class="etiq-champ" id="lblDuree">Durée</span><div class="hms" role="group" aria-labelledby="lblDuree">' +
@@ -415,7 +435,10 @@
       if (fc !== null && !(fc >= 30 && fc <= 250 && Math.round(fc) === fc)) err.push('FC moyenne : nombre entier de battements par minute, entre 30 et 250');
       if (km === null && du === null && rpe === null && !C.texte(d.get('notes'))) err.push('Renseigne au moins la distance ou la durée');
       if (err.length) { var e = $('#erreurSaisie'); e.hidden = false; e.textContent = err.join(' · '); return; }
-      var n = Object.assign({}, j, { km: km, dureeSec: du, dplus: dp, rpe: rpe, fc: fc, notes: d.get('notes') });
+      var leJour = String(d.get('le') || '');
+      if (autreJour && !(leJour >= date && leJour <= aj)) err.push('Date de la séance : entre le ' + C.formatDateFR(date) + ' et aujourd\'hui');
+      if (err.length) { var e2 = $('#erreurSaisie'); e2.hidden = false; e2.textContent = err.join(' · '); return; }
+      var n = Object.assign({}, j, { km: km, dureeSec: du, dplus: dp, rpe: rpe, fc: fc, notes: autreJour && leJour !== date ? C.noteFaiteLe(leJour, d.get('notes')) : d.get('notes') });
       var chx = d.get('chaussure'), ch = chaussures();
       if (chx) ch.parDate[date] = chx; else delete ch.parDate[date];
       enregistrer(date, n); boite.close();
