@@ -117,7 +117,9 @@ legend { font-weight: 700; padding: 0 6px; }
 .jours { display: grid; gap: 10px; }
 .jour { background: var(--carte); border: 1px solid var(--bord); border-left: 5px solid var(--fam, var(--bord)); border-radius: var(--rayon); padding: 10px 12px; }
 .jour.repos { background: var(--repos); }
-.jour.auj { box-shadow: 0 0 0 2px var(--vert); }
+/* Contour du jour dessiné à l'intérieur : la carte garde la même largeur que les autres */
+.jour.auj { box-shadow: inset 0 0 0 2px var(--vert); }
+#contenu > div > .jour { margin-bottom: 14px; }
 .jour .tete { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .jour .date { font-weight: 700; min-width: 92px; }
 .jour .corps { font-weight: 700; font-size: 1.02rem; }
@@ -159,7 +161,8 @@ tbody tr.cliquable:hover td { background: var(--vert-clair); }
 
 /* Légende */
 .fam { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--fam); vertical-align: -1px; margin-right: 6px; }
-dl.codes { display: grid; grid-template-columns: minmax(84px, max-content) 1fr; gap: 6px 14px; margin: 0; }
+dl.codes { display: grid; grid-template-columns: minmax(64px, max-content) minmax(0, 1fr); gap: 6px 14px; margin: 0; }
+dl.codes dt, dl.codes dd { min-width: 0; overflow-wrap: anywhere; }
 dl.codes dt { font-weight: 700; }
 dl.codes dd { margin: 0; color: var(--texte-2); }
 mark { background: #FDE68A; color: #000; }
@@ -386,6 +389,6 @@ label.choix input[type="date"] { width: auto; max-width: 100%; margin: 0; min-he
 .jour.course .corps { color: var(--or); font-size: 1.15rem; }
 .jour.course .puce.type { background: var(--or-vif); border-color: var(--or-vif); color: #1A1200; }
 .jour.course .puce.type::before { content: '🏅'; background: none; width: auto; height: auto; margin-right: 4px; border-radius: 0; }
-.jour.course.auj { box-shadow: 0 0 0 2px var(--or-vif); }
+.jour.course.auj { box-shadow: inset 0 0 0 2px var(--or-vif); }
 .carte.compet { border: 2px solid var(--or-vif); background: linear-gradient(135deg, var(--or-fond), rgba(217, 162, 27, 0) 65%), var(--carte); }
 .carte.compet .jx { background: var(--or-vif); color: #1A1200; }

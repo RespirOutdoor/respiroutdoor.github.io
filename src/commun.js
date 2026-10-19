@@ -331,14 +331,14 @@ var UI = (function () {
       var t = '<section class="carte"><h3>Allure spécifique ' + s[0] + '</h3>';
       if (!x) t += '<p class="muet">Pas de chrono de référence.</p>';
       else t += '<p><b>' + C.formatAllure(x.allure) + '</b> · ' + C.nombreFR(x.vitesse, 2) + ' km/h <span class="muet petit">(chrono ' + C.formatDuree(s[1]) + ')</span></p>' +
-        '<table><thead><tr><th>Distance</th><th class="num">Temps</th></tr></thead><tbody>' + [1000, 2000, 3000, 4000, 5000].map(function (d) { return '<tr><td>' + d + ' m</td><td class="num">' + C.formatTemps(x.allure * d / 1000) + '</td></tr>'; }).join('') + '</tbody></table>';
+        '<div class="tableau"><table><thead><tr><th>Distance</th><th class="num">Temps</th></tr></thead><tbody>' + [1000, 2000, 3000, 4000, 5000].map(function (d) { return '<tr><td>' + d + ' m</td><td class="num">' + C.formatTemps(x.allure * d / 1000) + '</td></tr>'; }).join('') + '</tbody></table></div>';
       return t + '<p class="muet petit">Repère : ' + s[3] + ' % de VMA = ' + C.nombreFR(rep, 2) + ' km/h (' + C.formatAllure(C.paceFromSpeed(rep)) + ')</p></section>';
     }).join('');
     var vpf = C.vitessePct(vma, al.preFatPct);
     h += '<section class="carte"><h3>Travail en pré-fatigue</h3><p><b>' + C.nombreFR(al.preFatPct, 1) + ' %</b> de VMA = ' + C.nombreFR(vpf, 2) + ' km/h · ' + C.formatAllure(C.paceFromSpeed(vpf)) + '</p>' +
-      '<table><thead><tr><th>Distance</th><th class="num">Temps</th></tr></thead><tbody>' + [1000, 2000, 3000, 4000, 5000].map(function (d) { return '<tr><td>' + d + ' m</td><td class="num">' + C.formatTemps(C.tempsDistancePct(d, vma, al.preFatPct)) + '</td></tr>'; }).join('') + '</tbody></table></section></div>';
-    h += '<section class="carte"><h3>Séance 30"-30" sur piste</h3><p class="muet petit">Distance en mètres à parcourir en 30 secondes.</p><table><thead><tr>' + [105, 102, 100].map(function (p) { return '<th class="num">' + p + ' % VMA</th>'; }).join('') + '</tr></thead><tbody><tr>' +
-      [105, 102, 100].map(function (p) { return '<td class="num"><b>' + Math.round(C.distanceTempsPct(30, vma, p)) + ' m</b></td>'; }).join('') + '</tr></tbody></table></section>';
+      '<div class="tableau"><table><thead><tr><th>Distance</th><th class="num">Temps</th></tr></thead><tbody>' + [1000, 2000, 3000, 4000, 5000].map(function (d) { return '<tr><td>' + d + ' m</td><td class="num">' + C.formatTemps(C.tempsDistancePct(d, vma, al.preFatPct)) + '</td></tr>'; }).join('') + '</tbody></table></div></section></div>';
+    h += '<section class="carte"><h3>Séance 30"-30" sur piste</h3><p class="muet petit">Distance en mètres à parcourir en 30 secondes.</p><div class="tableau"><table class="compact"><thead><tr>' + [105, 102, 100].map(function (p) { return '<th class="num">' + p + ' % VMA</th>'; }).join('') + '</tr></thead><tbody><tr>' +
+      [105, 102, 100].map(function (p) { return '<td class="num"><b>' + Math.round(C.distanceTempsPct(30, vma, p)) + ' m</b></td>'; }).join('') + '</tr></tbody></table></div></section>';
     main.innerHTML = h;
     brancher();
     function brancher() {

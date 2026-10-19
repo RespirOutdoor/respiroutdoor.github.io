@@ -53,6 +53,7 @@ Voir [google/GUIDE-INSTALLATION.md](google/GUIDE-INSTALLATION.md). Une fois le s
 - Tests :
   - `node tests/run.mjs` : calculs, fusion, bilans, records, liens (exécutés sur les deux fichiers publiés) ;
   - `node tests/serveur.mjs` : service Google sur un tableur simulé.
+  - `node outils/verifier-alignement.mjs` : mise en page de toutes les vues sur téléphone (390 et 320 px) : cartes alignées, espacées, sans débordement. `CAPTURES=dossier` enregistre une capture de chaque vue. À lancer à chaque mise à jour de l'affichage.
 - Hors connexion : `sw.js` (entraîneur) et `athlete/sw.js` (athlète). Chacun ne supprime que ses propres caches.
 
 ## À vérifier sur de vrais téléphones

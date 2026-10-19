@@ -129,7 +129,9 @@ legend { font-weight: 700; padding: 0 6px; }
 .jours { display: grid; gap: 10px; }
 .jour { background: var(--carte); border: 1px solid var(--bord); border-left: 5px solid var(--fam, var(--bord)); border-radius: var(--rayon); padding: 10px 12px; }
 .jour.repos { background: var(--repos); }
-.jour.auj { box-shadow: 0 0 0 2px var(--vert); }
+/* Contour du jour dessiné à l'intérieur : la carte garde la même largeur que les autres */
+.jour.auj { box-shadow: inset 0 0 0 2px var(--vert); }
+#contenu > div > .jour { margin-bottom: 14px; }
 .jour .tete { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .jour .date { font-weight: 700; min-width: 92px; }
 .jour .corps { font-weight: 700; font-size: 1.02rem; }
@@ -171,7 +173,8 @@ tbody tr.cliquable:hover td { background: var(--vert-clair); }
 
 /* Légende */
 .fam { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--fam); vertical-align: -1px; margin-right: 6px; }
-dl.codes { display: grid; grid-template-columns: minmax(84px, max-content) 1fr; gap: 6px 14px; margin: 0; }
+dl.codes { display: grid; grid-template-columns: minmax(64px, max-content) minmax(0, 1fr); gap: 6px 14px; margin: 0; }
+dl.codes dt, dl.codes dd { min-width: 0; overflow-wrap: anywhere; }
 dl.codes dt { font-weight: 700; }
 dl.codes dd { margin: 0; color: var(--texte-2); }
 mark { background: #FDE68A; color: #000; }
@@ -398,7 +401,7 @@ label.choix input[type="date"] { width: auto; max-width: 100%; margin: 0; min-he
 .jour.course .corps { color: var(--or); font-size: 1.15rem; }
 .jour.course .puce.type { background: var(--or-vif); border-color: var(--or-vif); color: #1A1200; }
 .jour.course .puce.type::before { content: '🏅'; background: none; width: auto; height: auto; margin-right: 4px; border-radius: 0; }
-.jour.course.auj { box-shadow: 0 0 0 2px var(--or-vif); }
+.jour.course.auj { box-shadow: inset 0 0 0 2px var(--or-vif); }
 .carte.compet { border: 2px solid var(--or-vif); background: linear-gradient(135deg, var(--or-fond), rgba(217, 162, 27, 0) 65%), var(--carte); }
 .carte.compet .jx { background: var(--or-vif); color: #1A1200; }
 </style>
@@ -1784,14 +1787,14 @@ var UI = (function () {
       var t = '<section class="carte"><h3>Allure spécifique ' + s[0] + '</h3>';
       if (!x) t += '<p class="muet">Pas de chrono de référence.</p>';
       else t += '<p><b>' + C.formatAllure(x.allure) + '</b> · ' + C.nombreFR(x.vitesse, 2) + ' km/h <span class="muet petit">(chrono ' + C.formatDuree(s[1]) + ')</span></p>' +
-        '<table><thead><tr><th>Distance</th><th class="num">Temps</th></tr></thead><tbody>' + [1000, 2000, 3000, 4000, 5000].map(function (d) { return '<tr><td>' + d + ' m</td><td class="num">' + C.formatTemps(x.allure * d / 1000) + '</td></tr>'; }).join('') + '</tbody></table>';
+        '<div class="tableau"><table><thead><tr><th>Distance</th><th class="num">Temps</th></tr></thead><tbody>' + [1000, 2000, 3000, 4000, 5000].map(function (d) { return '<tr><td>' + d + ' m</td><td class="num">' + C.formatTemps(x.allure * d / 1000) + '</td></tr>'; }).join('') + '</tbody></table></div>';
       return t + '<p class="muet petit">Repère : ' + s[3] + ' % de VMA = ' + C.nombreFR(rep, 2) + ' km/h (' + C.formatAllure(C.paceFromSpeed(rep)) + ')</p></section>';
     }).join('');
     var vpf = C.vitessePct(vma, al.preFatPct);
     h += '<section class="carte"><h3>Travail en pré-fatigue</h3><p><b>' + C.nombreFR(al.preFatPct, 1) + ' %</b> de VMA = ' + C.nombreFR(vpf, 2) + ' km/h · ' + C.formatAllure(C.paceFromSpeed(vpf)) + '</p>' +
-      '<table><thead><tr><th>Distance</th><th class="num">Temps</th></tr></thead><tbody>' + [1000, 2000, 3000, 4000, 5000].map(function (d) { return '<tr><td>' + d + ' m</td><td class="num">' + C.formatTemps(C.tempsDistancePct(d, vma, al.preFatPct)) + '</td></tr>'; }).join('') + '</tbody></table></section></div>';
-    h += '<section class="carte"><h3>Séance 30"-30" sur piste</h3><p class="muet petit">Distance en mètres à parcourir en 30 secondes.</p><table><thead><tr>' + [105, 102, 100].map(function (p) { return '<th class="num">' + p + ' % VMA</th>'; }).join('') + '</tr></thead><tbody><tr>' +
-      [105, 102, 100].map(function (p) { return '<td class="num"><b>' + Math.round(C.distanceTempsPct(30, vma, p)) + ' m</b></td>'; }).join('') + '</tr></tbody></table></section>';
+      '<div class="tableau"><table><thead><tr><th>Distance</th><th class="num">Temps</th></tr></thead><tbody>' + [1000, 2000, 3000, 4000, 5000].map(function (d) { return '<tr><td>' + d + ' m</td><td class="num">' + C.formatTemps(C.tempsDistancePct(d, vma, al.preFatPct)) + '</td></tr>'; }).join('') + '</tbody></table></div></section></div>';
+    h += '<section class="carte"><h3>Séance 30"-30" sur piste</h3><p class="muet petit">Distance en mètres à parcourir en 30 secondes.</p><div class="tableau"><table class="compact"><thead><tr>' + [105, 102, 100].map(function (p) { return '<th class="num">' + p + ' % VMA</th>'; }).join('') + '</tr></thead><tbody><tr>' +
+      [105, 102, 100].map(function (p) { return '<td class="num"><b>' + Math.round(C.distanceTempsPct(30, vma, p)) + ' m</b></td>'; }).join('') + '</tr></tbody></table></div></section>';
     main.innerHTML = h;
     brancher();
     function brancher() {
