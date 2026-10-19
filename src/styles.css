@@ -378,3 +378,14 @@ label.choix { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; 
 label.choix > input[type="radio"] { width: 22px; height: 22px; min-height: 0; margin: 0; accent-color: var(--vert-fonce); }
 label.choix > span { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
 label.choix input[type="date"] { width: auto; max-width: 100%; margin: 0; min-height: 40px; }
+/* Courses (COMP) : « médaille dorée » ; protocole pré-compétition (PROTO) en plus discret */
+:root { --or-vif: #D9A21B; --or: #9A6B00; --or-fond: rgba(217, 162, 27, .16); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --or: #F0C04A; } }
+:root[data-theme="dark"] { --or: #F0C04A; }
+.jour.course { border: 2px solid var(--or-vif); border-left: 6px solid var(--or-vif); background: linear-gradient(135deg, var(--or-fond), rgba(217, 162, 27, 0) 65%), var(--carte); }
+.jour.course .corps { color: var(--or); font-size: 1.15rem; }
+.jour.course .puce.type { background: var(--or-vif); border-color: var(--or-vif); color: #1A1200; }
+.jour.course .puce.type::before { content: '🏅'; background: none; width: auto; height: auto; margin-right: 4px; border-radius: 0; }
+.jour.course.auj { box-shadow: 0 0 0 2px var(--or-vif); }
+.carte.compet { border: 2px solid var(--or-vif); background: linear-gradient(135deg, var(--or-fond), rgba(217, 162, 27, 0) 65%), var(--carte); }
+.carte.compet .jx { background: var(--or-vif); color: #1A1200; }

@@ -7,7 +7,7 @@ var UI = (function () {
   var C = Core;
   var FAMILLES = {
     'Aérobie': '#3A8376', 'Récupérations': '#7AA59C', 'VMA': '#B5443A', 'Fartlek': '#C2702E', 'Côtes': '#8A5A2B',
-    'Spécifique / allures': '#6B4FA0', 'Divers': '#5B6B73', 'Renfo': '#3D5A80', 'Respiration': '#4E8FB0', 'Compétition': '#0A322A'
+    'Spécifique / allures': '#6B4FA0', 'Divers': '#5B6B73', 'Renfo': '#3D5A80', 'Respiration': '#4E8FB0', 'Compétition': '#D9A21B'
   };
   var REACTIONS = ['👍', '💪', '🔥', '👏', '❤️', '😮'];
   var ctx = { legende: function () { return null; }, protos: function () { return []; } };
@@ -103,7 +103,7 @@ var UI = (function () {
     var lp = C.chercherCode(lg.profils, j.profil), lt = C.chercherCode(lg.types, j.type);
     var rep = C.reperesSeance(j, { vma: a.vma, zones: a.zones, allures: a.allures });
     var allure = C.allureMoyenne(j.dureeSec, j.km);
-    var h = '<article class="jour' + (repos || vide ? ' repos' : '') + (date === aj ? ' auj' : '') + '"' + (coul ? ' style="--fam:' + coul + '"' : '') + ' id="j-' + date + '">';
+    var tc = C.normCode(j.type), h = '<article class="jour' + (repos || vide ? ' repos' : '') + (date === aj ? ' auj' : '') + (tc === 'COMP' ? ' course' : tc === 'PROTO' ? ' proto' : '') + '"' + (coul ? ' style="--fam:' + coul + '"' : '') + ' id="j-' + date + '">';
     h += '<div class="tete"><span class="date">' + (date === aj ? 'Aujourd\'hui' : jourCourt(date)) + '</span><span class="corps">' + (vide ? '<span class="muet">' + (role === 'athlete' ? 'Pas de séance prévue' : '—') + '</span>' : esc(j.corps || '')) + '</span></div>';
     var puces = [];
     if (j.eveil) puces.push('<span class="puce" title="Échauffement / éveil musculaire">Éveil ' + esc(minutes(j.eveil)) + '</span>');
