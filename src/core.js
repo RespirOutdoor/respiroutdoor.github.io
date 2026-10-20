@@ -735,7 +735,7 @@ var Core = (function () {
       });
     });
     a.id = idAthlete(a);
-    rapport.push(n + ' jours renseignés importés depuis l\'onglet PLAN' + (ignores ? ' ; ' + ignores + ' valeur(s) athlète illisible(s) ignorée(s)' : ''));
+    rapport.push(n + (n > 1 ? ' jours renseignés importés' : ' jour renseigné importé') + ' depuis l\'onglet ' + texte(f.nom) + (ignores ? ' ; ' + ignores + ' valeur(s) athlète illisible(s) ignorée(s)' : ''));
     return a;
   }
 
@@ -834,6 +834,10 @@ var Core = (function () {
     if (!fPlan) throw new Error('onglet ' + (nomOnglet || 'PLAN') + ' introuvable : ce classeur ne suit pas le modèle de l\'entraîneur');
     if (normCode(fPlan.nom) !== 'PLAN') rapport.push('Plan lu dans l\'onglet « ' + texte(fPlan.nom) + ' »');
     var a = importerPlan(fPlan, rapport);
+    if (a.planDu) rapport.push('Période de l\'onglet : du ' + formatDateFR(a.planDu) + ' au ' + formatDateFR(a.planAu));
+    // Ligne CONTRAT pas mise à jour (onglet copié d'un ancien contrat) : la numérotation des semaines serait fausse
+    if (a.planDu && ((a.fin && a.planDu > a.fin) || (a.debut && a.planAu < weekStart(a.debut))))
+      rapport.push('⚠ Ces dates sont en dehors du contrat indiqué en haut de l\'onglet (du ' + formatDateFR(a.debut) + (a.fin ? ' au ' + formatDateFR(a.fin) : '') + '). Mets à jour la ligne CONTRAT puis réimporte : la numérotation des semaines en dépend.');
     importerAllures(feuille(classeur, 'ALLURES'), a, rapport);
     var lg = importerLegende(feuille(classeur, 'LEGENDE'));
     var pr = importerProtos(feuille(classeur, 'PROTOS'));
@@ -1008,6 +1012,10 @@ var Core = (function () {
       var lg = { nom: 'LEGENDE', lignes: [['DATE', 'X'], [45670, 'Y']] };
       var cl = { feuilles: [f1, f2, lg] }, o = ongletsPlan(cl);
       var r = importerClasseur(cl), r2 = importerClasseur(cl, 'PLAN 2025');
+      // Onglet copié d'un ancien contrat : ligne CONTRAT du 06/07/2026 au 18/10/2026, dates en janvier 2027 -> avertissement
+      var f3 = { nom: 'PLAN', lignes: [['CONTRAT', null, '15 SEMAINES', 'DU 6/7/26', 'AU', 'AU 18/10/26'], ['DATE', 'CORPS'], [46388, 'ESSAI PLAN']] };
+      var r3 = importerClasseur({ feuilles: [f3] }), alerte = r3.rapport.filter(function (x) { return /^⚠/.test(x); });
+      if (alerte.length !== 1 || r3.athlete.planDu !== '2027-01-01' || r.rapport.some(function (x) { return /^⚠/.test(x); })) return false;
       return o.length === 2 && o[0].nom === 'PLAN 2025' && o[0].du === '2025-01-13' && o[0].au === '2025-01-14' && o[0].seances === 1 && o[1].seances === 2 &&
         ongletParDefaut(o).nom === '10 KM' && ongletParDefaut([{ nom: 'Plan', du: '2020-01-01' }].concat(o)).nom === 'Plan' &&
         r.athlete.jours['2026-01-12'].corps === 'VMA' && r.athlete.planDu === '2026-01-12' && r.athlete.planAu === '2026-01-13' &&

@@ -398,3 +398,5 @@ label.choix input[type="date"] { width: auto; max-width: 100%; margin: 0; min-he
 .carte.compet { border: 2px solid var(--or-vif); background: linear-gradient(135deg, var(--or-fond), rgba(217, 162, 27, 0) 65%), var(--carte); }
 .carte.compet .jx { background: var(--or-vif); color: #1A1200; }
 .ancien-contrat { margin: 8px 0 0; text-align: center; font-size: .85rem; font-weight: 600; color: var(--texte-2); }
+/* Textes libres (notes, messages, mots du coach) : une suite sans espace (temps « 15,08/15,70/… », lien) passe à la ligne au lieu d'élargir la page */
+.jour, .alerte, .carte p, .carte li, .retour .note, .mot p, ul.liste-nf .note { overflow-wrap: anywhere; }

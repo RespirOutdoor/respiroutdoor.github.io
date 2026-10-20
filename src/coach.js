@@ -569,7 +569,8 @@
     h += '<section class="carte"><h2>Exports et sauvegarde</h2><div class="ligne">' +
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
-      '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>';
+      '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
+      '<p class="muet petit" style="text-align:center">Version de l\'application : __VERSION__</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
@@ -633,6 +634,9 @@
         if (r.legende && r.legende.types.length) E.legende = enrichirFamilles(r.legende);
         if (r.protos && r.protos.length) E.protos = r.protos;
         E.courant = res.id; semaineAffichee = null;
+        // Onglet d'une autre période (nouveau contrat à venir…) : le plan s'ouvre sur sa première semaine
+        var aj = auj();
+        if (recu.planDu && (aj < recu.planDu || aj > recu.planAu)) semaineAffichee = UI.semaineDe(res, recu.planDu);
         marquerJour(res, '*'); marquer(res); marquerCommun();
         return sauver().then(function () {
           boite.innerHTML = '<form class="boite"><h2>' + (local ? 'Plan mis à jour' : 'Athlète ajouté') + ' : ' + esc(nomComplet(res)) + '</h2>' +

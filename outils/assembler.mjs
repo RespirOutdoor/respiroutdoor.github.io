@@ -12,9 +12,12 @@ const logo = 'data:image/png;base64,' + readFileSync(join(racine, 'icons', 'logo
 const defauts = JSON.stringify(JSON.parse(lire('src/defauts.json'))).replace(/<\//g, '<\\/');
 const commun = { __STYLES__: lire('src/styles.css').trim(), __CORE__: lire('src/core.js').trim(), __DEFAUTS__: defauts, __COMMUN__: lire('src/commun.js').trim(), __AIDE__: lire('src/aide.js').trim(), __LOGO__: logo };
 
+// Version affichée dans l'application : celle du cache hors ligne (sw.js), changée à chaque mise à jour
+const version = dossier => (/VERSION = PREFIXE \+ '([^']+)'/.exec(lire(join(dossier, 'sw.js'))) || [])[1] || '?';
+
 function assembler(modele, app, sortie) {
   let html = lire(modele);
-  const valeurs = { ...commun, __APP__: lire(app).trim() };
+  const valeurs = { ...commun, __APP__: lire(app).trim(), __VERSION__: version(dirname(sortie)) };
   for (const [cle, val] of Object.entries(valeurs)) html = html.split(cle).join(val);
   if (/__[A-Z]+__/.test(html)) throw new Error('marqueur non remplacé dans ' + sortie);
   mkdirSync(dirname(join(racine, sortie)), { recursive: true });

@@ -3,7 +3,7 @@
 // (séance du jour saisie, course, protocole, séance pas réalisée, décalée, réaction, message, mot du coach), puis vérifie :
 //  - que toutes les cartes de premier niveau ont les mêmes bords gauche et droit, contours et ombres compris ;
 //  - qu'aucune carte n'en touche ou n'en chevauche une autre (au moins 8 px d'écart) ;
-//  - qu'aucune vue ne déborde en largeur.
+//  - qu'aucune vue ne déborde en largeur, même avec une note longue sans espace (temps séparés par « / », lien).
 // Option : CAPTURES=dossier enregistre une capture de chaque vue (mode sombre) pour un contrôle à l'œil.
 // Demande Playwright (Chromium). Les données passent par le service Google simulé de tests/gas-simule.mjs.
 import { createServer } from 'node:http';
@@ -33,10 +33,10 @@ const aj = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Paris' }).format
 const j = n => { const x = new Date(aj + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
 const lundi = (() => { const x = new Date(aj + 'T12:00:00Z'), d = (x.getUTCDay() + 6) % 7; x.setUTCDate(x.getUTCDate() - d - 14); return x.toISOString().slice(0, 10); })();
 const jours = {};
-jours[j(-3)] = { corps: '5x1000M', type: 'VMA', notes: '[PAS RÉALISÉE · Fatigue] Grosse semaine', majA: '2026-01-01T10:00:00Z' };
+jours[j(-3)] = { corps: '5x1000M', type: 'VMA', notes: '[PAS RÉALISÉE · Fatigue] Grosse semaine https://www.strava.com/activities/123456789012345678901234567890', majA: '2026-01-01T10:00:00Z' };
 jours[j(-2)] = { corps: 'FOOTING', type: 'EF', notes: '[DÉCALÉE AU ' + j(1) + ' · Manque de temps] ', majA: '2026-01-01T10:00:00Z' };
 jours[j(-1)] = { corps: 'SORTIE LONGUE', type: 'EF' };
-jours[aj] = { corps: '45 MIN FOOTING', type: 'EF', eveil: '15', km: 8.4, dureeSec: 2550, dplus: 60, fc: 140, rpe: 3, notes: 'Bonnes jambes', reaction: '👍 Bien', majA: '2026-01-01T10:00:00Z' };
+jours[aj] = { corps: '45 MIN FOOTING', type: 'EF', eveil: '15', km: 8.4, dureeSec: 2550, dplus: 60, fc: 140, rpe: 3, notes: 'Bonnes jambes.\nJe me suis mélangé :13x100m réalisé : 16,08/15,70/15,92/15,53/15,66/15,08/15,65/15,45/15,68/16,01/15,36/14,94/14,98', reaction: '👍 Bien', majA: '2026-01-01T10:00:00Z' };
 jours[j(1)] = { corps: '10x400M', type: 'VMA', eveil: '15', educ: '10', rac: '10' };
 jours[j(2)] = { corps: 'PROTOCOLE PRE-COMPET', type: 'PROTO' };
 jours[j(3)] = { corps: '10 KM ROUTE', type: 'COMP' };
