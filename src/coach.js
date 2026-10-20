@@ -335,7 +335,7 @@
     h += '<section class="carte petit"><div class="ligne"><span>Lien : ' + (s.lienOuvert ? 'ouvert ' + esc(UI.ilYa(s.lienOuvert)) + (s.derniereSync ? ' · dernière visite ' + esc(UI.ilYa(s.derniereSync)) : '') : 'pas encore ouvert') + '</span>' +
       '<span class="espace"></span><span class="muet">' + (E.aPublier[a.id] ? 'Modifications en attente d\'envoi' : (s.majPlan ? 'Plan publié ' + esc(UI.ilYa(s.majPlan)) : '')) + '</span></div>' +
       (a.motCoach ? '<p style="margin:8px 0 0"><b>Mot du coach :</b> ' + esc(a.motCoach) + '</p>' : '') + '</section>';
-    h += UI.htmlSemaine(a, semaineAffichee, aj, { role: 'coach', boutonsSemaine: '<button class="discret" data-act="semInfo">Cycle / phase</button><button class="discret" data-act="semCopier">Copier vers…</button>' });
+    h += UI.htmlSemaine(a, semaineAffichee, aj, { role: 'coach', boutonsSemaine: semaineAffichee < 1 ? '' : '<button class="discret" data-act="semInfo">Cycle / phase</button><button class="discret" data-act="semCopier">Copier vers…</button>' });
     h += UI.htmlEnsemble(a, semaineAffichee);
     main.innerHTML = h;
     UI.brancherGraph(a, semaineAffichee, function (n) { semaineAffichee = n; vuePlan(); window.scrollTo(0, 0); });
@@ -564,7 +564,7 @@
       '<div class="ligne"><button>Enregistrer et tester</button><button type="button" class="sec" data-act="sync">Synchroniser maintenant</button></div></form>' +
       '<p class="petit" id="statutSync2" style="margin-top:10px"></p></section>';
     h += '<section class="carte"><h2>Classeur Excel</h2>' +
-      '<p class="muet petit">Lit un classeur .xlsx au format du tableau (onglets PLAN, LEGENDE, ALLURES, PROTOS). Pour un athlète existant, seule la partie entraîneur est mise à jour : ses séances déjà saisies sont conservées.</p>' +
+      '<p class="muet petit">Lit un classeur .xlsx au format du tableau (onglets PLAN, LEGENDE, ALLURES, PROTOS). S\'il contient plusieurs onglets de plan (un par contrat ou par objectif), l\'application demande lequel importer. Pour un athlète existant, seule la partie entraîneur des dates de cet onglet est mise à jour : ses séances saisies et le plan des autres périodes sont conservés.</p>' +
       '<button data-act="importXlsx">Importer un classeur Excel</button></section>';
     h += '<section class="carte"><h2>Exports et sauvegarde</h2><div class="ligne">' +
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
@@ -605,7 +605,28 @@
   function importXlsx() {
     choisirFichier('.xlsx', function (f) {
       f.arrayBuffer().then(function (buf) { return C.lireXLSX(new Uint8Array(buf)); }).then(function (cl) {
-        var r = C.importerClasseur(cl), recu = r.athlete, local = parId(recu.id);
+        var onglets = C.ongletsPlan(cl);
+        if (onglets.length < 2) return importerClasseur(cl, onglets[0] && onglets[0].nom);
+        // Un onglet par contrat ou par objectif : Manu choisit celui à importer
+        var defaut = C.ongletParDefaut(onglets);
+        boite.innerHTML = '<form class="boite" method="dialog"><h2>Quel onglet importer ?</h2>' +
+          '<p class="muet petit">Ce classeur contient plusieurs plans. Les séances des autres périodes restent dans l\'application : seules les dates de l\'onglet choisi sont mises à jour.</p>' +
+          '<div class="choix-onglets">' + onglets.map(function (o, i) {
+            return '<label class="choix"><input type="radio" name="onglet" value="' + i + '"' + (o === defaut ? ' checked' : '') + '> <span><b>' + esc(o.nom) + '</b><small class="muet">du ' + C.formatDateFR(o.du) + ' au ' + C.formatDateFR(o.au) + ' · ' + o.seances + ' jour' + (o.seances > 1 ? 's' : '') + ' renseigné' + (o.seances > 1 ? 's' : '') + '</small></span></label>';
+          }).join('') + '</div>' +
+          '<div class="pied"><button type="button" class="sec" data-x="annuler">Annuler</button><button type="submit">Importer</button></div></form>';
+        boite.showModal();
+        $('[data-x="annuler"]', boite).onclick = function () { boite.close(); };
+        $('form', boite).onsubmit = function (e) {
+          e.preventDefault(); var c = $('input[name="onglet"]:checked', boite);
+          boite.close(); importerClasseur(cl, onglets[c ? +c.value : 0].nom).catch(function (ex) { toast('Import impossible : ' + ex.message); });
+        };
+      }).catch(function (e) { toast('Import impossible : ' + e.message); });
+    });
+  }
+  function importerClasseur(cl, nomOnglet) {
+    return Promise.resolve().then(function () {
+        var r = C.importerClasseur(cl, nomOnglet), recu = r.athlete, local = parId(recu.id);
         var res = local ? C.fusionner(local, recu, 'excel') : recu;
         res.id = recu.id; assurerCode(res);
         if (local) E.athletes[E.athletes.indexOf(local)] = res; else E.athletes.push(res);
@@ -616,14 +637,13 @@
         return sauver().then(function () {
           boite.innerHTML = '<form class="boite"><h2>' + (local ? 'Plan mis à jour' : 'Athlète ajouté') + ' : ' + esc(nomComplet(res)) + '</h2>' +
             '<ul class="petit">' + r.rapport.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' +
-            (local ? '<p>Seule la partie entraîneur a été remplacée. Les séances déjà saisies par l\'athlète, tes réactions et son lien sont conservés.</p>' : '<p>Envoie-lui son lien pour qu\'il reçoive son plan.</p>') +
+            (local ? '<p>Seule la partie entraîneur des dates de cet onglet a été remplacée. Les séances déjà saisies par l\'athlète, tes réactions, son lien et le plan des autres périodes sont conservés.</p>' + (res.contrats && res.contrats.length > (local.contrats || []).length ? '<p>Le contrat précédent est archivé : ses semaines restent consultables avec ◀ dans le plan.</p>' : '') : '<p>Envoie-lui son lien pour qu\'il reçoive son plan.</p>') +
             '<div class="pied">' + (local ? '' : '<button type="button" class="sec" data-x="lien">Envoyer le lien</button>') + '<button type="button" data-x="ok">Voir le plan</button></div></form>';
           boite.showModal();
           $('[data-x="ok"]', boite).onclick = function () { boite.close(); location.hash = '#/plan'; rendre(); };
           var l = $('[data-x="lien"]', boite);
           if (l) l.onclick = function () { boite.close(); location.hash = '#/plan'; rendre(); envoyerLien(); };
         });
-      }).catch(function (e) { toast('Import impossible : ' + e.message); });
     });
   }
   function restaurer() {
@@ -644,8 +664,8 @@
     var a = athlete(), dates = Object.keys(a.jours).sort();
     var l = [['Semaine', 'Jour', 'Date', 'Éveil (min.)', 'Éduc (min.)', 'Corps de séance', 'RAC (min.)', 'Profil', 'Type', 'Phase', 'Cycle', 'Consignes', 'KM', 'Durée', 'D+ (m)', 'RPE', 'FC moy. (bpm)', 'Notes perso', 'Réaction du coach']];
     dates.forEach(function (d) {
-      var j = a.jours[d], s = UI.semaineDe(a, d), w = (a.semaines || {})[s] || {};
-      l.push(['S' + s, C.JOURS[C.dayOfWeek(d)], C.formatDateFR(d), j.eveil || '', j.educ || '', j.corps || '', j.rac || '', j.profil || '', j.type || '', w.phase || '', w.cycle || '', j.consignes || '',
+      var j = a.jours[d], ns = UI.nomSemaine(a, UI.semaineDe(a, d)), w = ns.info;
+      l.push([ns.nom + (ns.contrat ? ' (contrat du ' + C.formatDateFR(ns.contrat.debut) + ')' : ''), C.JOURS[C.dayOfWeek(d)], C.formatDateFR(d), j.eveil || '', j.educ || '', j.corps || '', j.rac || '', j.profil || '', j.type || '', w.phase || '', w.cycle || '', j.consignes || '',
         C.isNum(j.km) ? C.nombreFR(j.km, 3) : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.dplus) ? Math.round(j.dplus) : '', C.isNum(j.rpe) ? C.nombreFR(j.rpe, 1) : '', C.isNum(j.fc) ? Math.round(j.fc) : '', j.notes || '', j.reaction || '']);
     });
     telecharger(horodatage() + '_PLAN_' + (a.nom || '').toUpperCase() + '.csv', '﻿' + C.versCSV(l), 'text/csv;charset=utf-8');
@@ -664,7 +684,7 @@
     var b = ev.target.closest('[data-act]');
     if (!b) return;
     var act = b.dataset.act, a = athlete();
-    if (act === 'semPrec') { semaineAffichee = Math.max(1, semaineAffichee - 1); vuePlan(); }
+    if (act === 'semPrec') { semaineAffichee = Math.max(UI.semaineMin(a), semaineAffichee - 1); vuePlan(); }
     else if (act === 'semSuiv') { semaineAffichee++; vuePlan(); }
     else if (act === 'semAuj') { semaineAffichee = Math.max(1, UI.semaineDe(a, auj())); vuePlan(); }
     else if (act === 'allerSem') { semaineAffichee = +b.dataset.n; vuePlan(); window.scrollTo(0, 0); }

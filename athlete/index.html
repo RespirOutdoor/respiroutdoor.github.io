@@ -393,6 +393,11 @@ label.choix { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; 
 label.choix > input[type="radio"] { width: 22px; height: 22px; min-height: 0; margin: 0; accent-color: var(--vert-fonce); }
 label.choix > span { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
 label.choix input[type="date"] { width: auto; max-width: 100%; margin: 0; min-height: 40px; }
+/* Import : choix de l'onglet du plan (un onglet par contrat ou par objectif) */
+.choix-onglets label.choix { align-items: flex-start; padding: 10px 12px; border: 1px solid var(--bord); border-radius: 10px; }
+.choix-onglets label.choix > input[type="radio"] { margin-top: 2px; }
+.choix-onglets label.choix > span { display: block; min-width: 0; overflow-wrap: anywhere; }
+.choix-onglets small { display: block; margin-top: 2px; }
 /* Courses (COMP) : « médaille dorée » ; protocole pré-compétition (PROTO) en plus discret */
 :root { --or-vif: #D9A21B; --or: #9A6B00; --or-fond: rgba(217, 162, 27, .16); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --or: #F0C04A; } }
@@ -404,6 +409,7 @@ label.choix input[type="date"] { width: auto; max-width: 100%; margin: 0; min-he
 .jour.course.auj { box-shadow: inset 0 0 0 2px var(--or-vif); }
 .carte.compet { border: 2px solid var(--or-vif); background: linear-gradient(135deg, var(--or-fond), rgba(217, 162, 27, 0) 65%), var(--carte); }
 .carte.compet .jx { background: var(--or-vif); color: #1A1200; }
+.ancien-contrat { margin: 8px 0 0; text-align: center; font-size: .85rem; font-weight: 600; color: var(--texte-2); }
 </style>
 </head>
 <body class="athlete">
@@ -767,7 +773,9 @@ var Core = (function () {
   // Modes :
   // « excel »     : entraîneur, nouveau classeur sur un athlète existant. Plan et fiche du classeur ;
   //                 saisies de l'athlète, réactions, code du lien et mot du coach conservés ;
-  //                 les valeurs athlète du classeur ne remplissent que les jours encore vides.
+  //                 les valeurs athlète du classeur ne remplissent que les jours encore vides ;
+  //                 les séances hors de la période de l'onglet importé (anciens contrats) gardent leur plan ;
+  //                 si la date de début change, le contrat précédent est archivé dans « contrats ».
   // « serveur »   : athlète, état reçu en ligne. Plan, fiche et réactions du serveur ; pour les saisies,
   //                 la plus récente gagne, et une saisie locale pas encore envoyée (opts.enAttente) est toujours gardée.
   // « retours »   : entraîneur, saisies reçues en ligne. Plan local conservé ; la saisie la plus récente gagne.
@@ -784,12 +792,15 @@ var Core = (function () {
         res[k] = clone(recu[k]);
       });
     }
-    var dates = {};
+    if (mode === 'excel') res.contrats = archiverContrat(local, recu);
+    // Période couverte par l'onglet importé : toutes ses lignes datées (planDu/planAu), à défaut ses jours renseignés
+    var dRecues = Object.keys(recu.jours || {}).sort(), dMin = recu.planDu || dRecues[0], dMax = recu.planAu || dRecues[dRecues.length - 1], dates = {};
     Object.keys(local.jours || {}).concat(Object.keys(recu.jours || {})).forEach(function (d) { dates[d] = 1; });
     res.jours = {};
     Object.keys(dates).forEach(function (d) {
       var l = (local.jours || {})[d] || {}, r = (recu.jours || {})[d] || {};
-      var coach = mode === 'retours' ? partie(l, CHAMPS_COACH) : partie(r, CHAMPS_COACH);
+      var horsPeriode = mode === 'excel' && (!dMin || d < dMin || d > dMax);
+      var coach = mode === 'retours' || horsPeriode ? partie(l, CHAMPS_COACH) : partie(r, CHAMPS_COACH);
       var reaction = mode === 'serveur' ? r[CHAMP_REACTION] : l[CHAMP_REACTION];
       var ath;
       if (mode === 'excel') ath = aDonneesAthlete(l) || l.majA ? partieAthlete(l) : partieAthlete(r);
@@ -800,6 +811,26 @@ var Core = (function () {
       j = nettoyerJour(j);
       if (Object.keys(j).length) res.jours[d] = j;
     });
+    return res;
+  }
+
+  /* ---------- Contrats précédents ---------- */
+  // Un contrat archivé : { debut, fin, contratSemaines, objectif, objectif2, semaines } (semaines numérotées depuis son début)
+  var CHAMPS_CONTRAT = ['debut', 'fin', 'contratSemaines', 'objectif', 'objectif2', 'semaines'];
+  function archiverContrat(local, recu) {
+    var liste = clone(local.contrats || []);
+    if (local.debut && recu.debut && local.debut !== recu.debut) {
+      var c = {}; CHAMPS_CONTRAT.forEach(function (k) { if (local[k] != null && local[k] !== '') c[k] = clone(local[k]); });
+      liste = liste.filter(function (x) { return x.debut !== c.debut; }).concat([c]);
+    }
+    // Le contrat importé redevient le contrat en cours s'il était archivé
+    return liste.filter(function (x) { return x.debut !== recu.debut; }).sort(function (x, y) { return x.debut < y.debut ? -1 : 1; });
+  }
+  // Contrat archivé qui couvre une date antérieure au contrat en cours (le plus récent qui a commencé avant)
+  function contratDe(a, iso) {
+    if (!iso || (a.debut && weekStart(iso) >= weekStart(a.debut))) return null;
+    var res = null;
+    (a.contrats || []).forEach(function (c) { if (c.debut && weekStart(c.debut) <= weekStart(iso)) res = c; });
     return res;
   }
 
@@ -1139,6 +1170,8 @@ var Core = (function () {
       return best === null ? null : ligneDate[best];
     }
     if (!a.debut && lignesDates.length) a.debut = weekStart(ligneDate[lignesDates[0]]);
+    var toutes = lignesDates.map(function (r) { return ligneDate[r]; }).sort();
+    if (toutes.length) { a.planDu = toutes[0]; a.planAu = toutes[toutes.length - 1]; }
     ['cycle', 'spe'].forEach(function (k) {
       regrouperVertical(verticales[k]).forEach(function (p) {
         var d1 = dateDeLigne(p.debut), d2 = dateDeLigne(p.fin);
@@ -1223,11 +1256,31 @@ var Core = (function () {
     return res.map(function (p) { return { id: p.code, code: p.code, titre: p.titre.join(' '), grille: p.grille, notes: '' }; });
   }
 
-  // Renvoie { athlete, legende, protos, rapport: [texte…] }
-  function importerClasseur(classeur) {
+  // Onglets qui ressemblent à un plan (en-tête « DATE » avec des lignes datées), dans l'ordre du classeur :
+  // [{ nom, du, au, seances }] ; un onglet par contrat ou par objectif, quel que soit son nom
+  var AUTRES_ONGLETS = ['LEGENDE', 'ALLURES', 'PROTOS'];
+  function ongletsPlan(classeur) {
+    return (classeur.feuilles || []).map(function (f) {
+      if (AUTRES_ONGLETS.indexOf(normCode(f.nom)) >= 0) return null;
+      if (!chercher(f, /^DATE$/i)) return null;
+      // Même lecture que l'import : période des lignes datées, jours avec une séance ou une saisie
+      var a; try { a = importerPlan(f, []); } catch (e) { return null; }
+      if (!a.planDu) return null;
+      return { nom: f.nom, du: a.planDu, au: a.planAu, seances: Object.keys(a.jours).length };
+    }).filter(Boolean);
+  }
+  // Onglet proposé par défaut : celui nommé « PLAN », sinon celui dont la période est la plus récente
+  function ongletParDefaut(onglets) {
+    var plan = onglets.filter(function (o) { return normCode(o.nom) === 'PLAN'; })[0];
+    return plan || onglets.slice().sort(function (x, y) { return x.du < y.du ? 1 : -1; })[0] || null;
+  }
+  // Renvoie { athlete, legende, protos, rapport: [texte…] } ; nomOnglet : onglet du plan à importer (par défaut « PLAN »)
+  function importerClasseur(classeur, nomOnglet) {
     var rapport = [];
-    var fPlan = feuille(classeur, 'PLAN');
-    if (!fPlan) throw new Error('onglet PLAN introuvable : ce classeur ne suit pas le modèle de l\'entraîneur');
+    var fPlan = feuille(classeur, nomOnglet || 'PLAN');
+    if (!fPlan && !nomOnglet) { var o = ongletParDefaut(ongletsPlan(classeur)); if (o) fPlan = feuille(classeur, o.nom); }
+    if (!fPlan) throw new Error('onglet ' + (nomOnglet || 'PLAN') + ' introuvable : ce classeur ne suit pas le modèle de l\'entraîneur');
+    if (normCode(fPlan.nom) !== 'PLAN') rapport.push('Plan lu dans l\'onglet « ' + texte(fPlan.nom) + ' »');
     var a = importerPlan(fPlan, rapport);
     importerAllures(feuille(classeur, 'ALLURES'), a, rapport);
     var lg = importerLegende(feuille(classeur, 'LEGENDE'));
@@ -1303,6 +1356,22 @@ var Core = (function () {
       var r = fusionner(loc, recu, 'excel'), j = r.jours['2026-10-13'];
       return r.code === 'ABC234' && r.motCoach === 'Go' && r.objectif === 'Cross' && j.corps === 'nouveau' && j.km === 10 && j.reaction === '👍' &&
         !r.jours['2026-10-14'] && r.jours['2026-10-15'].km === 8;
+    }],
+    ['Fusion « excel », nouveau contrat : l\'ancien plan est gardé hors de la période importée, le contrat précédent est archivé', function () {
+      var loc = { id: 'X', debut: '2025-01-13', fin: '2026-01-11', contratSemaines: 52, objectif: 'CROSS', semaines: { 3: { cycle: 'FONCIER' } },
+        jours: { '2025-03-03': { corps: '10x400', type: 'VMA', km: 8, majA: 't', reaction: '👍' }, '2025-03-04': { corps: 'FOOTING', type: 'EF' }, '2026-01-14': { corps: 'ANCIEN' } } };
+      var recu = { id: 'X', debut: '2026-01-12', contratSemaines: 40, planDu: '2026-01-12', planAu: '2026-10-18', semaines: { 1: { cycle: 'PREPA' } }, jours: { '2026-01-12': { corps: 'FOOTING', type: 'EF' }, '2026-01-15': { corps: 'VMA' } } };
+      var r = fusionner(loc, recu, 'excel'), c = r.contrats;
+      return r.jours['2025-03-03'].corps === '10x400' && r.jours['2025-03-03'].km === 8 && r.jours['2025-03-03'].reaction === '👍' &&
+        r.jours['2025-03-04'].corps === 'FOOTING' && !r.jours['2026-01-14'] && r.debut === '2026-01-12' && r.semaines[1].cycle === 'PREPA' &&
+        c.length === 1 && c[0].debut === '2025-01-13' && c[0].semaines[3].cycle === 'FONCIER' &&
+        contratDe(r, '2025-03-05') === c[0] && contratDe(r, '2026-01-13') === null && contratDe(r, '2024-12-30') === null;
+    }],
+    ['Fusion « excel », même contrat réimporté : rien n\'est archivé ; réimport d\'un ancien contrat : il redevient le contrat en cours', function () {
+      var loc = { id: 'X', debut: '2026-01-12', jours: {}, contrats: [{ debut: '2025-01-13' }] };
+      var r1 = fusionner(loc, { id: 'X', debut: '2026-01-12', jours: {} }, 'excel');
+      var r2 = fusionner(loc, { id: 'X', debut: '2025-01-13', jours: {} }, 'excel');
+      return r1.contrats.length === 1 && r2.contrats.length === 1 && r2.contrats[0].debut === '2026-01-12';
     }],
     ['Fusion « serveur » (athlète) : plan et réaction du serveur ; la saisie la plus récente gagne ; saisie en attente gardée', function () {
       var loc = { jours: { '2026-10-13': { corps: 'a', km: 10, majA: '2026-10-13T10:00:00Z' }, '2026-10-14': { km: 5, majA: '2026-10-14T08:00:00Z' }, '2026-10-15': { km: 6, majA: '2026-10-15T08:00:00Z' } } };
@@ -1380,6 +1449,18 @@ var Core = (function () {
         a.jours['2026-08-03'].type === 'VMAC' && a.jours['2026-08-03'].eveil === '20' && a.jours['2026-08-05'].dureeSec === 3725 && a.jours['2026-08-05'].km === 12.3 &&
         a.jours['2026-08-05'].notes === 'bien' && a.semaines[82].cycle === 'AS' && a.id === 'DUPONT_JEAN';
     }],
+    ['Classeur à plusieurs onglets de plan : liste avec période et séances ; « PLAN » par défaut, sinon le plus récent ; onglet choisi importé', function () {
+      // 45670 = 13/01/2025 ; 46034 = 12/01/2026 ; 46035 = 13/01/2026
+      var f1 = { nom: 'PLAN 2025', lignes: [['DATE', 'CORPS'], [45670, 'FOOTING'], [45671]] };
+      var f2 = { nom: '10 KM', lignes: [['DATE', 'CORPS'], [46034, 'VMA'], [46035, 'EF']] };
+      var lg = { nom: 'LEGENDE', lignes: [['DATE', 'X'], [45670, 'Y']] };
+      var cl = { feuilles: [f1, f2, lg] }, o = ongletsPlan(cl);
+      var r = importerClasseur(cl), r2 = importerClasseur(cl, 'PLAN 2025');
+      return o.length === 2 && o[0].nom === 'PLAN 2025' && o[0].du === '2025-01-13' && o[0].au === '2025-01-14' && o[0].seances === 1 && o[1].seances === 2 &&
+        ongletParDefaut(o).nom === '10 KM' && ongletParDefaut([{ nom: 'Plan', du: '2020-01-01' }].concat(o)).nom === 'Plan' &&
+        r.athlete.jours['2026-01-12'].corps === 'VMA' && r.athlete.planDu === '2026-01-12' && r.athlete.planAu === '2026-01-13' &&
+        r2.athlete.jours['2025-01-13'].corps === 'FOOTING' && !r2.athlete.jours['2026-01-12'];
+    }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
       // 4 -> 1/3 × 5 = 1,667 : 2/3 du chemin cyan -> vert : 99 − 3×2/3 = 97 (0x61) ; 198 − 2×2/3 = 196,7 -> 197 (0xC5) ; 221 − 123×2/3 = 139 (0x8B)
@@ -1445,8 +1526,8 @@ var Core = (function () {
     tempsDistancePct: tempsDistancePct, distanceTempsPct: distanceTempsPct, zoneVitesses: zoneVitesses, allureChrono: allureChrono,
     trouverZone: trouverZone, reperesSeance: reperesSeance, normCode: normCode, chercherCode: chercherCode,
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
-    regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner,
-    lireXLSX: lireXLSX, importerClasseur: importerClasseur, versCSV: versCSV, TESTS: TESTS, runTests: runTests
+    regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe,
+    lireXLSX: lireXLSX, importerClasseur: importerClasseur, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();
 </script>
@@ -1491,6 +1572,19 @@ var UI = (function () {
   function jourCourt(iso) { return C.JOURS_LONGS[C.dayOfWeek(iso)].slice(0, 3) + '. ' + C.formatDateFR(iso, true); }
   function semaineDe(a, iso) { return a.debut ? C.numSemaine(a.debut, iso) : null; }
   function lundiDe(a, n) { return C.lundiSemaine(a.debut, n); }
+  // Semaines antérieures au contrat en cours (n < 1) : numérotées dans le contrat archivé qui les couvre
+  function nomSemaine(a, n) {
+    if (n >= 1) return { nom: 'S' + n, info: (a.semaines || {})[n] || {}, contrat: null };
+    var lundi = lundiDe(a, n), c = C.contratDe(a, lundi);
+    if (!c) return { nom: 'Avant S1', info: {}, contrat: null };
+    var k = C.numSemaine(c.debut, lundi);
+    return { nom: 'S' + k, info: (c.semaines || {})[k] || {}, contrat: c };
+  }
+  // Première semaine consultable : S1, ou plus tôt s'il reste des séances d'un contrat précédent
+  function semaineMin(a) {
+    var dates = Object.keys(a.jours || {}).sort(), s = dates.length ? semaineDe(a, dates[0]) : null;
+    return C.isNum(s) && s < 1 ? s : 1;
+  }
   function ilYa(iso) {
     if (!iso) return 'jamais';
     var s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
@@ -1632,19 +1726,20 @@ var UI = (function () {
 
   /* ---------- Semaine du plan ---------- */
   function htmlSemaine(a, n, aj, opts) {
-    var lundi = lundiDe(a, n), dim = C.addDays(lundi, 6), info = (a.semaines || {})[n] || {};
+    var lundi = lundiDe(a, n), dim = C.addDays(lundi, 6), ns = nomSemaine(a, n), info = ns.info, ct = ns.contrat;
     var jours = C.joursSemaine(a, lundi), bil = C.bilanJours(jours.map(function (x) { return x.jour; }));
     var h = '<section class="carte"><div class="nav-semaine">' +
       '<button class="sec" data-act="semPrec" aria-label="Semaine précédente">◀</button>' +
-      '<h2>S' + n + '<small>du ' + C.formatDateFR(lundi) + ' au ' + C.formatDateFR(dim) + '</small></h2>' +
+      '<h2>' + ns.nom + '<small>du ' + C.formatDateFR(lundi) + ' au ' + C.formatDateFR(dim) + '</small></h2>' +
       '<button class="sec" data-act="semSuiv" aria-label="Semaine suivante">▶</button></div>' +
       '<div class="ligne noprint" style="justify-content:center;margin-top:8px">' +
       '<button class="discret" data-act="semAuj">Cette semaine</button>' +
       '<button class="discret" data-act="imprimer">Imprimer</button>' + (opts.boutonsSemaine || '') + '</div>' +
+      (n < 1 ? '<p class="ancien-contrat">' + (ct ? 'Contrat précédent · débuté le ' + C.formatDateFR(ct.debut) + (ct.objectif ? ' · ' + esc(ct.objectif) : '') : 'Avant le début du contrat') + '</p>' : '') +
       ((info.phase || info.cycle) ? '<div class="ruban">' + (info.phase ? '<span title="Situation planif">' + esc(info.phase) + '</span>' : '') + (info.cycle ? '<span class="cycle" title="Type de cycle">' + esc(info.cycle) + '</span>' : '') + '</div>' : '') +
       '</section>';
     h += '<section class="jours" aria-label="Séances de la semaine">' + jours.map(function (x) { return carteJour(a, x.date, x.jour, aj, opts); }).join('') + '</section>';
-    h += '<section class="carte" style="margin-top:14px"><h3>Bilan S' + n + '</h3><div class="bilan">' +
+    h += '<section class="carte" style="margin-top:14px"><h3>Bilan ' + ns.nom + '</h3><div class="bilan">' +
       '<div class="kpi"><b>' + C.nombreFR(bil.km, 2) + ' km</b><span>KM hebdo</span></div>' +
       '<div class="kpi"><b>' + (bil.dureeSec ? C.formatDuree(bil.dureeSec) : '—') + '</b><span>Durée</span></div>' +
       '<div class="kpi"><b>' + (bil.rpeMoy !== null ? C.nombreFR(bil.rpeMoy, 1) : '—') + '</b><span>RPE moyen' + (bil.nbRpe ? ' (' + bil.nbRpe + ' séance' + (bil.nbRpe > 1 ? 's' : '') + ')' : '') + '</span></div>' +
@@ -1661,7 +1756,8 @@ var UI = (function () {
     for (var s = s1; s <= s2; s++) {
       var l = lundiDe(a, s), jr = C.joursSemaine(a, l).map(function (x) { return x.jour; });
       var b = C.bilanJours(jr);
-      b.n = s; b.lundi = l; b.info = (a.semaines || {})[s] || {};
+      var ns = nomSemaine(a, s);
+      b.n = s; b.nom = ns.nom; b.lundi = l; b.info = ns.info;
       b.compet = jr.filter(function (j) { return C.normCode(j.type) === 'COMP'; }).map(function (j) { return j.corps; });
       out.push(b);
     }
@@ -1675,7 +1771,7 @@ var UI = (function () {
       '<div class="graph" id="graph"></div>' +
       '<details><summary>Tableau des semaines</summary><div class="tableau"><table><thead><tr><th>Sem.</th><th>Lundi</th><th>Phase / cycle</th><th class="num">Prévues</th><th class="num">KM</th><th class="num">Durée</th><th class="num">RPE moy.</th><th>Compétition</th></tr></thead><tbody>' +
       sem.map(function (b) {
-        return '<tr class="cliquable' + (b.n === n ? ' cour' : '') + '" data-act="allerSem" data-n="' + b.n + '"><td>S' + b.n + '</td><td>' + C.formatDateFR(b.lundi) + '</td><td>' + esc([b.info.phase, b.info.cycle].filter(Boolean).join(' · ')) + '</td>' +
+        return '<tr class="cliquable' + (b.n === n ? ' cour' : '') + '" data-act="allerSem" data-n="' + b.n + '"><td>' + b.nom + '</td><td>' + C.formatDateFR(b.lundi) + '</td><td>' + esc([b.info.phase, b.info.cycle].filter(Boolean).join(' · ')) + '</td>' +
           '<td class="num">' + b.prevues + '</td><td class="num">' + (b.km ? C.nombreFR(b.km, 2) : '') + '</td><td class="num">' + (b.dureeSec ? C.formatDuree(b.dureeSec) : '') + '</td>' +
           '<td class="num">' + (b.rpeMoy !== null ? C.nombreFR(b.rpeMoy, 1) : '') + '</td><td>' + esc(b.compet.join(', ')) + '</td></tr>';
       }).join('') + '</tbody></table></div></details></section>';
@@ -1687,7 +1783,7 @@ var UI = (function () {
     var max = Math.max.apply(null, sem.map(function (b) { return b.km; }).concat([10]));
     var pas = max > 60 ? 20 : 10, top = Math.ceil(max / pas) * pas, lw = (W - g - d) / sem.length, bw = Math.max(2, Math.min(28, lw - 2));
     var y = function (v) { return H - bas - (H - bas - hh) * v / top; };
-    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Kilomètres réalisés par semaine, de S' + sem[0].n + ' à S' + sem[sem.length - 1].n + '">';
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Kilomètres réalisés par semaine, de ' + sem[0].nom + ' à ' + sem[sem.length - 1].nom + '">';
     for (var v = 0; v <= top; v += pas) s += '<line class="grille" x1="' + g + '" x2="' + (W - d) + '" y1="' + y(v) + '" y2="' + y(v) + '"/><text class="axe" x="' + (g - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + v + '</text>';
     var pasLab = Math.ceil(sem.length / 8);
     sem.forEach(function (b, i) {
@@ -1696,15 +1792,15 @@ var UI = (function () {
         var r = Math.min(4, bw / 2, hb), cour = b.n === nCourant;
         s += '<path fill="' + (cour ? 'var(--sapin)' : 'var(--vert)') + '" d="M' + x + ' ' + (H - bas) + 'V' + (yy + r) + 'Q' + x + ' ' + yy + ' ' + (x + r) + ' ' + yy + 'H' + (x + bw - r) + 'Q' + (x + bw) + ' ' + yy + ' ' + (x + bw) + ' ' + (yy + r) + 'V' + (H - bas) + 'Z"/>';
       }
-      s += '<rect class="cible" data-i="' + i + '" x="' + (g + i * lw) + '" y="' + hh + '" width="' + lw + '" height="' + (H - bas - hh) + '" tabindex="0" aria-label="S' + b.n + ' : ' + C.nombreFR(b.km, 1) + ' km"/>';
-      if (i % pasLab === 0) s += '<text class="axe" x="' + (g + i * lw + lw / 2) + '" y="' + (H - 6) + '" text-anchor="middle">S' + b.n + '</text>';
+      s += '<rect class="cible" data-i="' + i + '" x="' + (g + i * lw) + '" y="' + hh + '" width="' + lw + '" height="' + (H - bas - hh) + '" tabindex="0" aria-label="' + b.nom + ' : ' + C.nombreFR(b.km, 1) + ' km"/>';
+      if (i % pasLab === 0) s += '<text class="axe" x="' + (g + i * lw + lw / 2) + '" y="' + (H - 6) + '" text-anchor="middle">' + b.nom + '</text>';
     });
     s += '<line x1="' + g + '" x2="' + (W - d) + '" y1="' + (H - bas) + '" y2="' + (H - bas) + '" stroke="var(--texte-2)"/></svg><div class="infobulle" role="tooltip"></div>';
     zone.innerHTML = s;
     var bulle = $('.infobulle', zone);
     function montrer(e) {
       var b = sem[+e.target.dataset.i]; if (!b) return;
-      bulle.innerHTML = '<b>S' + b.n + '</b> · ' + C.formatDateFR(b.lundi) + '<br>' + C.nombreFR(b.km, 2) + ' km' + (b.dureeSec ? ' · ' + C.formatDuree(b.dureeSec) : '') + (b.rpeMoy !== null ? ' · RPE ' + C.nombreFR(b.rpeMoy, 1) : '') + (b.info.phase ? '<br>' + esc(b.info.phase) : '');
+      bulle.innerHTML = '<b>' + b.nom + '</b> · ' + C.formatDateFR(b.lundi) + '<br>' + C.nombreFR(b.km, 2) + ' km' + (b.dureeSec ? ' · ' + C.formatDuree(b.dureeSec) : '') + (b.rpeMoy !== null ? ' · RPE ' + C.nombreFR(b.rpeMoy, 1) : '') + (b.info.phase ? '<br>' + esc(b.info.phase) : '');
       bulle.style.display = 'block';
       var rz = zone.getBoundingClientRect(), rr = e.target.getBoundingClientRect();
       bulle.style.left = Math.max(0, Math.min(rz.width - bulle.offsetWidth, rr.left - rz.left + rr.width / 2 - bulle.offsetWidth / 2)) + 'px';
@@ -1879,7 +1975,7 @@ var UI = (function () {
   return {
     init: function (o) { Object.assign(ctx, o); },
     FAMILLES: FAMILLES, REACTIONS: REACTIONS, esc: esc, $: $, $$: $$, toast: toast, auj: auj, maintenant: maintenant, nomComplet: nomComplet, prenom: prenom,
-    famille: famille, couleurFam: couleurFam, badgeRPE: badgeRPE, jourCourt: jourCourt, semaineDe: semaineDe, lundiDe: lundiDe, ilYa: ilYa, ecart: ecart,
+    famille: famille, couleurFam: couleurFam, badgeRPE: badgeRPE, jourCourt: jourCourt, semaineDe: semaineDe, lundiDe: lundiDe, semaineMin: semaineMin, nomSemaine: nomSemaine, ilYa: ilYa, ecart: ecart,
     creerStore: creerStore, chargerConfig: chargerConfig, appelService: appelService,
     carteJour: carteJour, htmlFiche: htmlFiche, htmlSemaine: htmlSemaine, htmlEnsemble: htmlEnsemble, brancherGraph: brancherGraph,
     vueLegende: vueLegende, vueAllures: vueAllures, htmlBarreRPE: htmlBarreRPE, brancherBarreRPE: brancherBarreRPE, vueProtos: vueProtos, appliquerTheme: appliquerTheme
@@ -2351,7 +2447,7 @@ var UI = (function () {
     if (act === 'saisir') saisir(b.dataset.date);
     else if (act === 'pasFaite') pasFaite(b.dataset.date);
     else if (act === 'sync') synchroniser(true);
-    else if (act === 'semPrec') { semaineAffichee = Math.max(1, semaineAffichee - 1); rendre(); }
+    else if (act === 'semPrec') { semaineAffichee = Math.max(UI.semaineMin(a), semaineAffichee - 1); rendre(); }
     else if (act === 'semSuiv') { semaineAffichee++; rendre(); }
     else if (act === 'semAuj') { semaineAffichee = Math.max(1, UI.semaineDe(a, auj())); rendre(); }
     else if (act === 'allerSem') { semaineAffichee = +b.dataset.n; rendre(); window.scrollTo(0, 0); }

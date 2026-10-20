@@ -35,6 +35,19 @@ var UI = (function () {
   function jourCourt(iso) { return C.JOURS_LONGS[C.dayOfWeek(iso)].slice(0, 3) + '. ' + C.formatDateFR(iso, true); }
   function semaineDe(a, iso) { return a.debut ? C.numSemaine(a.debut, iso) : null; }
   function lundiDe(a, n) { return C.lundiSemaine(a.debut, n); }
+  // Semaines antérieures au contrat en cours (n < 1) : numérotées dans le contrat archivé qui les couvre
+  function nomSemaine(a, n) {
+    if (n >= 1) return { nom: 'S' + n, info: (a.semaines || {})[n] || {}, contrat: null };
+    var lundi = lundiDe(a, n), c = C.contratDe(a, lundi);
+    if (!c) return { nom: 'Avant S1', info: {}, contrat: null };
+    var k = C.numSemaine(c.debut, lundi);
+    return { nom: 'S' + k, info: (c.semaines || {})[k] || {}, contrat: c };
+  }
+  // Première semaine consultable : S1, ou plus tôt s'il reste des séances d'un contrat précédent
+  function semaineMin(a) {
+    var dates = Object.keys(a.jours || {}).sort(), s = dates.length ? semaineDe(a, dates[0]) : null;
+    return C.isNum(s) && s < 1 ? s : 1;
+  }
   function ilYa(iso) {
     if (!iso) return 'jamais';
     var s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
@@ -176,19 +189,20 @@ var UI = (function () {
 
   /* ---------- Semaine du plan ---------- */
   function htmlSemaine(a, n, aj, opts) {
-    var lundi = lundiDe(a, n), dim = C.addDays(lundi, 6), info = (a.semaines || {})[n] || {};
+    var lundi = lundiDe(a, n), dim = C.addDays(lundi, 6), ns = nomSemaine(a, n), info = ns.info, ct = ns.contrat;
     var jours = C.joursSemaine(a, lundi), bil = C.bilanJours(jours.map(function (x) { return x.jour; }));
     var h = '<section class="carte"><div class="nav-semaine">' +
       '<button class="sec" data-act="semPrec" aria-label="Semaine précédente">◀</button>' +
-      '<h2>S' + n + '<small>du ' + C.formatDateFR(lundi) + ' au ' + C.formatDateFR(dim) + '</small></h2>' +
+      '<h2>' + ns.nom + '<small>du ' + C.formatDateFR(lundi) + ' au ' + C.formatDateFR(dim) + '</small></h2>' +
       '<button class="sec" data-act="semSuiv" aria-label="Semaine suivante">▶</button></div>' +
       '<div class="ligne noprint" style="justify-content:center;margin-top:8px">' +
       '<button class="discret" data-act="semAuj">Cette semaine</button>' +
       '<button class="discret" data-act="imprimer">Imprimer</button>' + (opts.boutonsSemaine || '') + '</div>' +
+      (n < 1 ? '<p class="ancien-contrat">' + (ct ? 'Contrat précédent · débuté le ' + C.formatDateFR(ct.debut) + (ct.objectif ? ' · ' + esc(ct.objectif) : '') : 'Avant le début du contrat') + '</p>' : '') +
       ((info.phase || info.cycle) ? '<div class="ruban">' + (info.phase ? '<span title="Situation planif">' + esc(info.phase) + '</span>' : '') + (info.cycle ? '<span class="cycle" title="Type de cycle">' + esc(info.cycle) + '</span>' : '') + '</div>' : '') +
       '</section>';
     h += '<section class="jours" aria-label="Séances de la semaine">' + jours.map(function (x) { return carteJour(a, x.date, x.jour, aj, opts); }).join('') + '</section>';
-    h += '<section class="carte" style="margin-top:14px"><h3>Bilan S' + n + '</h3><div class="bilan">' +
+    h += '<section class="carte" style="margin-top:14px"><h3>Bilan ' + ns.nom + '</h3><div class="bilan">' +
       '<div class="kpi"><b>' + C.nombreFR(bil.km, 2) + ' km</b><span>KM hebdo</span></div>' +
       '<div class="kpi"><b>' + (bil.dureeSec ? C.formatDuree(bil.dureeSec) : '—') + '</b><span>Durée</span></div>' +
       '<div class="kpi"><b>' + (bil.rpeMoy !== null ? C.nombreFR(bil.rpeMoy, 1) : '—') + '</b><span>RPE moyen' + (bil.nbRpe ? ' (' + bil.nbRpe + ' séance' + (bil.nbRpe > 1 ? 's' : '') + ')' : '') + '</span></div>' +
@@ -205,7 +219,8 @@ var UI = (function () {
     for (var s = s1; s <= s2; s++) {
       var l = lundiDe(a, s), jr = C.joursSemaine(a, l).map(function (x) { return x.jour; });
       var b = C.bilanJours(jr);
-      b.n = s; b.lundi = l; b.info = (a.semaines || {})[s] || {};
+      var ns = nomSemaine(a, s);
+      b.n = s; b.nom = ns.nom; b.lundi = l; b.info = ns.info;
       b.compet = jr.filter(function (j) { return C.normCode(j.type) === 'COMP'; }).map(function (j) { return j.corps; });
       out.push(b);
     }
@@ -219,7 +234,7 @@ var UI = (function () {
       '<div class="graph" id="graph"></div>' +
       '<details><summary>Tableau des semaines</summary><div class="tableau"><table><thead><tr><th>Sem.</th><th>Lundi</th><th>Phase / cycle</th><th class="num">Prévues</th><th class="num">KM</th><th class="num">Durée</th><th class="num">RPE moy.</th><th>Compétition</th></tr></thead><tbody>' +
       sem.map(function (b) {
-        return '<tr class="cliquable' + (b.n === n ? ' cour' : '') + '" data-act="allerSem" data-n="' + b.n + '"><td>S' + b.n + '</td><td>' + C.formatDateFR(b.lundi) + '</td><td>' + esc([b.info.phase, b.info.cycle].filter(Boolean).join(' · ')) + '</td>' +
+        return '<tr class="cliquable' + (b.n === n ? ' cour' : '') + '" data-act="allerSem" data-n="' + b.n + '"><td>' + b.nom + '</td><td>' + C.formatDateFR(b.lundi) + '</td><td>' + esc([b.info.phase, b.info.cycle].filter(Boolean).join(' · ')) + '</td>' +
           '<td class="num">' + b.prevues + '</td><td class="num">' + (b.km ? C.nombreFR(b.km, 2) : '') + '</td><td class="num">' + (b.dureeSec ? C.formatDuree(b.dureeSec) : '') + '</td>' +
           '<td class="num">' + (b.rpeMoy !== null ? C.nombreFR(b.rpeMoy, 1) : '') + '</td><td>' + esc(b.compet.join(', ')) + '</td></tr>';
       }).join('') + '</tbody></table></div></details></section>';
@@ -231,7 +246,7 @@ var UI = (function () {
     var max = Math.max.apply(null, sem.map(function (b) { return b.km; }).concat([10]));
     var pas = max > 60 ? 20 : 10, top = Math.ceil(max / pas) * pas, lw = (W - g - d) / sem.length, bw = Math.max(2, Math.min(28, lw - 2));
     var y = function (v) { return H - bas - (H - bas - hh) * v / top; };
-    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Kilomètres réalisés par semaine, de S' + sem[0].n + ' à S' + sem[sem.length - 1].n + '">';
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Kilomètres réalisés par semaine, de ' + sem[0].nom + ' à ' + sem[sem.length - 1].nom + '">';
     for (var v = 0; v <= top; v += pas) s += '<line class="grille" x1="' + g + '" x2="' + (W - d) + '" y1="' + y(v) + '" y2="' + y(v) + '"/><text class="axe" x="' + (g - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + v + '</text>';
     var pasLab = Math.ceil(sem.length / 8);
     sem.forEach(function (b, i) {
@@ -240,15 +255,15 @@ var UI = (function () {
         var r = Math.min(4, bw / 2, hb), cour = b.n === nCourant;
         s += '<path fill="' + (cour ? 'var(--sapin)' : 'var(--vert)') + '" d="M' + x + ' ' + (H - bas) + 'V' + (yy + r) + 'Q' + x + ' ' + yy + ' ' + (x + r) + ' ' + yy + 'H' + (x + bw - r) + 'Q' + (x + bw) + ' ' + yy + ' ' + (x + bw) + ' ' + (yy + r) + 'V' + (H - bas) + 'Z"/>';
       }
-      s += '<rect class="cible" data-i="' + i + '" x="' + (g + i * lw) + '" y="' + hh + '" width="' + lw + '" height="' + (H - bas - hh) + '" tabindex="0" aria-label="S' + b.n + ' : ' + C.nombreFR(b.km, 1) + ' km"/>';
-      if (i % pasLab === 0) s += '<text class="axe" x="' + (g + i * lw + lw / 2) + '" y="' + (H - 6) + '" text-anchor="middle">S' + b.n + '</text>';
+      s += '<rect class="cible" data-i="' + i + '" x="' + (g + i * lw) + '" y="' + hh + '" width="' + lw + '" height="' + (H - bas - hh) + '" tabindex="0" aria-label="' + b.nom + ' : ' + C.nombreFR(b.km, 1) + ' km"/>';
+      if (i % pasLab === 0) s += '<text class="axe" x="' + (g + i * lw + lw / 2) + '" y="' + (H - 6) + '" text-anchor="middle">' + b.nom + '</text>';
     });
     s += '<line x1="' + g + '" x2="' + (W - d) + '" y1="' + (H - bas) + '" y2="' + (H - bas) + '" stroke="var(--texte-2)"/></svg><div class="infobulle" role="tooltip"></div>';
     zone.innerHTML = s;
     var bulle = $('.infobulle', zone);
     function montrer(e) {
       var b = sem[+e.target.dataset.i]; if (!b) return;
-      bulle.innerHTML = '<b>S' + b.n + '</b> · ' + C.formatDateFR(b.lundi) + '<br>' + C.nombreFR(b.km, 2) + ' km' + (b.dureeSec ? ' · ' + C.formatDuree(b.dureeSec) : '') + (b.rpeMoy !== null ? ' · RPE ' + C.nombreFR(b.rpeMoy, 1) : '') + (b.info.phase ? '<br>' + esc(b.info.phase) : '');
+      bulle.innerHTML = '<b>' + b.nom + '</b> · ' + C.formatDateFR(b.lundi) + '<br>' + C.nombreFR(b.km, 2) + ' km' + (b.dureeSec ? ' · ' + C.formatDuree(b.dureeSec) : '') + (b.rpeMoy !== null ? ' · RPE ' + C.nombreFR(b.rpeMoy, 1) : '') + (b.info.phase ? '<br>' + esc(b.info.phase) : '');
       bulle.style.display = 'block';
       var rz = zone.getBoundingClientRect(), rr = e.target.getBoundingClientRect();
       bulle.style.left = Math.max(0, Math.min(rz.width - bulle.offsetWidth, rr.left - rz.left + rr.width / 2 - bulle.offsetWidth / 2)) + 'px';
@@ -423,7 +438,7 @@ var UI = (function () {
   return {
     init: function (o) { Object.assign(ctx, o); },
     FAMILLES: FAMILLES, REACTIONS: REACTIONS, esc: esc, $: $, $$: $$, toast: toast, auj: auj, maintenant: maintenant, nomComplet: nomComplet, prenom: prenom,
-    famille: famille, couleurFam: couleurFam, badgeRPE: badgeRPE, jourCourt: jourCourt, semaineDe: semaineDe, lundiDe: lundiDe, ilYa: ilYa, ecart: ecart,
+    famille: famille, couleurFam: couleurFam, badgeRPE: badgeRPE, jourCourt: jourCourt, semaineDe: semaineDe, lundiDe: lundiDe, semaineMin: semaineMin, nomSemaine: nomSemaine, ilYa: ilYa, ecart: ecart,
     creerStore: creerStore, chargerConfig: chargerConfig, appelService: appelService,
     carteJour: carteJour, htmlFiche: htmlFiche, htmlSemaine: htmlSemaine, htmlEnsemble: htmlEnsemble, brancherGraph: brancherGraph,
     vueLegende: vueLegende, vueAllures: vueAllures, htmlBarreRPE: htmlBarreRPE, brancherBarreRPE: brancherBarreRPE, vueProtos: vueProtos, appliquerTheme: appliquerTheme

@@ -325,7 +325,9 @@ var Core = (function () {
   // Modes :
   // « excel »     : entraîneur, nouveau classeur sur un athlète existant. Plan et fiche du classeur ;
   //                 saisies de l'athlète, réactions, code du lien et mot du coach conservés ;
-  //                 les valeurs athlète du classeur ne remplissent que les jours encore vides.
+  //                 les valeurs athlète du classeur ne remplissent que les jours encore vides ;
+  //                 les séances hors de la période de l'onglet importé (anciens contrats) gardent leur plan ;
+  //                 si la date de début change, le contrat précédent est archivé dans « contrats ».
   // « serveur »   : athlète, état reçu en ligne. Plan, fiche et réactions du serveur ; pour les saisies,
   //                 la plus récente gagne, et une saisie locale pas encore envoyée (opts.enAttente) est toujours gardée.
   // « retours »   : entraîneur, saisies reçues en ligne. Plan local conservé ; la saisie la plus récente gagne.
@@ -342,12 +344,15 @@ var Core = (function () {
         res[k] = clone(recu[k]);
       });
     }
-    var dates = {};
+    if (mode === 'excel') res.contrats = archiverContrat(local, recu);
+    // Période couverte par l'onglet importé : toutes ses lignes datées (planDu/planAu), à défaut ses jours renseignés
+    var dRecues = Object.keys(recu.jours || {}).sort(), dMin = recu.planDu || dRecues[0], dMax = recu.planAu || dRecues[dRecues.length - 1], dates = {};
     Object.keys(local.jours || {}).concat(Object.keys(recu.jours || {})).forEach(function (d) { dates[d] = 1; });
     res.jours = {};
     Object.keys(dates).forEach(function (d) {
       var l = (local.jours || {})[d] || {}, r = (recu.jours || {})[d] || {};
-      var coach = mode === 'retours' ? partie(l, CHAMPS_COACH) : partie(r, CHAMPS_COACH);
+      var horsPeriode = mode === 'excel' && (!dMin || d < dMin || d > dMax);
+      var coach = mode === 'retours' || horsPeriode ? partie(l, CHAMPS_COACH) : partie(r, CHAMPS_COACH);
       var reaction = mode === 'serveur' ? r[CHAMP_REACTION] : l[CHAMP_REACTION];
       var ath;
       if (mode === 'excel') ath = aDonneesAthlete(l) || l.majA ? partieAthlete(l) : partieAthlete(r);
@@ -358,6 +363,26 @@ var Core = (function () {
       j = nettoyerJour(j);
       if (Object.keys(j).length) res.jours[d] = j;
     });
+    return res;
+  }
+
+  /* ---------- Contrats précédents ---------- */
+  // Un contrat archivé : { debut, fin, contratSemaines, objectif, objectif2, semaines } (semaines numérotées depuis son début)
+  var CHAMPS_CONTRAT = ['debut', 'fin', 'contratSemaines', 'objectif', 'objectif2', 'semaines'];
+  function archiverContrat(local, recu) {
+    var liste = clone(local.contrats || []);
+    if (local.debut && recu.debut && local.debut !== recu.debut) {
+      var c = {}; CHAMPS_CONTRAT.forEach(function (k) { if (local[k] != null && local[k] !== '') c[k] = clone(local[k]); });
+      liste = liste.filter(function (x) { return x.debut !== c.debut; }).concat([c]);
+    }
+    // Le contrat importé redevient le contrat en cours s'il était archivé
+    return liste.filter(function (x) { return x.debut !== recu.debut; }).sort(function (x, y) { return x.debut < y.debut ? -1 : 1; });
+  }
+  // Contrat archivé qui couvre une date antérieure au contrat en cours (le plus récent qui a commencé avant)
+  function contratDe(a, iso) {
+    if (!iso || (a.debut && weekStart(iso) >= weekStart(a.debut))) return null;
+    var res = null;
+    (a.contrats || []).forEach(function (c) { if (c.debut && weekStart(c.debut) <= weekStart(iso)) res = c; });
     return res;
   }
 
@@ -697,6 +722,8 @@ var Core = (function () {
       return best === null ? null : ligneDate[best];
     }
     if (!a.debut && lignesDates.length) a.debut = weekStart(ligneDate[lignesDates[0]]);
+    var toutes = lignesDates.map(function (r) { return ligneDate[r]; }).sort();
+    if (toutes.length) { a.planDu = toutes[0]; a.planAu = toutes[toutes.length - 1]; }
     ['cycle', 'spe'].forEach(function (k) {
       regrouperVertical(verticales[k]).forEach(function (p) {
         var d1 = dateDeLigne(p.debut), d2 = dateDeLigne(p.fin);
@@ -781,11 +808,31 @@ var Core = (function () {
     return res.map(function (p) { return { id: p.code, code: p.code, titre: p.titre.join(' '), grille: p.grille, notes: '' }; });
   }
 
-  // Renvoie { athlete, legende, protos, rapport: [texte…] }
-  function importerClasseur(classeur) {
+  // Onglets qui ressemblent à un plan (en-tête « DATE » avec des lignes datées), dans l'ordre du classeur :
+  // [{ nom, du, au, seances }] ; un onglet par contrat ou par objectif, quel que soit son nom
+  var AUTRES_ONGLETS = ['LEGENDE', 'ALLURES', 'PROTOS'];
+  function ongletsPlan(classeur) {
+    return (classeur.feuilles || []).map(function (f) {
+      if (AUTRES_ONGLETS.indexOf(normCode(f.nom)) >= 0) return null;
+      if (!chercher(f, /^DATE$/i)) return null;
+      // Même lecture que l'import : période des lignes datées, jours avec une séance ou une saisie
+      var a; try { a = importerPlan(f, []); } catch (e) { return null; }
+      if (!a.planDu) return null;
+      return { nom: f.nom, du: a.planDu, au: a.planAu, seances: Object.keys(a.jours).length };
+    }).filter(Boolean);
+  }
+  // Onglet proposé par défaut : celui nommé « PLAN », sinon celui dont la période est la plus récente
+  function ongletParDefaut(onglets) {
+    var plan = onglets.filter(function (o) { return normCode(o.nom) === 'PLAN'; })[0];
+    return plan || onglets.slice().sort(function (x, y) { return x.du < y.du ? 1 : -1; })[0] || null;
+  }
+  // Renvoie { athlete, legende, protos, rapport: [texte…] } ; nomOnglet : onglet du plan à importer (par défaut « PLAN »)
+  function importerClasseur(classeur, nomOnglet) {
     var rapport = [];
-    var fPlan = feuille(classeur, 'PLAN');
-    if (!fPlan) throw new Error('onglet PLAN introuvable : ce classeur ne suit pas le modèle de l\'entraîneur');
+    var fPlan = feuille(classeur, nomOnglet || 'PLAN');
+    if (!fPlan && !nomOnglet) { var o = ongletParDefaut(ongletsPlan(classeur)); if (o) fPlan = feuille(classeur, o.nom); }
+    if (!fPlan) throw new Error('onglet ' + (nomOnglet || 'PLAN') + ' introuvable : ce classeur ne suit pas le modèle de l\'entraîneur');
+    if (normCode(fPlan.nom) !== 'PLAN') rapport.push('Plan lu dans l\'onglet « ' + texte(fPlan.nom) + ' »');
     var a = importerPlan(fPlan, rapport);
     importerAllures(feuille(classeur, 'ALLURES'), a, rapport);
     var lg = importerLegende(feuille(classeur, 'LEGENDE'));
@@ -861,6 +908,22 @@ var Core = (function () {
       var r = fusionner(loc, recu, 'excel'), j = r.jours['2026-10-13'];
       return r.code === 'ABC234' && r.motCoach === 'Go' && r.objectif === 'Cross' && j.corps === 'nouveau' && j.km === 10 && j.reaction === '👍' &&
         !r.jours['2026-10-14'] && r.jours['2026-10-15'].km === 8;
+    }],
+    ['Fusion « excel », nouveau contrat : l\'ancien plan est gardé hors de la période importée, le contrat précédent est archivé', function () {
+      var loc = { id: 'X', debut: '2025-01-13', fin: '2026-01-11', contratSemaines: 52, objectif: 'CROSS', semaines: { 3: { cycle: 'FONCIER' } },
+        jours: { '2025-03-03': { corps: '10x400', type: 'VMA', km: 8, majA: 't', reaction: '👍' }, '2025-03-04': { corps: 'FOOTING', type: 'EF' }, '2026-01-14': { corps: 'ANCIEN' } } };
+      var recu = { id: 'X', debut: '2026-01-12', contratSemaines: 40, planDu: '2026-01-12', planAu: '2026-10-18', semaines: { 1: { cycle: 'PREPA' } }, jours: { '2026-01-12': { corps: 'FOOTING', type: 'EF' }, '2026-01-15': { corps: 'VMA' } } };
+      var r = fusionner(loc, recu, 'excel'), c = r.contrats;
+      return r.jours['2025-03-03'].corps === '10x400' && r.jours['2025-03-03'].km === 8 && r.jours['2025-03-03'].reaction === '👍' &&
+        r.jours['2025-03-04'].corps === 'FOOTING' && !r.jours['2026-01-14'] && r.debut === '2026-01-12' && r.semaines[1].cycle === 'PREPA' &&
+        c.length === 1 && c[0].debut === '2025-01-13' && c[0].semaines[3].cycle === 'FONCIER' &&
+        contratDe(r, '2025-03-05') === c[0] && contratDe(r, '2026-01-13') === null && contratDe(r, '2024-12-30') === null;
+    }],
+    ['Fusion « excel », même contrat réimporté : rien n\'est archivé ; réimport d\'un ancien contrat : il redevient le contrat en cours', function () {
+      var loc = { id: 'X', debut: '2026-01-12', jours: {}, contrats: [{ debut: '2025-01-13' }] };
+      var r1 = fusionner(loc, { id: 'X', debut: '2026-01-12', jours: {} }, 'excel');
+      var r2 = fusionner(loc, { id: 'X', debut: '2025-01-13', jours: {} }, 'excel');
+      return r1.contrats.length === 1 && r2.contrats.length === 1 && r2.contrats[0].debut === '2026-01-12';
     }],
     ['Fusion « serveur » (athlète) : plan et réaction du serveur ; la saisie la plus récente gagne ; saisie en attente gardée', function () {
       var loc = { jours: { '2026-10-13': { corps: 'a', km: 10, majA: '2026-10-13T10:00:00Z' }, '2026-10-14': { km: 5, majA: '2026-10-14T08:00:00Z' }, '2026-10-15': { km: 6, majA: '2026-10-15T08:00:00Z' } } };
@@ -938,6 +1001,18 @@ var Core = (function () {
         a.jours['2026-08-03'].type === 'VMAC' && a.jours['2026-08-03'].eveil === '20' && a.jours['2026-08-05'].dureeSec === 3725 && a.jours['2026-08-05'].km === 12.3 &&
         a.jours['2026-08-05'].notes === 'bien' && a.semaines[82].cycle === 'AS' && a.id === 'DUPONT_JEAN';
     }],
+    ['Classeur à plusieurs onglets de plan : liste avec période et séances ; « PLAN » par défaut, sinon le plus récent ; onglet choisi importé', function () {
+      // 45670 = 13/01/2025 ; 46034 = 12/01/2026 ; 46035 = 13/01/2026
+      var f1 = { nom: 'PLAN 2025', lignes: [['DATE', 'CORPS'], [45670, 'FOOTING'], [45671]] };
+      var f2 = { nom: '10 KM', lignes: [['DATE', 'CORPS'], [46034, 'VMA'], [46035, 'EF']] };
+      var lg = { nom: 'LEGENDE', lignes: [['DATE', 'X'], [45670, 'Y']] };
+      var cl = { feuilles: [f1, f2, lg] }, o = ongletsPlan(cl);
+      var r = importerClasseur(cl), r2 = importerClasseur(cl, 'PLAN 2025');
+      return o.length === 2 && o[0].nom === 'PLAN 2025' && o[0].du === '2025-01-13' && o[0].au === '2025-01-14' && o[0].seances === 1 && o[1].seances === 2 &&
+        ongletParDefaut(o).nom === '10 KM' && ongletParDefaut([{ nom: 'Plan', du: '2020-01-01' }].concat(o)).nom === 'Plan' &&
+        r.athlete.jours['2026-01-12'].corps === 'VMA' && r.athlete.planDu === '2026-01-12' && r.athlete.planAu === '2026-01-13' &&
+        r2.athlete.jours['2025-01-13'].corps === 'FOOTING' && !r2.athlete.jours['2026-01-12'];
+    }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
       // 4 -> 1/3 × 5 = 1,667 : 2/3 du chemin cyan -> vert : 99 − 3×2/3 = 97 (0x61) ; 198 − 2×2/3 = 196,7 -> 197 (0xC5) ; 221 − 123×2/3 = 139 (0x8B)
@@ -1003,7 +1078,7 @@ var Core = (function () {
     tempsDistancePct: tempsDistancePct, distanceTempsPct: distanceTempsPct, zoneVitesses: zoneVitesses, allureChrono: allureChrono,
     trouverZone: trouverZone, reperesSeance: reperesSeance, normCode: normCode, chercherCode: chercherCode,
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
-    regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner,
-    lireXLSX: lireXLSX, importerClasseur: importerClasseur, versCSV: versCSV, TESTS: TESTS, runTests: runTests
+    regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe,
+    lireXLSX: lireXLSX, importerClasseur: importerClasseur, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();

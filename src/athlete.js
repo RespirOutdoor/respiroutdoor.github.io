@@ -462,7 +462,7 @@
     if (act === 'saisir') saisir(b.dataset.date);
     else if (act === 'pasFaite') pasFaite(b.dataset.date);
     else if (act === 'sync') synchroniser(true);
-    else if (act === 'semPrec') { semaineAffichee = Math.max(1, semaineAffichee - 1); rendre(); }
+    else if (act === 'semPrec') { semaineAffichee = Math.max(UI.semaineMin(a), semaineAffichee - 1); rendre(); }
     else if (act === 'semSuiv') { semaineAffichee++; rendre(); }
     else if (act === 'semAuj') { semaineAffichee = Math.max(1, UI.semaineDe(a, auj())); rendre(); }
     else if (act === 'allerSem') { semaineAffichee = +b.dataset.n; rendre(); window.scrollTo(0, 0); }
