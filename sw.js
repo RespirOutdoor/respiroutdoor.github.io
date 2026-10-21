@@ -3,11 +3,12 @@
 // Autres fichiers (icônes, manifeste) : réponse depuis le cache, mise à jour en arrière-plan.
 // Aucune donnée d'athlète n'est mise en cache ici : elles restent dans IndexedDB et le tableur de l'entraîneur.
 var PREFIXE = 'respir-outdoor-';
-var VERSION = PREFIXE + 'v26';
+var VERSION = PREFIXE + 'v27';
 var FICHIERS = ['./', './index.html', './manifest.json', './config.json', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(FICHIERS); }).then(function () { return self.skipWaiting(); }));
+  // « reload » : copie prise sur le serveur, pas dans le cache HTTP du navigateur (GitHub Pages autorise quelques minutes de cache)
+  e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(FICHIERS.map(function (f) { return new Request(f, { cache: 'reload' }); })); }).then(function () { return self.skipWaiting(); }));
 });
 self.addEventListener('activate', function (e) {
   // Ne supprime que les anciens caches de cette application : d'autres applications du même site partagent l'espace des caches.
@@ -22,7 +23,8 @@ self.addEventListener('fetch', function (e) {
   var config = e.request.mode === 'navigate' || /\/config\.json$|\/$|\.html$/.test(chemin);
   e.respondWith(caches.open(VERSION).then(function (cache) {
     return cache.match(e.request, { ignoreSearch: true }).then(function (enCache) {
-      var reseau = fetch(e.request).then(function (rep) {
+      // Page et config.json : « no-cache » fait vérifier la version auprès du serveur à chaque ouverture
+      var reseau = fetch(config ? new Request(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }) : e.request).then(function (rep) {
         if (rep && rep.ok) cache.put(e.request, rep.clone());
         return rep;
       }).catch(function () { return enCache; });
