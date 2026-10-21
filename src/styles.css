@@ -405,3 +405,10 @@ fieldset.disciplines { border: 0; padding: 0; margin: 0 0 12px; min-width: 0; }
 fieldset.disciplines legend { padding: 0; margin-bottom: 8px; font-weight: 600; }
 [data-champ][hidden] { display: none !important; }
 .retour .activite { font-weight: 700; color: var(--vert-fonce); }
+/* Activités en plus de la séance du jour */
+ul.extras { list-style: none; margin: 10px 0 0; padding: 10px 0 0; border-top: 1px dashed var(--bord); display: grid; gap: 8px; }
+ul.extras li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+ul.extras .activite { font-weight: 700; color: var(--vert-fonce); }
+ul.extras .mesures { flex: 1 1 auto; min-width: 0; }
+ul.extras .note { flex-basis: 100%; font-style: italic; color: var(--texte-2); }
+ul.extras li > button { margin-left: auto; }

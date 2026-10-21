@@ -166,16 +166,34 @@ var UI = (function () {
           h += '<button class="discret noprint" data-act="saisir" data-date="' + date + '">' + (aRet ? 'Modifier ma saisie' : 'Saisir ma séance') + '</button>';
         }
       }
-      var note = nf ? nf.message : dc ? dc.message : fl ? fl.notes : act ? act.notes : j.notes;
+      var note = nf ? nf.message : dc ? dc.message : fl ? fl.notes : act ? act.notes : C.notesPrincipales(j.notes);
       if (C.texte(note)) h += '<div class="note">« ' + esc(note) + ' »</div>';
       if (j.reaction) h += '<div class="reaction">' + (role === 'coach' ? 'Ta réaction' : 'Ton entraîneur') + ' : ' + esc(j.reaction) + '</div>';
       h += '</div>';
-    } else if (role === 'coach') {
-      h += '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="editJour" data-date="' + date + '">' + (vide ? 'Ajouter une séance' : 'Modifier') + '</button></div>';
-    } else if (passe) {
-      h += '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="saisir" data-date="' + date + '">Ajouter une sortie</button></div>';
+    }
+    h += htmlExtras(j, date, role, passe, aRet || (!repos && !vide));
+    if (!aRet && (repos || vide)) {
+      if (role === 'coach') {
+        h += '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="editJour" data-date="' + date + '">' + (vide ? 'Ajouter une séance' : 'Modifier') + '</button></div>';
+      } else if (passe) {
+        h += '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="saisir" data-date="' + date + '">Ajouter une sortie</button></div>';
+      }
     }
     return h + '</article>';
+  }
+
+  // Activités en plus de la séance du jour (ex. vélo l'après-midi) ; l'athlète en ajoute une sur un jour passé ou aujourd'hui
+  function htmlExtras(j, date, role, passe, ajout) {
+    var ex = C.extras(j), h = '';
+    if (ex.length) h += '<ul class="extras">' + ex.map(function (x, i) {
+      var mes = [C.isNum(x.km) ? '<b>' + C.nombreFR(x.km, 2) + '</b> km' : '', C.isNum(x.dureeSec) ? '<b>' + C.formatDuree(x.dureeSec) + '</b>' : '', texteAllure(x.activite.allure, x),
+        C.isNum(x.dplus) ? 'D+ ' + Math.round(x.dplus) + ' m' : '', C.isNum(x.fc) ? 'FC moy. ' + Math.round(x.fc) + ' bpm' : '', C.isNum(x.rpe) ? 'RPE ' + badgeRPE(x.rpe) : ''].filter(Boolean);
+      return '<li><span class="activite">+ ' + x.activite.emoji + ' ' + esc(x.activite.nom) + '</span><span class="mesures">' + mes.join('<span class="sep"> · </span>') + '</span>' +
+        (role === 'athlete' ? '<button class="discret noprint" data-act="extra" data-date="' + date + '" data-i="' + i + '">Modifier</button>' : '') +
+        (C.texte(x.note) ? '<div class="note">« ' + esc(x.note) + ' »</div>' : '') + '</li>';
+    }).join('') + '</ul>';
+    if (role === 'athlete' && passe && ajout) h += '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="extra" data-date="' + date + '">+ Autre activité</button></div>';
+    return h;
   }
 
   /* ---------- Fiche (en-tête du plan) ---------- */

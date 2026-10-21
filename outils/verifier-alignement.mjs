@@ -1,6 +1,6 @@
 // Contrôle de mise en page des deux applications : node outils/verifier-alignement.mjs
 // Ouvre chaque vue (athlète et entraîneur) sur des écrans de téléphone de 390 et 320 px, avec un plan d'exemple
-// (séance du jour saisie, sortie vélo un jour de repos, course, protocole, séance pas réalisée, décalée, réaction, message, mot du coach), puis vérifie :
+// (séance du jour saisie, sortie vélo un jour de repos, activités en plus (renforcement, vélo), course, protocole, séance pas réalisée, décalée, réaction, message, mot du coach), puis vérifie :
 //  - que toutes les cartes de premier niveau ont les mêmes bords gauche et droit, contours et ombres compris ;
 //  - qu'aucune carte n'en touche ou n'en chevauche une autre (au moins 8 px d'écart) ;
 //  - qu'aucune vue ne déborde en largeur, même avec une note longue sans espace (temps séparés par « / », lien).
@@ -37,7 +37,7 @@ jours[j(-3)] = { corps: '5x1000M', type: 'VMA', notes: '[PAS RÉALISÉE · Fatig
 jours[j(-2)] = { corps: 'FOOTING', type: 'EF', notes: '[DÉCALÉE AU ' + j(1) + ' · Manque de temps] ', majA: '2026-01-01T10:00:00Z' };
 jours[j(-1)] = { corps: 'SORTIE LONGUE', type: 'EF' };
 jours[j(-4)] = { corps: 'REPOS', km: 42.5, dureeSec: 5400, rpe: 4, notes: '[ACTIVITÉ · Vélo] Sortie vélo avec le club', majA: '2026-01-01T10:00:00Z' };
-jours[aj] = { corps: '45 MIN FOOTING', type: 'EF', eveil: '15', km: 8.4, dureeSec: 2550, dplus: 60, fc: 140, rpe: 3, notes: 'Bonnes jambes.\nJe me suis mélangé :13x100m réalisé : 16,08/15,70/15,92/15,53/15,66/15,08/15,65/15,45/15,68/16,01/15,36/14,94/14,98', reaction: '👍 Bien', majA: '2026-01-01T10:00:00Z' };
+jours[aj] = { corps: '45 MIN FOOTING', type: 'EF', eveil: '15', km: 8.4, dureeSec: 2550, dplus: 60, fc: 140, rpe: 3, notes: 'Bonnes jambes.\nJe me suis mélangé :13x100m réalisé : 16,08/15,70/15,92/15,53/15,66/15,08/15,65/15,45/15,68/16,01/15,36/14,94/14,98\n[+ Renforcement musculaire · 0:45:00 · RPE 5] Gainage, squats et fentes pour préparer le 10 km\n[+ Vélo · 42,5 km · 1:30:00 · D+ 380 m · FC 131 · RPE 4] Sortie avec le club', reaction: '👍 Bien', majA: '2026-01-01T10:00:00Z' };
 jours[j(1)] = { corps: '10x400M', type: 'VMA', eveil: '15', educ: '10', rac: '10' };
 jours[j(2)] = { corps: 'PROTOCOLE PRE-COMPET', type: 'PROTO' };
 jours[j(3)] = { corps: '10 KM ROUTE', type: 'COMP' };

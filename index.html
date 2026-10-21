@@ -417,6 +417,13 @@ fieldset.disciplines { border: 0; padding: 0; margin: 0 0 12px; min-width: 0; }
 fieldset.disciplines legend { padding: 0; margin-bottom: 8px; font-weight: 600; }
 [data-champ][hidden] { display: none !important; }
 .retour .activite { font-weight: 700; color: var(--vert-fonce); }
+/* Activités en plus de la séance du jour */
+ul.extras { list-style: none; margin: 10px 0 0; padding: 10px 0 0; border-top: 1px dashed var(--bord); display: grid; gap: 8px; }
+ul.extras li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+ul.extras .activite { font-weight: 700; color: var(--vert-fonce); }
+ul.extras .mesures { flex: 1 1 auto; min-width: 0; }
+ul.extras .note { flex-basis: 100%; font-style: italic; color: var(--texte-2); }
+ul.extras li > button { margin-left: auto; }
 </style>
 </head>
 <body class="coach">
@@ -692,18 +699,21 @@ var Core = (function () {
   /* ---------- Bilans ---------- */
   function estRepos(j) { return /^REPOS\b/i.test(texte(j && j.corps)); }
   function aContenuCoach(j) { return !!j && CHAMPS_COACH.some(function (k) { return texte(j[k]) !== ''; }); }
-  function aRetour(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec) || isNum(j.rpe) || isNum(j.dplus) || isNum(j.fc) || texte(j.notes) !== ''); }
+  // Saisie principale du jour (les activités en plus, lignes « [+ …] » de la note, n'en font pas partie)
+  function aRetour(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec) || isNum(j.rpe) || isNum(j.dplus) || isNum(j.fc) || notesPrincipales(j.notes) !== ''); }
   // Somme des km et durées, moyenne des RPE renseignés (comme =SUM et =AVERAGE du tableau)
   function bilanJours(jours) {
     var r = { km: 0, dureeSec: 0, rpeMoy: null, nbRpe: 0, prevues: 0, faites: 0, autres: [] }, sRpe = 0;
     (jours || []).forEach(function (j) {
       if (!j) return;
       if (aContenuCoach(j) && !estRepos(j)) r.prevues++;
-      if (!estCourse(j)) { if (aRetour(j)) r.autres.push(activite(j).activite.nom); return; }
-      if (isNum(j.km)) r.km += j.km;
-      if (isNum(j.dureeSec)) r.dureeSec += j.dureeSec;
-      if (isNum(j.rpe)) { sRpe += j.rpe; r.nbRpe++; }
-      if (isNum(j.km) || isNum(j.dureeSec)) r.faites++;
+      seancesDuJour(j).forEach(function (x) {
+        if (x.code !== 'course') { r.autres.push(x.nom); return; }
+        if (isNum(x.km)) r.km += x.km;
+        if (isNum(x.dureeSec)) r.dureeSec += x.dureeSec;
+        if (isNum(x.rpe)) { sRpe += x.rpe; r.nbRpe++; }
+        if (isNum(x.km) || isNum(x.dureeSec)) r.faites++;
+      });
     });
     r.km = Math.round(r.km * 1000) / 1000;
     if (r.nbRpe) r.rpeMoy = sRpe / r.nbRpe;
@@ -882,17 +892,17 @@ var Core = (function () {
   var RAISONS_NON_FAITE = ['Malade', 'Blessure / douleur', 'Fatigue', 'Manque de temps', 'Météo', 'Autre'];
   function nonRealisee(j) {
     var m = /^\[PAS RÉALISÉE(?: · ([^\]]*))?\]\s*([\s\S]*)$/.exec(texte(j && j.notes));
-    return m ? { raison: m[1] || '', message: m[2] || '' } : null;
+    return m ? { raison: m[1] || '', message: notesPrincipales(m[2]) } : null;
   }
   // Séance décalée : « [DÉCALÉE AU 2026-10-20 · raison] message » ; une fois faite : « [FAITE LE 2026-10-20] notes »
   function decalee(j) {
     var m = /^\[DÉCALÉE AU (\d{4}-\d{2}-\d{2})(?: · ([^\]]*))?\]\s*([\s\S]*)$/.exec(texte(j && j.notes));
-    return m ? { au: m[1], raison: m[2] || '', message: m[3] || '' } : null;
+    return m ? { au: m[1], raison: m[2] || '', message: notesPrincipales(m[3]) } : null;
   }
   function noteDecalee(au, raison, message) { return '[DÉCALÉE AU ' + au + (texte(raison) ? ' · ' + texte(raison).replace(/[\[\]]/g, '') : '') + '] ' + texte(message); }
   function faiteLe(j) {
     var m = /^\[FAITE LE (\d{4}-\d{2}-\d{2})\]\s*([\s\S]*)$/.exec(texte(j && j.notes));
-    return m ? { le: m[1], notes: m[2] || '' } : null;
+    return m ? { le: m[1], notes: notesPrincipales(m[2]) } : null;
   }
   function noteFaiteLe(le, notes) { return '[FAITE LE ' + le + '] ' + texte(notes); }
   function noteNonRealisee(raison, message) { return '[PAS RÉALISÉE' + (texte(raison) ? ' · ' + texte(raison).replace(/[\[\]]/g, '') : '') + '] ' + texte(message); }
@@ -912,7 +922,7 @@ var Core = (function () {
     var m = /^\[ACTIVITÉ · ([^\]]+)\]\s*([\s\S]*)$/.exec(texte(j && j.notes));
     if (!m) return null;
     var a = ACTIVITES.filter(function (x) { return x.nom.toUpperCase() === m[1].trim().toUpperCase(); })[0] || { code: 'autre', nom: m[1].trim(), emoji: '🏅' };
-    return { activite: a, notes: m[2] || '' };
+    return { activite: a, notes: notesPrincipales(m[2]) };
   }
   function noteActivite(code, notes) {
     var a = ACTIVITES.filter(function (x) { return x.code === code; })[0];
@@ -920,6 +930,47 @@ var Core = (function () {
   }
   // Course à pied : compte dans les km, durées, D+, records et chaussures ; les autres disciplines sont comptées à part
   function estCourse(j) { var a = activite(j); return !a || a.activite.code === 'course'; }
+
+  // Activités en plus de la séance du jour (ex. footing prévu le matin, vélo l'après-midi) : une ligne lisible
+  // par activité à la fin de la note, « [+ Vélo · 42,5 km · 1:30:00 · D+ 380 m · FC 131 · RPE 4] note » (sans changement du script Google)
+  var RE_EXTRA = /^\[\+ ([^\]]*)\] ?(.*)$/;
+  function activiteParNom(nom) { return ACTIVITES.filter(function (x) { return x.nom.toUpperCase() === texte(nom).toUpperCase(); })[0] || { code: 'autre', nom: texte(nom), emoji: '🏅' }; }
+  function extras(j) {
+    return texte(j && j.notes).split('\n').map(function (l) {
+      var m = RE_EXTRA.exec(l.trim()); if (!m) return null;
+      var p = m[1].split(' · '), x = { activite: activiteParNom(p[0]), note: m[2] || '' }, v;
+      p.slice(1).forEach(function (t) {
+        if ((v = /^([\d.,]+) km$/.exec(t))) x.km = parseNumberFR(v[1]);
+        else if ((v = /^D\+ (\d+) m$/.exec(t))) x.dplus = Number(v[1]);
+        else if ((v = /^FC (\d+)$/.exec(t))) x.fc = Number(v[1]);
+        else if ((v = /^RPE ([\d.,]+)$/.exec(t))) x.rpe = parseNumberFR(v[1]);
+        else if (/^\d+:\d{2}(:\d{2})?$/.test(t)) x.dureeSec = parseDuree(t);
+      });
+      return x;
+    }).filter(Boolean);
+  }
+  function ligneExtra(x) {
+    var p = [x.activite.nom];
+    if (isNum(x.km)) p.push(nombreFR(x.km, 3) + ' km');
+    if (isNum(x.dureeSec)) p.push(formatDuree(x.dureeSec));
+    if (isNum(x.dplus)) p.push('D+ ' + Math.round(x.dplus) + ' m');
+    if (isNum(x.fc)) p.push('FC ' + Math.round(x.fc));
+    if (isNum(x.rpe)) p.push('RPE ' + nombreFR(x.rpe, 1));
+    return '[+ ' + p.join(' · ').replace(/[\[\]\n]/g, '') + ']' + (texte(x.note) ? ' ' + texte(x.note).replace(/\s+/g, ' ') : '');
+  }
+  function notesPrincipales(notes) { return texte(String(notes == null ? '' : notes).split('\n').filter(function (l) { return !RE_EXTRA.test(l.trim()); }).join('\n')); }
+  function avecExtras(notes, liste) {
+    var lignes = (liste || []).map(ligneExtra), n = notesPrincipales(notes);
+    return lignes.length ? (n ? n + '\n' : '') + lignes.join('\n') : n;
+  }
+  // Toutes les séances d'un jour : la saisie principale puis les activités en plus { code, nom, km, dureeSec, dplus, rpe, principale }
+  function seancesDuJour(j) {
+    var out = [];
+    if (!j) return out;
+    if (aRetour(j)) { var a = activite(j); out.push({ code: a ? a.activite.code : 'course', nom: a ? a.activite.nom : 'Course à pied', km: j.km, dureeSec: j.dureeSec, dplus: j.dplus, rpe: j.rpe, principale: true }); }
+    extras(j).forEach(function (x) { out.push({ code: x.activite.code, nom: x.activite.nom, km: x.km, dureeSec: x.dureeSec, dplus: x.dplus, rpe: x.rpe }); });
+    return out;
+  }
   // Bilan du « du » au « au » inclus ; « auj » sert à compter les séances prévues déjà passées
   function bilanPeriode(athlete, du, au, auj) {
     var r = { km: 0, dureeSec: 0, dplus: 0, seances: 0, prevues: 0, prevuesADate: 0, prevuesFaites: 0, autres: 0 };
@@ -927,14 +978,15 @@ var Core = (function () {
       if (d < du || d > au) return;
       var j = athlete.jours[d], p = estPrevue(j);
       if (p) { r.prevues++; if (!auj || d <= auj) r.prevuesADate++; }
-      if (!estCourse(j)) { if (aRetour(j)) r.autres++; return; }
-      if (estFaite(j)) {
+      seancesDuJour(j).forEach(function (x) {
+        if (x.code !== 'course') { r.autres++; return; }
+        if (!(isNum(x.km) || isNum(x.dureeSec))) return;
         r.seances++;
-        if (p) r.prevuesFaites++;
-        if (isNum(j.km)) r.km += j.km;
-        if (isNum(j.dureeSec)) r.dureeSec += j.dureeSec;
-        if (isNum(j.dplus)) r.dplus += j.dplus;
-      }
+        if (p && x.principale) r.prevuesFaites++;
+        if (isNum(x.km)) r.km += x.km;
+        if (isNum(x.dureeSec)) r.dureeSec += x.dureeSec;
+        if (isNum(x.dplus)) r.dplus += x.dplus;
+      });
     });
     r.km = Math.round(r.km * 1000) / 1000;
     return r;
@@ -942,35 +994,39 @@ var Core = (function () {
 
   /* ---------- Records (calculés uniquement sur les séances saisies) ---------- */
   function records(athlete) {
-    var dates = Object.keys(athlete.jours || {}).filter(function (d) { return estCourse(athlete.jours[d]); }).sort(), out = [], semaines = {};
+    // Séances de course à pied : saisie principale et activités « en plus » (deux sorties le même jour comptent chacune)
+    var seances = [], out = [], semaines = {};
+    Object.keys(athlete.jours || {}).sort().forEach(function (d) {
+      var j = athlete.jours[d];
+      seancesDuJour(j).forEach(function (x) { if (x.code === 'course') seances.push({ date: d, km: x.km, dureeSec: x.dureeSec, dplus: x.dplus, type: x.principale ? j.type : '' }); });
+    });
     function max(cle, libelle, f, format) {
       var best = null;
-      dates.forEach(function (d) { var v = f(athlete.jours[d]); if (isNum(v) && v > 0 && (!best || v > best.v)) best = { v: v, date: d }; });
+      seances.forEach(function (s) { var v = f(s); if (isNum(v) && v > 0 && (!best || v > best.v)) best = { v: v, date: s.date }; });
       if (best) out.push({ cle: cle, libelle: libelle, valeur: best.v, texte: format(best.v), date: best.date });
     }
     function allure(cle, libelle, filtre) {
       var best = null;
-      dates.forEach(function (d) {
-        var j = athlete.jours[d];
-        if (!filtre(j)) return;
-        var a = allureMoyenne(j.dureeSec, j.km);
-        if (a && (!best || a < best.v)) best = { v: a, date: d, km: j.km };
+      seances.forEach(function (s) {
+        if (!filtre(s)) return;
+        var a = allureMoyenne(s.dureeSec, s.km);
+        if (a && (!best || a < best.v)) best = { v: a, date: s.date, km: s.km, s: s };
       });
-      if (best) out.push({ cle: cle, libelle: libelle, valeur: best.v, texte: formatAllure(best.v) + ' sur ' + nombreFR(best.km, 2) + ' km', date: best.date });
+      if (best) out.push({ cle: cle, libelle: libelle, valeur: best.v, texte: formatAllure(best.v) + ' sur ' + nombreFR(best.km, 2) + ' km', date: best.date, seance: best.s });
     }
-    max('distance', 'Plus longue sortie', function (j) { return j.km; }, function (v) { return nombreFR(v, 2) + ' km'; });
-    max('duree', 'Plus longue durée', function (j) { return j.dureeSec; }, formatDuree);
-    max('dplus', 'Plus gros D+', function (j) { return j.dplus; }, function (v) { return Math.round(v) + ' m'; });
-    dates.forEach(function (d) { var j = athlete.jours[d]; if (isNum(j.km)) { var l = weekStart(d); semaines[l] = (semaines[l] || 0) + j.km; } });
+    max('distance', 'Plus longue sortie', function (s) { return s.km; }, function (v) { return nombreFR(v, 2) + ' km'; });
+    max('duree', 'Plus longue durée', function (s) { return s.dureeSec; }, formatDuree);
+    max('dplus', 'Plus gros D+', function (s) { return s.dplus; }, function (v) { return Math.round(v) + ' m'; });
+    seances.forEach(function (s) { if (isNum(s.km)) { var l = weekStart(s.date); semaines[l] = (semaines[l] || 0) + s.km; } });
     var bs = null;
     Object.keys(semaines).forEach(function (l) { if (!bs || semaines[l] > bs.v) bs = { v: semaines[l], date: l }; });
     if (bs && bs.v > 0) out.push({ cle: 'semaine', libelle: 'Plus grosse semaine', valeur: bs.v, texte: nombreFR(bs.v, 2) + ' km', date: bs.date });
-    allure('compet', 'Meilleure allure en compétition', function (j) { return normCode(j.type) === 'COMP'; });
-    allure('allure10', 'Meilleure allure moyenne (séance de 10 km ou plus)', function (j) { return isNum(j.km) && j.km >= 10; });
-    allure('allure5', 'Meilleure allure moyenne (séance de 5 km ou plus)', function (j) { return isNum(j.km) && j.km >= 5; });
+    allure('compet', 'Meilleure allure en compétition', function (s) { return normCode(s.type) === 'COMP'; });
+    allure('allure10', 'Meilleure allure moyenne (séance de 10 km ou plus)', function (s) { return isNum(s.km) && s.km >= 10; });
+    allure('allure5', 'Meilleure allure moyenne (séance de 5 km ou plus)', function (s) { return isNum(s.km) && s.km >= 5; });
     // Même séance que le record « 10 km ou plus » : inutile de l'afficher deux fois
     var a10 = out.filter(function (r) { return r.cle === 'allure10'; })[0];
-    return out.filter(function (r) { return !(r.cle === 'allure5' && a10 && a10.date === r.date); });
+    return out.filter(function (r) { return !(r.cle === 'allure5' && a10 && a10.seance === r.seance); }).map(function (r) { delete r.seance; return r; });
   }
 
   /* ---------- Suivi entraîneur ---------- */
@@ -1548,6 +1604,19 @@ var Core = (function () {
         b.km === 10 && b.dureeSec === 3000 && b.seances === 1 && b.autres === 3 && bj.km === 10 && bj.autres.join() === 'Vélo,Renforcement musculaire,Marche nordique' &&
         rec.filter(function (r) { return r.cle === 'distance'; })[0].valeur === 10 && ch.p === 16 && estCourse(a.jours['2026-10-19']) && !estCourse(a.jours['2026-10-22']);
     }],
+    ['Activité en plus le même jour (footing prévu + vélo, + 2e footing) : lignes lues et réécrites ; notes, marqueurs et saisie principale intacts ; totaux', function () {
+      var v = { activite: ACTIVITES[3], km: 42.5, dureeSec: 5400, dplus: 380, fc: 131, rpe: 4, note: 'Club' }, f = { activite: ACTIVITES[0], km: 5, dureeSec: 1500 };
+      var notes = avecExtras('Bonnes jambes', [v, f]), j = { corps: 'FOOTING', km: 10, dureeSec: 3000, rpe: 3, notes: notes };
+      var x = extras(j), nf = { notes: avecExtras(noteNonRealisee('Fatigue', 'KO'), [v]) };
+      var a = { jours: { '2026-10-21': j, '2026-10-22': { corps: 'VMA', notes: avecExtras('', [{ activite: ACTIVITES[5], dureeSec: 1800 }]) } } };
+      var b = bilanPeriode(a, '2026-10-19', '2026-10-25'), bj = bilanJours([j]), rec = records(a);
+      return notes === 'Bonnes jambes\n[+ Vélo · 42,5 km · 1:30:00 · D+ 380 m · FC 131 · RPE 4] Club\n[+ Course à pied · 5 km · 0:25:00]' &&
+        x.length === 2 && x[0].activite.code === 'velo' && x[0].km === 42.5 && x[0].dureeSec === 5400 && x[0].dplus === 380 && x[0].fc === 131 && x[0].rpe === 4 && x[0].note === 'Club' &&
+        notesPrincipales(j.notes) === 'Bonnes jambes' && avecExtras('Autre', x) === notes.replace('Bonnes jambes', 'Autre') && avecExtras('', []) === '' &&
+        nonRealisee(nf).message === 'KO' && extras(nf).length === 1 && !aRetour(a.jours['2026-10-22']) &&
+        b.km === 15 && b.dureeSec === 4500 && b.seances === 2 && b.prevuesFaites === 1 && b.autres === 2 && bj.faites === 2 && bj.autres.join() === 'Vélo' &&
+        rec.filter(function (r) { return r.cle === 'semaine'; })[0].valeur === 15;
+    }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
       // 4 -> 1/3 × 5 = 1,667 : 2/3 du chemin cyan -> vert : 99 − 3×2/3 = 97 (0x61) ; 198 − 2×2/3 = 196,7 -> 197 (0xC5) ; 221 − 123×2/3 = 139 (0x8B)
@@ -1613,7 +1682,8 @@ var Core = (function () {
     tempsDistancePct: tempsDistancePct, distanceTempsPct: distanceTempsPct, zoneVitesses: zoneVitesses, allureChrono: allureChrono,
     trouverZone: trouverZone, reperesSeance: reperesSeance, normCode: normCode, chercherCode: chercherCode,
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
-    regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse, corrigerAthlete: corrigerAthlete,
+    regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
+    extras: extras, avecExtras: avecExtras, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete,
     lireXLSX: lireXLSX, importerClasseur: importerClasseur, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();
@@ -1790,16 +1860,34 @@ var UI = (function () {
           h += '<button class="discret noprint" data-act="saisir" data-date="' + date + '">' + (aRet ? 'Modifier ma saisie' : 'Saisir ma séance') + '</button>';
         }
       }
-      var note = nf ? nf.message : dc ? dc.message : fl ? fl.notes : act ? act.notes : j.notes;
+      var note = nf ? nf.message : dc ? dc.message : fl ? fl.notes : act ? act.notes : C.notesPrincipales(j.notes);
       if (C.texte(note)) h += '<div class="note">« ' + esc(note) + ' »</div>';
       if (j.reaction) h += '<div class="reaction">' + (role === 'coach' ? 'Ta réaction' : 'Ton entraîneur') + ' : ' + esc(j.reaction) + '</div>';
       h += '</div>';
-    } else if (role === 'coach') {
-      h += '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="editJour" data-date="' + date + '">' + (vide ? 'Ajouter une séance' : 'Modifier') + '</button></div>';
-    } else if (passe) {
-      h += '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="saisir" data-date="' + date + '">Ajouter une sortie</button></div>';
+    }
+    h += htmlExtras(j, date, role, passe, aRet || (!repos && !vide));
+    if (!aRet && (repos || vide)) {
+      if (role === 'coach') {
+        h += '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="editJour" data-date="' + date + '">' + (vide ? 'Ajouter une séance' : 'Modifier') + '</button></div>';
+      } else if (passe) {
+        h += '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="saisir" data-date="' + date + '">Ajouter une sortie</button></div>';
+      }
     }
     return h + '</article>';
+  }
+
+  // Activités en plus de la séance du jour (ex. vélo l'après-midi) ; l'athlète en ajoute une sur un jour passé ou aujourd'hui
+  function htmlExtras(j, date, role, passe, ajout) {
+    var ex = C.extras(j), h = '';
+    if (ex.length) h += '<ul class="extras">' + ex.map(function (x, i) {
+      var mes = [C.isNum(x.km) ? '<b>' + C.nombreFR(x.km, 2) + '</b> km' : '', C.isNum(x.dureeSec) ? '<b>' + C.formatDuree(x.dureeSec) + '</b>' : '', texteAllure(x.activite.allure, x),
+        C.isNum(x.dplus) ? 'D+ ' + Math.round(x.dplus) + ' m' : '', C.isNum(x.fc) ? 'FC moy. ' + Math.round(x.fc) + ' bpm' : '', C.isNum(x.rpe) ? 'RPE ' + badgeRPE(x.rpe) : ''].filter(Boolean);
+      return '<li><span class="activite">+ ' + x.activite.emoji + ' ' + esc(x.activite.nom) + '</span><span class="mesures">' + mes.join('<span class="sep"> · </span>') + '</span>' +
+        (role === 'athlete' ? '<button class="discret noprint" data-act="extra" data-date="' + date + '" data-i="' + i + '">Modifier</button>' : '') +
+        (C.texte(x.note) ? '<div class="note">« ' + esc(x.note) + ' »</div>' : '') + '</li>';
+    }).join('') + '</ul>';
+    if (role === 'athlete' && passe && ajout) h += '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="extra" data-date="' + date + '">+ Autre activité</button></div>';
+    return h;
   }
 
   /* ---------- Fiche (en-tête du plan) ---------- */
@@ -2652,7 +2740,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v28</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v29</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
@@ -2748,11 +2836,11 @@ var UI = (function () {
   }
   function exportCsv() {
     var a = athlete(), dates = Object.keys(a.jours).sort();
-    var l = [['Semaine', 'Jour', 'Date', 'Éveil (min.)', 'Éduc (min.)', 'Corps de séance', 'RAC (min.)', 'Profil', 'Type', 'Phase', 'Cycle', 'Consignes', 'KM', 'Durée', 'D+ (m)', 'RPE', 'FC moy. (bpm)', 'Discipline', 'Notes perso', 'Réaction du coach']];
+    var l = [['Semaine', 'Jour', 'Date', 'Éveil (min.)', 'Éduc (min.)', 'Corps de séance', 'RAC (min.)', 'Profil', 'Type', 'Phase', 'Cycle', 'Consignes', 'KM', 'Durée', 'D+ (m)', 'RPE', 'FC moy. (bpm)', 'Discipline', 'Notes perso', 'Autres activités', 'Réaction du coach']];
     dates.forEach(function (d) {
       var j = a.jours[d], ns = UI.nomSemaine(a, UI.semaineDe(a, d)), w = ns.info;
       l.push([ns.nom + (ns.contrat ? ' (contrat du ' + C.formatDateFR(ns.contrat.debut) + ')' : ''), C.JOURS[C.dayOfWeek(d)], C.formatDateFR(d), j.eveil || '', j.educ || '', j.corps || '', j.rac || '', j.profil || '', j.type || '', w.phase || '', w.cycle || '', j.consignes || '',
-        C.isNum(j.km) ? C.nombreFR(j.km, 3) : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.dplus) ? Math.round(j.dplus) : '', C.isNum(j.rpe) ? C.nombreFR(j.rpe, 1) : '', C.isNum(j.fc) ? Math.round(j.fc) : '', C.activite(j) ? C.activite(j).activite.nom : (C.aRetour(j) ? 'Course à pied' : ''), C.activite(j) ? C.activite(j).notes : (j.notes || ''), j.reaction || '']);
+        C.isNum(j.km) ? C.nombreFR(j.km, 3) : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.dplus) ? Math.round(j.dplus) : '', C.isNum(j.rpe) ? C.nombreFR(j.rpe, 1) : '', C.isNum(j.fc) ? Math.round(j.fc) : '', C.activite(j) ? C.activite(j).activite.nom : (C.aRetour(j) ? 'Course à pied' : ''), C.activite(j) ? C.activite(j).notes : C.notesPrincipales(j.notes), C.extras(j).map(function (x) { return [x.activite.nom, C.isNum(x.km) ? C.nombreFR(x.km, 2) + ' km' : '', C.isNum(x.dureeSec) ? C.formatDuree(x.dureeSec) : ''].filter(Boolean).join(' '); }).join(' ; '), j.reaction || '']);
     });
     telecharger(horodatage() + '_PLAN_' + (a.nom || '').toUpperCase() + '.csv', '﻿' + C.versCSV(l), 'text/csv;charset=utf-8');
   }
@@ -2862,8 +2950,8 @@ var Aide = (function () {
       '<ol><li>Onglet <b>Athlètes</b> → <b>Importer un Excel</b>, puis choisis le fichier .xlsx (onglets PLAN, LEGENDE, ALLURES, PROTOS).</li><li>Si le classeur contient plusieurs onglets de plan (un par contrat ou par objectif), l\'application te demande lequel importer.</li><li>Athlète déjà connu : seule la partie entraîneur des dates de l\'onglet est remplacée. Ses séances saisies, tes réactions, son lien et le plan des autres périodes sont conservés.</li><li>Nouvel athlète : touche <b>Envoyer le lien</b> à la fin de l\'import.</li></ol><p>Le plan part vers le service Google à la synchronisation suivante, qui se lance toute seule.</p>', a: ['Ouvrir les athlètes', '#/athletes'] },
     { id: 'contrat', q: 'Passer à un nouveau contrat (nouvel onglet)', m: 'nouveau contrat onglet onglets objectif saison fin ancien anciennes donnees perdre effacer archive historique precedent renouveler', r:
       '<ol><li>Dans ton classeur, crée l\'onglet du nouveau contrat, avec le nom que tu veux (ex. « PLAN 2027 », « 10 KM »). Garde l\'ancien onglet.</li><li>Onglet <b>Athlètes</b> → <b>Importer un Excel</b> → choisis l\'onglet du nouveau contrat.</li></ol><p>Rien n\'est perdu : les séances de l\'ancien contrat (ton plan, ses saisies, tes réactions) restent dans l\'application. Le contrat précédent est archivé : dans le plan, la flèche ◀ depuis la S1 remonte dans ses semaines, avec leur numérotation d\'origine. Les totaux et records de l\'athlète tiennent compte de tout son historique.</p>', a: ['Ouvrir les athlètes', '#/athletes'] },
-    { id: 'disciplines', q: 'Vélo, natation, marche… saisis par un athlète', m: 'velo natation marche nordique renforcement musculaire discipline sport autre activite repos cross training', r:
-      '<p>Un jour de repos (ou sans séance prévue), l\'athlète peut saisir une autre discipline : marche nordique, marche, vélo, natation ou renforcement musculaire. Elle apparaît sur la carte du jour avec son icône (ex. 🚴 Vélo), avec la vitesse en km/h pour le vélo et l\'allure aux 100 m pour la natation.</p><p>Ces activités ne comptent pas dans les km, durées et records de course à pied : elles sont listées à part dans le bilan de la semaine et dans le tableau de bord de l\'athlète. L\'export CSV a une colonne « Discipline ».</p>', a: ['Ouvrir le plan', '#/plan'] },
+    { id: 'disciplines', q: 'Vélo, natation, marche… saisis par un athlète', m: 'velo natation marche nordique renforcement musculaire discipline sport autre activite activites plus deux seances double repos cross training', r:
+      '<p>Un jour de repos (ou sans séance prévue), l\'athlète peut saisir une autre discipline : marche nordique, marche, vélo, natation ou renforcement musculaire. Elle apparaît sur la carte du jour avec son icône (ex. 🚴 Vélo), avec la vitesse en km/h pour le vélo et l\'allure aux 100 m pour la natation.</p><p>Ces activités ne comptent pas dans les km, durées et records de course à pied : elles sont listées à part dans le bilan de la semaine et dans le tableau de bord de l\'athlète. L\'export CSV a une colonne « Discipline ».</p><p>Un jour avec une séance, l\'athlète peut aussi ajouter une <b>autre activité</b> (ex. footing le matin, renforcement ou vélo l\'après-midi) : elle apparaît sous la séance avec un « + ». Une 2e sortie de course à pied compte dans ses km. Dans le tableur Google, elle figure en fin de note, ex. « [+ Vélo · 25 km · 1:00:00] ».</p>', a: ['Ouvrir le plan', '#/plan'] },
     { id: 'creer', q: 'Créer un athlète sans Excel', m: 'creer nouvel nouveau athlete ajouter fiche manuel main inscrire', r:
       '<p>Onglet <b>Athlètes</b> → <b>Nouvel athlète</b>. Remplis prénom, nom et date de début du contrat (un lundi), puis <b>Enregistrer</b>. Ajoute ensuite les séances depuis l\'onglet Plan avec « Ajouter une séance », puis envoie le lien.</p>', a: ['Ouvrir les athlètes', '#/athletes'] },
     { id: 'seance', q: 'Modifier une séance du plan', m: 'modifier seance jour changer corps consigne ajouter supprimer vider eveil educ rac type profil corriger', r:

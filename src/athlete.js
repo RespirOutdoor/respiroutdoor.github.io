@@ -338,6 +338,57 @@
     if (n.some(isNaN) || n[1] > 59 || n[2] > 59) return NaN;
     return n[0] * 3600 + n[1] * 60 + n[2];
   }
+  // Activité en plus de la séance du jour (ex. footing prévu le matin, renforcement ou vélo l'après-midi) ; i : activité modifiée
+  function autreActivite(date, i) {
+    var a = A.athlete, j = a.jours[date] || {}, liste = C.extras(j), x = i != null ? liste[i] : null, code = x ? x.activite.code : 'renfo';
+    var aDuree = x && C.isNum(x.dureeSec) && x.dureeSec > 0, ds = aDuree ? Math.round(x.dureeSec) : 0;
+    var h = '<form class="boite"><h2>' + (x ? 'Activité du ' : 'Autre activité · ') + C.JOURS_LONGS[C.dayOfWeek(date)].toLowerCase() + ' ' + C.formatDateFR(date) + '</h2>' +
+      '<p class="muet petit">En plus de ' + (C.aContenuCoach(j) && !C.estRepos(j) ? 'la séance prévue (<b>' + esc(j.corps) + '</b>)' : 'ta saisie du jour') + '. Ton entraîneur la verra sur ce jour.</p>' +
+      '<fieldset class="disciplines"><legend>Discipline</legend><div class="raisons">' + C.ACTIVITES.map(function (y) {
+        return '<label><input type="radio" name="activite" value="' + y.code + '"' + (y.code === code ? ' checked' : '') + '><span>' + y.emoji + ' ' + esc(y.nom) + '</span></label>';
+      }).join('') + '</div></fieldset>' +
+      '<div class="champs"><label data-champ="km">Distance (km)<input name="km" inputmode="decimal" value="' + (x && C.isNum(x.km) ? C.nombreFR(x.km, 3) : '') + '" placeholder="20"></label>' +
+      '<div class="duree-hms"><span class="etiq-champ" id="lblDureeX">Durée</span><div class="hms" role="group" aria-labelledby="lblDureeX">' +
+      [['dh', 'h', Math.floor(ds / 3600), '0'], ['dm', 'min', Math.floor(ds % 3600 / 60), '45'], ['ds', 's', ds % 60, '00']].map(function (y) {
+        return '<label><input name="' + y[0] + '" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="' + (aDuree ? y[2] : '') + '" placeholder="' + y[3] + '" aria-label="' + ({ h: 'heures', min: 'minutes', s: 'secondes' })[y[1]] + '"><span>' + y[1] + '</span></label>';
+      }).join('') + '</div></div>' +
+      '<label data-champ="dplus">D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (x && C.isNum(x.dplus) ? Math.round(x.dplus) : '') + '" placeholder="150"></label>' +
+      '<label>FC moyenne (bpm)<input name="fc" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="' + (x && C.isNum(x.fc) ? Math.round(x.fc) : '') + '" placeholder="120"></label></div>' +
+      '<fieldset><legend>Ressenti (RPE)</legend>' + UI.htmlBarreRPE(x ? x.rpe : null) + '</fieldset>' +
+      '<label>Note (facultatif)<input name="note" maxlength="200" value="' + esc(x ? x.note : '') + '" placeholder="ex. gainage et squats"></label>' +
+      '<p class="alerte" id="erreurExtra" hidden></p><div class="pied">' + (x ? '<button type="button" class="danger" data-x="supprimer">Supprimer</button>' : '') +
+      '<button type="button" class="sec" data-x="annuler">Annuler</button><button>Enregistrer</button></div></form>';
+    boite.innerHTML = h; boite.showModal();
+    var f = $('form', boite);
+    UI.brancherBarreRPE(f);
+    function discipline() { var c = f.querySelector('input[name="activite"]:checked'); return C.ACTIVITES.filter(function (y) { return y.code === (c ? c.value : 'renfo'); })[0]; }
+    function majChamps() { var y = discipline(); $$('[data-champ]', f).forEach(function (l) { l.hidden = (l.dataset.champ === 'km' && y.sansDistance) || (l.dataset.champ === 'dplus' && y.sansDplus); }); }
+    $$('input[name="activite"]', f).forEach(function (r) { r.onchange = majChamps; });
+    majChamps();
+    ['dh', 'dm'].forEach(function (n, k) { var el = f.elements[n], suiv = f.elements[['dm', 'ds'][k]]; el.oninput = function () { el.value = el.value.replace(/\D/g, ''); if (el.value.length >= 2) suiv.focus(); }; });
+    f.elements.ds.oninput = function () { this.value = this.value.replace(/\D/g, ''); };
+    $('[data-x="annuler"]', f).onclick = function () { boite.close(); };
+    var sp = $('[data-x="supprimer"]', f);
+    if (sp) sp.onclick = function () {
+      if (!confirm('Supprimer cette activité (' + x.activite.nom + ') ?')) return;
+      var l = liste.slice(); l.splice(i, 1);
+      enregistrer(date, Object.assign({}, j), 'Activité supprimée', l); boite.close();
+    };
+    f.onsubmit = function (ev) {
+      ev.preventDefault();
+      var d = new FormData(f), y = discipline(), err = [];
+      var km = y.sansDistance ? null : C.parseNumberFR(d.get('km')), du = lireDuree(d), dp = y.sansDplus ? null : C.parseNumberFR(d.get('dplus')), fc = C.parseNumberFR(d.get('fc')), rpe = d.get('rpe') ? Number(d.get('rpe')) : null;
+      if (km !== null && !(km > 0 && km < 400)) err.push('Distance : nombre attendu, ex. 20 ou 1,5');
+      if (du !== null && !(du > 0 && du < 172800)) err.push('Durée : heures, minutes (0 à 59) et secondes (0 à 59)');
+      if (dp !== null && !(dp >= 0 && dp < 20000)) err.push('D+ : nombre de mètres');
+      if (fc !== null && !(fc >= 30 && fc <= 250 && Math.round(fc) === fc)) err.push('FC moyenne : nombre entier entre 30 et 250');
+      if (km === null && du === null) err.push('Renseigne au moins la distance ou la durée');
+      if (err.length) { var e = $('#erreurExtra', f); e.hidden = false; e.textContent = err.join(' · '); return; }
+      var n = { activite: y, km: km, dureeSec: du, dplus: dp, fc: fc, rpe: rpe, note: C.texte(d.get('note')) };
+      var l = liste.slice(); if (x) l[i] = n; else l.push(n);
+      enregistrer(date, Object.assign({}, j), x ? 'Activité modifiée' : 'Activité ajoutée 👏', l); boite.close();
+    };
+  }
   // Séance prévue non faite : raison + message pour l'entraîneur (envoyés avec la synchronisation, dans la note)
   // Séance prévue non faite ce jour-là : pas faite du tout, ou décalée à un autre jour ; raison et message pour l'entraîneur
   function pasFaite(date) {
@@ -391,6 +442,7 @@
     // Jour de repos ou sans séance prévue : l'athlète choisit sa discipline (course à pied par défaut)
     var choixAct = C.estRepos(j) || !C.aContenuCoach(j), actJ = C.activite(j), codeAct = actJ ? actJ.activite.code : 'course';
     if (actJ) j = Object.assign({}, j, { notes: actJ.notes });
+    j = Object.assign({}, j, { notes: C.notesPrincipales(j.notes) }); // les activités en plus se modifient à part
     var aDuree = C.isNum(j.dureeSec) && j.dureeSec > 0, ds = aDuree ? Math.round(j.dureeSec) : 0;
     var h = '<form class="boite"><h2>' + C.JOURS_LONGS[C.dayOfWeek(date)] + ' ' + C.formatDateFR(date) + '</h2>' +
       (j.corps ? '<p class="muet">Prévu : <b>' + esc(j.corps) + '</b></p>' : '') +
@@ -463,8 +515,10 @@
       enregistrer(date, n); boite.close();
     };
   }
-  function enregistrer(date, j, message) {
+  // extras : nouvelle liste des activités en plus du jour ; sans elle, celles déjà enregistrées sont gardées
+  function enregistrer(date, j, message, extras) {
     var a = A.athlete;
+    j.notes = C.avecExtras(j.notes, extras || C.extras(a.jours[date]));
     j.majA = UI.maintenant();
     var n = C.nettoyerJour(j);
     a.jours[date] = n;
@@ -479,6 +533,7 @@
     if (b.dataset.v) { vue = b.dataset.v; rendre(); window.scrollTo(0, 0); return; }
     var act = b.dataset.act, a = A.athlete;
     if (act === 'saisir') saisir(b.dataset.date);
+    else if (act === 'extra') autreActivite(b.dataset.date, b.dataset.i != null ? Number(b.dataset.i) : null);
     else if (act === 'pasFaite') pasFaite(b.dataset.date);
     else if (act === 'sync') synchroniser(true);
     else if (act === 'semPrec') { semaineAffichee = Math.max(UI.semaineMin(a), semaineAffichee - 1); rendre(); }
