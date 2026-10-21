@@ -911,17 +911,17 @@ var Core = (function () {
   // Autre discipline saisie un jour de repos : « [ACTIVITÉ · Vélo] notes » en tête de la note (sans changement du script Google).
   // Sans ce repère, la séance est de la course à pied. Allure : « km » (min/km), « kmh » (km/h), « 100m » (min/100 m) ou rien.
   var ACTIVITES = [
-    { code: 'course', nom: 'Course à pied', emoji: '🏃', allure: 'km', chaussures: true },
-    { code: 'mn', nom: 'Marche nordique', emoji: '🥾', allure: 'km', chaussures: true },
-    { code: 'marche', nom: 'Marche', emoji: '🚶', allure: 'km', chaussures: true },
-    { code: 'velo', nom: 'Vélo', emoji: '🚴', allure: 'kmh' },
-    { code: 'natation', nom: 'Natation', emoji: '🏊', allure: '100m', sansDplus: true },
-    { code: 'renfo', nom: 'Renforcement musculaire', emoji: '💪', sansDistance: true, sansDplus: true }
+    { code: 'course', nom: 'Course à pied', allure: 'km', chaussures: true },
+    { code: 'mn', nom: 'Marche nordique', allure: 'km', chaussures: true },
+    { code: 'marche', nom: 'Marche', allure: 'km', chaussures: true },
+    { code: 'velo', nom: 'Vélo', allure: 'kmh' },
+    { code: 'natation', nom: 'Natation', allure: '100m', sansDplus: true },
+    { code: 'renfo', nom: 'Renforcement musculaire', sansDistance: true, sansDplus: true }
   ];
   function activite(j) {
     var m = /^\[ACTIVITÉ · ([^\]]+)\]\s*([\s\S]*)$/.exec(texte(j && j.notes));
     if (!m) return null;
-    var a = ACTIVITES.filter(function (x) { return x.nom.toUpperCase() === m[1].trim().toUpperCase(); })[0] || { code: 'autre', nom: m[1].trim(), emoji: '🏅' };
+    var a = ACTIVITES.filter(function (x) { return x.nom.toUpperCase() === m[1].trim().toUpperCase(); })[0] || { code: 'autre', nom: m[1].trim() };
     return { activite: a, notes: notesPrincipales(m[2]) };
   }
   function noteActivite(code, notes) {
@@ -934,7 +934,7 @@ var Core = (function () {
   // Activités en plus de la séance du jour (ex. footing prévu le matin, vélo l'après-midi) : une ligne lisible
   // par activité à la fin de la note, « [+ Vélo · 42,5 km · 1:30:00 · D+ 380 m · FC 131 · RPE 4] note » (sans changement du script Google)
   var RE_EXTRA = /^\[\+ ([^\]]*)\] ?(.*)$/;
-  function activiteParNom(nom) { return ACTIVITES.filter(function (x) { return x.nom.toUpperCase() === texte(nom).toUpperCase(); })[0] || { code: 'autre', nom: texte(nom), emoji: '🏅' }; }
+  function activiteParNom(nom) { return ACTIVITES.filter(function (x) { return x.nom.toUpperCase() === texte(nom).toUpperCase(); })[0] || { code: 'autre', nom: texte(nom) }; }
   function extras(j) {
     return texte(j && j.notes).split('\n').map(function (l) {
       var m = RE_EXTRA.exec(l.trim()); if (!m) return null;
@@ -1841,7 +1841,7 @@ var UI = (function () {
       else if (dc) h += '<span class="decalee">Décalée au ' + esc(jourCourt(dc.au)) + '</span>' + (dc.raison ? '<span class="muet">' + esc(dc.raison) + '</span>' : '');
       else if (aRet) {
         if (fl) h += '<span class="muet">Faite le ' + esc(jourCourt(fl.le)) + '</span>';
-        if (act) h += '<span class="activite">' + act.activite.emoji + ' ' + esc(act.activite.nom) + '</span>';
+        if (act) h += '<span class="activite">' + esc(act.activite.nom) + '</span>';
         h += (C.isNum(j.km) ? '<span><b>' + C.nombreFR(j.km, 2) + '</b> km</span>' : '') +
           (C.isNum(j.dureeSec) ? '<span><b>' + C.formatDuree(j.dureeSec) + '</b></span>' : '') +
           (allure ? '<span>' + allure + '</span>' : '') +
@@ -1882,7 +1882,7 @@ var UI = (function () {
     if (ex.length) h += '<ul class="extras">' + ex.map(function (x, i) {
       var mes = [C.isNum(x.km) ? '<b>' + C.nombreFR(x.km, 2) + '</b> km' : '', C.isNum(x.dureeSec) ? '<b>' + C.formatDuree(x.dureeSec) + '</b>' : '', texteAllure(x.activite.allure, x),
         C.isNum(x.dplus) ? 'D+ ' + Math.round(x.dplus) + ' m' : '', C.isNum(x.fc) ? 'FC moy. ' + Math.round(x.fc) + ' bpm' : '', C.isNum(x.rpe) ? 'RPE ' + badgeRPE(x.rpe) : ''].filter(Boolean);
-      return '<li><span class="activite">+ ' + x.activite.emoji + ' ' + esc(x.activite.nom) + '</span><span class="mesures">' + mes.join('<span class="sep"> · </span>') + '</span>' +
+      return '<li><span class="activite">+ ' + esc(x.activite.nom) + '</span><span class="mesures">' + mes.join('<span class="sep"> · </span>') + '</span>' +
         (role === 'athlete' ? '<button class="discret noprint" data-act="extra" data-date="' + date + '" data-i="' + i + '">Modifier</button>' : '') +
         (C.texte(x.note) ? '<div class="note">« ' + esc(x.note) + ' »</div>' : '') + '</li>';
     }).join('') + '</ul>';
@@ -2740,7 +2740,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v29</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v30</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
@@ -2951,7 +2951,7 @@ var Aide = (function () {
     { id: 'contrat', q: 'Passer à un nouveau contrat (nouvel onglet)', m: 'nouveau contrat onglet onglets objectif saison fin ancien anciennes donnees perdre effacer archive historique precedent renouveler', r:
       '<ol><li>Dans ton classeur, crée l\'onglet du nouveau contrat, avec le nom que tu veux (ex. « PLAN 2027 », « 10 KM »). Garde l\'ancien onglet.</li><li>Onglet <b>Athlètes</b> → <b>Importer un Excel</b> → choisis l\'onglet du nouveau contrat.</li></ol><p>Rien n\'est perdu : les séances de l\'ancien contrat (ton plan, ses saisies, tes réactions) restent dans l\'application. Le contrat précédent est archivé : dans le plan, la flèche ◀ depuis la S1 remonte dans ses semaines, avec leur numérotation d\'origine. Les totaux et records de l\'athlète tiennent compte de tout son historique.</p>', a: ['Ouvrir les athlètes', '#/athletes'] },
     { id: 'disciplines', q: 'Vélo, natation, marche… saisis par un athlète', m: 'velo natation marche nordique renforcement musculaire discipline sport autre activite activites plus deux seances double repos cross training', r:
-      '<p>Un jour de repos (ou sans séance prévue), l\'athlète peut saisir une autre discipline : marche nordique, marche, vélo, natation ou renforcement musculaire. Elle apparaît sur la carte du jour avec son icône (ex. 🚴 Vélo), avec la vitesse en km/h pour le vélo et l\'allure aux 100 m pour la natation.</p><p>Ces activités ne comptent pas dans les km, durées et records de course à pied : elles sont listées à part dans le bilan de la semaine et dans le tableau de bord de l\'athlète. L\'export CSV a une colonne « Discipline ».</p><p>Un jour avec une séance, l\'athlète peut aussi ajouter une <b>autre activité</b> (ex. footing le matin, renforcement ou vélo l\'après-midi) : elle apparaît sous la séance avec un « + ». Une 2e sortie de course à pied compte dans ses km. Dans le tableur Google, elle figure en fin de note, ex. « [+ Vélo · 25 km · 1:00:00] ».</p>', a: ['Ouvrir le plan', '#/plan'] },
+      '<p>Un jour de repos (ou sans séance prévue), l\'athlète peut saisir une autre discipline : marche nordique, marche, vélo, natation ou renforcement musculaire. Elle apparaît sur la carte du jour avec son nom (ex. Vélo), avec la vitesse en km/h pour le vélo et l\'allure aux 100 m pour la natation.</p><p>Ces activités ne comptent pas dans les km, durées et records de course à pied : elles sont listées à part dans le bilan de la semaine et dans le tableau de bord de l\'athlète. L\'export CSV a une colonne « Discipline ».</p><p>Un jour avec une séance, l\'athlète peut aussi ajouter une <b>autre activité</b> (ex. footing le matin, renforcement ou vélo l\'après-midi) : elle apparaît sous la séance avec un « + ». Une 2e sortie de course à pied compte dans ses km. Dans le tableur Google, elle figure en fin de note, ex. « [+ Vélo · 25 km · 1:00:00] ».</p>', a: ['Ouvrir le plan', '#/plan'] },
     { id: 'creer', q: 'Créer un athlète sans Excel', m: 'creer nouvel nouveau athlete ajouter fiche manuel main inscrire', r:
       '<p>Onglet <b>Athlètes</b> → <b>Nouvel athlète</b>. Remplis prénom, nom et date de début du contrat (un lundi), puis <b>Enregistrer</b>. Ajoute ensuite les séances depuis l\'onglet Plan avec « Ajouter une séance », puis envoie le lien.</p>', a: ['Ouvrir les athlètes', '#/athletes'] },
     { id: 'seance', q: 'Modifier une séance du plan', m: 'modifier seance jour changer corps consigne ajouter supprimer vider eveil educ rac type profil corriger', r:

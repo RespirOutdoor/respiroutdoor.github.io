@@ -147,7 +147,7 @@ var UI = (function () {
       else if (dc) h += '<span class="decalee">Décalée au ' + esc(jourCourt(dc.au)) + '</span>' + (dc.raison ? '<span class="muet">' + esc(dc.raison) + '</span>' : '');
       else if (aRet) {
         if (fl) h += '<span class="muet">Faite le ' + esc(jourCourt(fl.le)) + '</span>';
-        if (act) h += '<span class="activite">' + act.activite.emoji + ' ' + esc(act.activite.nom) + '</span>';
+        if (act) h += '<span class="activite">' + esc(act.activite.nom) + '</span>';
         h += (C.isNum(j.km) ? '<span><b>' + C.nombreFR(j.km, 2) + '</b> km</span>' : '') +
           (C.isNum(j.dureeSec) ? '<span><b>' + C.formatDuree(j.dureeSec) + '</b></span>' : '') +
           (allure ? '<span>' + allure + '</span>' : '') +
@@ -188,7 +188,7 @@ var UI = (function () {
     if (ex.length) h += '<ul class="extras">' + ex.map(function (x, i) {
       var mes = [C.isNum(x.km) ? '<b>' + C.nombreFR(x.km, 2) + '</b> km' : '', C.isNum(x.dureeSec) ? '<b>' + C.formatDuree(x.dureeSec) + '</b>' : '', texteAllure(x.activite.allure, x),
         C.isNum(x.dplus) ? 'D+ ' + Math.round(x.dplus) + ' m' : '', C.isNum(x.fc) ? 'FC moy. ' + Math.round(x.fc) + ' bpm' : '', C.isNum(x.rpe) ? 'RPE ' + badgeRPE(x.rpe) : ''].filter(Boolean);
-      return '<li><span class="activite">+ ' + x.activite.emoji + ' ' + esc(x.activite.nom) + '</span><span class="mesures">' + mes.join('<span class="sep"> · </span>') + '</span>' +
+      return '<li><span class="activite">+ ' + esc(x.activite.nom) + '</span><span class="mesures">' + mes.join('<span class="sep"> · </span>') + '</span>' +
         (role === 'athlete' ? '<button class="discret noprint" data-act="extra" data-date="' + date + '" data-i="' + i + '">Modifier</button>' : '') +
         (C.texte(x.note) ? '<div class="note">« ' + esc(x.note) + ' »</div>' : '') + '</li>';
     }).join('') + '</ul>';

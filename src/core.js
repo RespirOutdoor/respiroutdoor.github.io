@@ -446,17 +446,17 @@ var Core = (function () {
   // Autre discipline saisie un jour de repos : « [ACTIVITÉ · Vélo] notes » en tête de la note (sans changement du script Google).
   // Sans ce repère, la séance est de la course à pied. Allure : « km » (min/km), « kmh » (km/h), « 100m » (min/100 m) ou rien.
   var ACTIVITES = [
-    { code: 'course', nom: 'Course à pied', emoji: '🏃', allure: 'km', chaussures: true },
-    { code: 'mn', nom: 'Marche nordique', emoji: '🥾', allure: 'km', chaussures: true },
-    { code: 'marche', nom: 'Marche', emoji: '🚶', allure: 'km', chaussures: true },
-    { code: 'velo', nom: 'Vélo', emoji: '🚴', allure: 'kmh' },
-    { code: 'natation', nom: 'Natation', emoji: '🏊', allure: '100m', sansDplus: true },
-    { code: 'renfo', nom: 'Renforcement musculaire', emoji: '💪', sansDistance: true, sansDplus: true }
+    { code: 'course', nom: 'Course à pied', allure: 'km', chaussures: true },
+    { code: 'mn', nom: 'Marche nordique', allure: 'km', chaussures: true },
+    { code: 'marche', nom: 'Marche', allure: 'km', chaussures: true },
+    { code: 'velo', nom: 'Vélo', allure: 'kmh' },
+    { code: 'natation', nom: 'Natation', allure: '100m', sansDplus: true },
+    { code: 'renfo', nom: 'Renforcement musculaire', sansDistance: true, sansDplus: true }
   ];
   function activite(j) {
     var m = /^\[ACTIVITÉ · ([^\]]+)\]\s*([\s\S]*)$/.exec(texte(j && j.notes));
     if (!m) return null;
-    var a = ACTIVITES.filter(function (x) { return x.nom.toUpperCase() === m[1].trim().toUpperCase(); })[0] || { code: 'autre', nom: m[1].trim(), emoji: '🏅' };
+    var a = ACTIVITES.filter(function (x) { return x.nom.toUpperCase() === m[1].trim().toUpperCase(); })[0] || { code: 'autre', nom: m[1].trim() };
     return { activite: a, notes: notesPrincipales(m[2]) };
   }
   function noteActivite(code, notes) {
@@ -469,7 +469,7 @@ var Core = (function () {
   // Activités en plus de la séance du jour (ex. footing prévu le matin, vélo l'après-midi) : une ligne lisible
   // par activité à la fin de la note, « [+ Vélo · 42,5 km · 1:30:00 · D+ 380 m · FC 131 · RPE 4] note » (sans changement du script Google)
   var RE_EXTRA = /^\[\+ ([^\]]*)\] ?(.*)$/;
-  function activiteParNom(nom) { return ACTIVITES.filter(function (x) { return x.nom.toUpperCase() === texte(nom).toUpperCase(); })[0] || { code: 'autre', nom: texte(nom), emoji: '🏅' }; }
+  function activiteParNom(nom) { return ACTIVITES.filter(function (x) { return x.nom.toUpperCase() === texte(nom).toUpperCase(); })[0] || { code: 'autre', nom: texte(nom) }; }
   function extras(j) {
     return texte(j && j.notes).split('\n').map(function (l) {
       var m = RE_EXTRA.exec(l.trim()); if (!m) return null;
