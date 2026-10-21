@@ -298,15 +298,30 @@ var Core = (function () {
     if (!a.id) a.id = idAthlete(a);
     return a;
   }
+  // Limites des valeurs athlète, identiques à celles du script Google (NUMERIQUES dans Code.gs) :
+  // une valeur hors limites serait refusée par le service et bloquerait toute la synchronisation
+  var BORNES = { km: [0, 400], dureeSec: [0, 172800], dplus: [0, 20000], rpe: [1, 10], fc: [30, 250] };
+  function dansBornes(k, v) { return isNum(v) && v >= BORNES[k][0] && v <= BORNES[k][1]; }
   function nettoyerJour(j) {
     var r = {};
     CHAMPS_COACH.concat([CHAMP_REACTION], CHAMPS_ATHLETE).forEach(function (k) {
       var v = j[k];
-      if (k === 'km' || k === 'dureeSec' || k === 'rpe' || k === 'dplus' || k === 'fc') { if (isNum(v)) r[k] = v; }
+      if (BORNES[k]) { if (dansBornes(k, v)) r[k] = v; }
       else if (texte(v) !== '') r[k] = texte(v);
     });
     if (texte(j.majA) !== '') r.majA = texte(j.majA);
     return r;
+  }
+
+  // Retire d'un athlète déjà enregistré les valeurs hors limites (anciens imports) : [{ date, champ, valeur }]
+  function corrigerAthlete(a) {
+    var retirees = [];
+    Object.keys(a.jours || {}).forEach(function (d) {
+      var j = a.jours[d];
+      Object.keys(BORNES).forEach(function (k) { if (j[k] !== undefined && j[k] !== null && j[k] !== '' && !dansBornes(k, j[k])) retirees.push({ date: d, champ: k, valeur: j[k] }); });
+      var c = nettoyerJour(j); if (Object.keys(c).length) a.jours[d] = c; else delete a.jours[d];
+    });
+    return retirees;
   }
 
   /* ---------- Fusion : chaque information a un seul propriétaire ---------- */
@@ -696,7 +711,7 @@ var Core = (function () {
       var t = texte(h).toUpperCase();
       Object.keys(motifs).forEach(function (k) { if (col[k] === undefined && motifs[k].test(t)) col[k] = c; });
     });
-    var verticales = { cycle: [], spe: [] }, ligneDate = {}, n = 0, ignores = 0;
+    var verticales = { cycle: [], spe: [] }, ligneDate = {}, n = 0, ignores = 0, hors = [];
     for (var rr = pEnt.r + 1; rr < f.lignes.length; rr++) {
       var l = f.lignes[rr] || [];
       ['cycle', 'spe'].forEach(function (k) { if (col[k] !== undefined && l[col[k]] !== undefined) verticales[k].push({ ligne: rr, valeur: l[col[k]] }); });
@@ -707,8 +722,14 @@ var Core = (function () {
       ['eveil', 'educ', 'corps', 'rac', 'profil', 'type', 'consignes', 'notes'].forEach(function (k) {
         if (col[k] !== undefined && l[col[k]] !== undefined) j[k] = texte(l[col[k]]);
       });
-      if (col.km !== undefined) { var km = parseNumberFR(l[col.km]); if (isNum(km)) j.km = km; else if (l[col.km] !== undefined) ignores++; }
-      if (col.dureeSec !== undefined && l[col.dureeSec] !== undefined) { var du = dureeCellule(l[col.dureeSec]); if (isNum(du)) j.dureeSec = du; else ignores++; }
+      if (col.km !== undefined) {
+        var km = parseNumberFR(l[col.km]);
+        if (dansBornes('km', km)) j.km = km; else if (isNum(km)) hors.push(formatDateFR(d) + ' : KM = ' + nombreFR(km, 2)); else if (l[col.km] !== undefined) ignores++;
+      }
+      if (col.dureeSec !== undefined && l[col.dureeSec] !== undefined) {
+        var du = dureeCellule(l[col.dureeSec]);
+        if (dansBornes('dureeSec', du)) j.dureeSec = du; else if (isNum(du)) hors.push(formatDateFR(d) + ' : durée = ' + texte(l[col.dureeSec])); else ignores++;
+      }
       if (col.rpe !== undefined) { var rp = parseNumberFR(l[col.rpe]); if (isNum(rp) && rp >= 1 && rp <= 10) j.rpe = rp; else if (l[col.rpe] !== undefined) ignores++; }
       j = nettoyerJour(j);
       if (Object.keys(j).length) { a.jours[d] = j; n++; }
@@ -736,6 +757,8 @@ var Core = (function () {
     });
     a.id = idAthlete(a);
     rapport.push(n + (n > 1 ? ' jours renseignés importés' : ' jour renseigné importé') + ' depuis l\'onglet ' + texte(f.nom) + (ignores ? ' ; ' + ignores + ' valeur(s) athlète illisible(s) ignorée(s)' : ''));
+    if (hors.length) rapport.push('⚠ ' + hors.length + ' valeur' + (hors.length > 1 ? 's' : '') + ' athlète hors limites ignorée' + (hors.length > 1 ? 's' : '') +
+      ' (KM de 0 à 400, durée de moins de 48 h). Vérifie ces cellules dans le classeur : ' + hors.slice(0, 6).join(' ; ') + (hors.length > 6 ? ' ; …' : ''));
     return a;
   }
 
@@ -1021,6 +1044,15 @@ var Core = (function () {
         r.athlete.jours['2026-01-12'].corps === 'VMA' && r.athlete.planDu === '2026-01-12' && r.athlete.planAu === '2026-01-13' &&
         r2.athlete.jours['2025-01-13'].corps === 'FOOTING' && !r2.athlete.jours['2026-01-12'];
     }],
+    ['Valeurs athlète hors limites (km 8100) : ignorées à l\'import avec la date, retirées d\'un athlète déjà enregistré', function () {
+      // 46559 = 21/06/2027
+      var f = { nom: 'PLAN', lignes: [['DATE', 'CORPS', 'KM', 'DUREE'], [46559, 'SL', 8100, 3], [46560, 'EF', 8.1, 0.5]] };
+      var r = importerClasseur({ feuilles: [f] }), a = r.athlete, al = r.rapport.filter(function (x) { return /hors limites/.test(x); })[0] || '';
+      var b = { jours: { '2027-06-21': { corps: 'SL', km: 8100, fc: 300, rpe: 5 }, '2027-06-22': { km: 9000 } } }, ret = corrigerAthlete(b);
+      return !('km' in a.jours['2027-06-21']) && !('dureeSec' in a.jours['2027-06-21']) && a.jours['2027-06-22'].km === 8.1 && a.jours['2027-06-22'].dureeSec === 43200 &&
+        /1 valeur athlète/.test(al) && /21\/06\/2027 : KM = 8100/.test(al) && ret.length === 3 && b.jours['2027-06-21'].corps === 'SL' && b.jours['2027-06-21'].rpe === 5 &&
+        !('km' in b.jours['2027-06-21']) && !b.jours['2027-06-22'];
+    }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
       // 4 -> 1/3 × 5 = 1,667 : 2/3 du chemin cyan -> vert : 99 − 3×2/3 = 97 (0x61) ; 198 − 2×2/3 = 196,7 -> 197 (0xC5) ; 221 − 123×2/3 = 139 (0x8B)
@@ -1086,7 +1118,7 @@ var Core = (function () {
     tempsDistancePct: tempsDistancePct, distanceTempsPct: distanceTempsPct, zoneVitesses: zoneVitesses, allureChrono: allureChrono,
     trouverZone: trouverZone, reperesSeance: reperesSeance, normCode: normCode, chercherCode: chercherCode,
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
-    regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe,
+    regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, corrigerAthlete: corrigerAthlete,
     lireXLSX: lireXLSX, importerClasseur: importerClasseur, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();

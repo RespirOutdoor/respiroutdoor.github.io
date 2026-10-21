@@ -244,7 +244,8 @@ var UI = (function () {
     if (!zone) return;
     var sem = semainesAvecDonnees(a), W = Math.max(320, zone.clientWidth || 600), H = 200, g = 34, d = 10, hh = 18, bas = 24;
     var max = Math.max.apply(null, sem.map(function (b) { return b.km; }).concat([10]));
-    var pas = max > 60 ? 20 : 10, top = Math.ceil(max / pas) * pas, lw = (W - g - d) / sem.length, bw = Math.max(2, Math.min(28, lw - 2));
+    // Pas de graduation choisi pour garder au plus 6 lignes, quelle que soit la valeur maximale
+    var pas = [10, 20, 50, 100, 200, 500, 1000].filter(function (p) { return max / p <= 6; })[0] || Math.ceil(max / 6), top = Math.ceil(max / pas) * pas, lw = (W - g - d) / sem.length, bw = Math.max(2, Math.min(28, lw - 2));
     var y = function (v) { return H - bas - (H - bas - hh) * v / top; };
     var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Kilomètres réalisés par semaine, de ' + sem[0].nom + ' à ' + sem[sem.length - 1].nom + '">';
     for (var v = 0; v <= top; v += pas) s += '<line class="grille" x1="' + g + '" x2="' + (W - d) + '" y1="' + y(v) + '" y2="' + y(v) + '"/><text class="axe" x="' + (g - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + v + '</text>';

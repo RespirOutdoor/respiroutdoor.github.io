@@ -740,6 +740,13 @@
       E.reglages = reglages; delete E.reglages.role;
       E.aPublier = E.aPublier || {}; E.aSupprimer = E.aSupprimer || []; E.sync = E.sync || { depuis: '', derniere: '', erreur: '' };
       E.athletes.forEach(assurerCode);
+      // Valeurs aberrantes d'un ancien import (ex. 8100 km) : refusées par le service, elles bloquaient la synchronisation
+      var corrigees = [];
+      E.athletes.forEach(function (a) {
+        var r = C.corrigerAthlete(a);
+        if (r.length) { E.aPublier[a.id] = UI.maintenant(); corrigees.push(nomComplet(a) + ' (' + r.map(function (x) { return C.formatDateFR(x.date) + ' : ' + x.champ + ' = ' + x.valeur; }).slice(0, 3).join(', ') + (r.length > 3 ? '…' : '') + ')'); }
+      });
+      if (corrigees.length) { sauver(); setTimeout(function () { toast('Valeurs impossibles retirées : ' + corrigees.join(' ; ')); }, 800); }
     }
     UI.appliquerTheme(E.reglages.theme);
     route();
