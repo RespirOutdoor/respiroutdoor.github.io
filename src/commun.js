@@ -109,13 +109,21 @@ var UI = (function () {
   }
 
   /* ---------- Carte d'un jour ---------- */
+  // Allure selon la discipline : min/km (course, marche), km/h (vélo), min/100 m (natation), rien (renforcement)
+  function texteAllure(type, j) {
+    if (!C.isNum(j.km) || !C.isNum(j.dureeSec) || j.km <= 0 || j.dureeSec <= 0) return '';
+    if (type === 'kmh') return C.nombreFR(j.km / (j.dureeSec / 3600), 1) + ' km/h';
+    if (type === '100m') { var s = Math.round(j.dureeSec / (j.km * 10)); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2) + ' /100 m'; }
+    if (type === 'km') { var a = C.allureMoyenne(j.dureeSec, j.km); return a ? C.formatAllure(a) : ''; }
+    return '';
+  }
   // opts.role : 'coach' ou 'athlete'
   function carteJour(a, date, j, aj, opts) {
     var lg = ctx.legende() || {}, role = opts.role;
     var repos = C.estRepos(j), vide = !C.aContenuCoach(j), coul = couleurFam(j.type);
     var lp = C.chercherCode(lg.profils, j.profil), lt = C.chercherCode(lg.types, j.type);
     var rep = C.reperesSeance(j, { vma: a.vma, zones: a.zones, allures: a.allures });
-    var allure = C.allureMoyenne(j.dureeSec, j.km);
+    var act = C.activite(j), allure = texteAllure(act ? act.activite.allure : 'km', j);
     var tc = C.normCode(j.type), h = '<article class="jour' + (repos || vide ? ' repos' : '') + (date === aj ? ' auj' : '') + (tc === 'COMP' ? ' course' : tc === 'PROTO' ? ' proto' : '') + '"' + (coul ? ' style="--fam:' + coul + '"' : '') + ' id="j-' + date + '">';
     h += '<div class="tete"><span class="date">' + (date === aj ? 'Aujourd\'hui' : jourCourt(date)) + '</span><span class="corps">' + (vide ? '<span class="muet">' + (role === 'athlete' ? 'Pas de séance prévue' : '—') + '</span>' : esc(j.corps || '')) + '</span></div>';
     var puces = [];
@@ -139,9 +147,10 @@ var UI = (function () {
       else if (dc) h += '<span class="decalee">Décalée au ' + esc(jourCourt(dc.au)) + '</span>' + (dc.raison ? '<span class="muet">' + esc(dc.raison) + '</span>' : '');
       else if (aRet) {
         if (fl) h += '<span class="muet">Faite le ' + esc(jourCourt(fl.le)) + '</span>';
+        if (act) h += '<span class="activite">' + act.activite.emoji + ' ' + esc(act.activite.nom) + '</span>';
         h += (C.isNum(j.km) ? '<span><b>' + C.nombreFR(j.km, 2) + '</b> km</span>' : '') +
           (C.isNum(j.dureeSec) ? '<span><b>' + C.formatDuree(j.dureeSec) + '</b></span>' : '') +
-          (allure ? '<span>' + C.formatAllure(allure) + '</span>' : '') +
+          (allure ? '<span>' + allure + '</span>' : '') +
           (C.isNum(j.dplus) ? '<span>D+ ' + Math.round(j.dplus) + ' m</span>' : '') +
           (C.isNum(j.fc) ? '<span>FC moy. <b>' + Math.round(j.fc) + '</b> bpm</span>' : '') +
           (C.isNum(j.rpe) ? '<span>RPE ' + badgeRPE(j.rpe) + '</span>' : '');
@@ -157,7 +166,7 @@ var UI = (function () {
           h += '<button class="discret noprint" data-act="saisir" data-date="' + date + '">' + (aRet ? 'Modifier ma saisie' : 'Saisir ma séance') + '</button>';
         }
       }
-      var note = nf ? nf.message : dc ? dc.message : fl ? fl.notes : j.notes;
+      var note = nf ? nf.message : dc ? dc.message : fl ? fl.notes : act ? act.notes : j.notes;
       if (C.texte(note)) h += '<div class="note">« ' + esc(note) + ' »</div>';
       if (j.reaction) h += '<div class="reaction">' + (role === 'coach' ? 'Ta réaction' : 'Ton entraîneur') + ' : ' + esc(j.reaction) + '</div>';
       h += '</div>';
@@ -207,7 +216,7 @@ var UI = (function () {
       '<div class="kpi"><b>' + (bil.dureeSec ? C.formatDuree(bil.dureeSec) : '—') + '</b><span>Durée</span></div>' +
       '<div class="kpi"><b>' + (bil.rpeMoy !== null ? C.nombreFR(bil.rpeMoy, 1) : '—') + '</b><span>RPE moyen' + (bil.nbRpe ? ' (' + bil.nbRpe + ' séance' + (bil.nbRpe > 1 ? 's' : '') + ')' : '') + '</span></div>' +
       '<div class="kpi"><b>' + bil.faites + ' / ' + bil.prevues + '</b><span>Séances renseignées / prévues</span></div>' +
-      '</div></section>';
+      '</div>' + (bil.autres.length ? '<p class="muet petit" style="margin:10px 0 0">Autres activités (hors course à pied) : ' + esc(bil.autres.join(', ')) + '</p>' : '') + '</section>';
     return h;
   }
 

@@ -214,13 +214,16 @@
       ['Séances', function (c) { return c.cur.seances + ec(c.cur.seances, c.prec.seances, String); }],
       ['Plan suivi', function (c) { return c.cur.prevuesADate ? c.cur.prevuesFaites + ' / ' + c.cur.prevuesADate : '—'; }]
     ];
+    // Vélo, natation, marche… : comptés à part, hors volume de course à pied
+    if (cols.some(function (c) { return c.cur.autres || c.prec.autres; }))
+      lignes.splice(4, 0, ['Autres activités', function (c) { return c.cur.autres + ec(c.cur.autres, c.prec.autres, String); }]);
     return '<section class="carte"><div class="tableau"><table class="bilan-tab"><thead><tr><th></th>' +
       cols.map(function (c, i) {
         var sous = i === 0 ? C.formatDateFR(c.p.du).slice(0, 5) + '–' + C.formatDateFR(c.p.au).slice(0, 5) : i === 1 ? new Date(c.p.du + 'T12:00:00Z').toLocaleDateString('fr-FR', { month: 'long', timeZone: 'UTC' }) : c.p.du.slice(0, 4);
         return '<th class="num">' + c.titre + '<small>' + sous + '</small></th>';
       }).join('') +
       '</tr></thead><tbody>' + lignes.map(function (l) { return '<tr><th scope="row">' + l[0] + '</th>' + cols.map(function (c) { return '<td class="num">' + l[1](c) + '</td>'; }).join('') + '</tr>'; }).join('') +
-      '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">Écarts par rapport à la période précédente de même durée. Plan suivi : séances prévues réalisées / prévues jusqu\'à aujourd\'hui.</p></section>';
+      '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">Écarts par rapport à la période précédente de même durée. Plan suivi : séances prévues réalisées / prévues jusqu\'à aujourd\'hui.' + (cols.some(function (c) { return c.cur.autres || c.prec.autres; }) ? ' Volume, D+, durée et séances : course à pied uniquement.' : '') + '</p></section>';
   }
 
   /* ---------- Chaussures (enregistrées sur ce téléphone) ---------- */
@@ -385,23 +388,29 @@
     var dc = C.decalee(j), fl = C.faiteLe(j), autreJour = dc || fl, le = fl ? fl.le : (dc && dc.au <= aj ? dc.au : aj);
     if (C.nonRealisee(j) || dc) j = Object.assign({}, j, { notes: '' }); // saisir la séance finalement faite remplace « pas réalisée » ou « décalée »
     else if (fl) j = Object.assign({}, j, { notes: fl.notes });
+    // Jour de repos ou sans séance prévue : l'athlète choisit sa discipline (course à pied par défaut)
+    var choixAct = C.estRepos(j) || !C.aContenuCoach(j), actJ = C.activite(j), codeAct = actJ ? actJ.activite.code : 'course';
+    if (actJ) j = Object.assign({}, j, { notes: actJ.notes });
     var aDuree = C.isNum(j.dureeSec) && j.dureeSec > 0, ds = aDuree ? Math.round(j.dureeSec) : 0;
     var h = '<form class="boite"><h2>' + C.JOURS_LONGS[C.dayOfWeek(date)] + ' ' + C.formatDateFR(date) + '</h2>' +
       (j.corps ? '<p class="muet">Prévu : <b>' + esc(j.corps) + '</b></p>' : '') +
+      (choixAct ? '<fieldset class="disciplines"><legend>Discipline</legend><div class="raisons">' + C.ACTIVITES.map(function (x) {
+        return '<label><input type="radio" name="activite" value="' + x.code + '"' + (x.code === codeAct ? ' checked' : '') + '><span>' + x.emoji + ' ' + esc(x.nom) + '</span></label>';
+      }).join('') + '</div></fieldset>' : '') +
       (autreJour ? '<label>Faite le<input type="date" name="le" value="' + le + '" min="' + date + '" max="' + aj + '"></label>' : '') +
-      '<div class="champs"><label>Distance (km)<input name="km" inputmode="decimal" value="' + (C.isNum(j.km) ? C.nombreFR(j.km, 3) : '') + '" placeholder="12,5"></label>' +
+      '<div class="champs"><label data-champ="km">Distance (km)<input name="km" inputmode="decimal" value="' + (C.isNum(j.km) ? C.nombreFR(j.km, 3) : '') + '" placeholder="12,5"></label>' +
       // Durée en trois cases chiffrées : le pavé numérique de l'iPhone n'a pas de « : »
       '<div class="duree-hms"><span class="etiq-champ" id="lblDuree">Durée</span><div class="hms" role="group" aria-labelledby="lblDuree">' +
       [['dh', 'h', Math.floor(ds / 3600), '1'], ['dm', 'min', Math.floor(ds % 3600 / 60), '15'], ['ds', 's', ds % 60, '45']].map(function (x) {
         return '<label><input name="' + x[0] + '" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="' + (aDuree ? x[2] : '') + '" placeholder="' + x[3] + '" aria-label="' + ({ h: 'heures', min: 'minutes', s: 'secondes' })[x[1]] + '"><span>' + x[1] + '</span></label>';
       }).join('') + '</div></div>' +
-      '<label>D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (C.isNum(j.dplus) ? Math.round(j.dplus) : '') + '" placeholder="150"></label>' +
+      '<label data-champ="dplus">D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (C.isNum(j.dplus) ? Math.round(j.dplus) : '') + '" placeholder="150"></label>' +
       '<label>FC moyenne (bpm)<input name="fc" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="' + (C.isNum(j.fc) ? Math.round(j.fc) : '') + '" placeholder="145"></label></div>' +
       (function () {
         var ch = chaussures(), act = ch.liste.filter(function (c) { return !c.retiree || ch.parDate[date] === c.id; });
         if (!act.length) return '';
         var sel = ch.parDate[date] || (C.aRetour(j) ? '' : ch.defaut);
-        return '<label>Chaussures<select name="chaussure"><option value="">—</option>' + act.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.nom) + '</option>'; }).join('') + '</select></label>';
+        return '<label data-champ="chaussure">Chaussures<select name="chaussure"><option value="">—</option>' + act.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.nom) + '</option>'; }).join('') + '</select></label>';
       })() +
       '<fieldset><legend>Ressenti (RPE)</legend>' + UI.htmlBarreRPE(j.rpe) +
       '<p class="muet petit">À noter 30 min après la séance : 1 très facile → 10 effort maximal.</p></fieldset>' +
@@ -411,6 +420,14 @@
     boite.innerHTML = h; boite.showModal();
     var f = $('form', boite);
     UI.brancherBarreRPE(f);
+    // Champs sans objet selon la discipline : distance (renforcement), D+ (natation, renforcement), chaussures (vélo, natation, renforcement)
+    function discipline() { var c = f.querySelector('input[name="activite"]:checked'); return C.ACTIVITES.filter(function (x) { return x.code === (c ? c.value : 'course'); })[0]; }
+    function majChamps() {
+      var x = discipline();
+      $$('[data-champ]', f).forEach(function (l) { var k = l.dataset.champ; l.hidden = (k === 'km' && x.sansDistance) || (k === 'dplus' && x.sansDplus) || (k === 'chaussure' && !x.chaussures); });
+    }
+    $$('input[name="activite"]', f).forEach(function (r) { r.onchange = majChamps; });
+    majChamps();
     // Passage automatique à la case suivante après deux chiffres (minutes, secondes)
     ['dh', 'dm'].forEach(function (n, i) {
       var el = f.elements[n], suiv = f.elements[['dm', 'ds'][i]];
@@ -428,7 +445,8 @@
     f.onsubmit = function (ev) {
       ev.preventDefault();
       var d = new FormData(f), err = [];
-      var km = C.parseNumberFR(d.get('km')), du = lireDuree(d), dp = C.parseNumberFR(d.get('dplus')), fc = C.parseNumberFR(d.get('fc')), rpe = d.get('rpe') ? Number(d.get('rpe')) : null;
+      var disc = discipline();
+      var km = disc.sansDistance ? null : C.parseNumberFR(d.get('km')), du = lireDuree(d), dp = disc.sansDplus ? null : C.parseNumberFR(d.get('dplus')), fc = C.parseNumberFR(d.get('fc')), rpe = d.get('rpe') ? Number(d.get('rpe')) : null;
       if (km !== null && !(km >= 0 && km < 400)) err.push('Distance : nombre attendu, ex. 12,5');
       if (du !== null && !(du > 0 && du < 172800)) err.push('Durée : heures, minutes (0 à 59) et secondes (0 à 59)');
       if (dp !== null && !(dp >= 0 && dp < 20000)) err.push('D+ : nombre de mètres');
@@ -438,8 +456,9 @@
       var leJour = String(d.get('le') || '');
       if (autreJour && !(leJour >= date && leJour <= aj)) err.push('Date de la séance : entre le ' + C.formatDateFR(date) + ' et aujourd\'hui');
       if (err.length) { var e2 = $('#erreurSaisie'); e2.hidden = false; e2.textContent = err.join(' · '); return; }
-      var n = Object.assign({}, j, { km: km, dureeSec: du, dplus: dp, rpe: rpe, fc: fc, notes: autreJour && leJour !== date ? C.noteFaiteLe(leJour, d.get('notes')) : d.get('notes') });
-      var chx = d.get('chaussure'), ch = chaussures();
+      var notes = choixAct ? C.noteActivite(disc.code, d.get('notes')) : d.get('notes');
+      var n = Object.assign({}, j, { km: km, dureeSec: du, dplus: dp, rpe: rpe, fc: fc, notes: autreJour && leJour !== date ? C.noteFaiteLe(leJour, notes) : notes });
+      var chx = disc.chaussures ? d.get('chaussure') : '', ch = chaussures();
       if (chx) ch.parDate[date] = chx; else delete ch.parDate[date];
       enregistrer(date, n); boite.close();
     };

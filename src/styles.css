@@ -400,3 +400,8 @@ label.choix input[type="date"] { width: auto; max-width: 100%; margin: 0; min-he
 .ancien-contrat { margin: 8px 0 0; text-align: center; font-size: .85rem; font-weight: 600; color: var(--texte-2); }
 /* Textes libres (notes, messages, mots du coach) : une suite sans espace (temps « 15,08/15,70/… », lien) passe à la ligne au lieu d'élargir la page */
 .jour, .alerte, .carte p, .carte li, .retour .note, .mot p, ul.liste-nf .note { overflow-wrap: anywhere; }
+/* Saisie : discipline (jour de repos) et champs sans objet pour cette discipline */
+fieldset.disciplines { border: 0; padding: 0; margin: 0 0 12px; min-width: 0; }
+fieldset.disciplines legend { padding: 0; margin-bottom: 8px; font-weight: 600; }
+[data-champ][hidden] { display: none !important; }
+.retour .activite { font-weight: 700; color: var(--vert-fonce); }

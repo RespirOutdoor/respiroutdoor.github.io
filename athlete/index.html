@@ -412,6 +412,11 @@ label.choix input[type="date"] { width: auto; max-width: 100%; margin: 0; min-he
 .ancien-contrat { margin: 8px 0 0; text-align: center; font-size: .85rem; font-weight: 600; color: var(--texte-2); }
 /* Textes libres (notes, messages, mots du coach) : une suite sans espace (temps « 15,08/15,70/… », lien) passe à la ligne au lieu d'élargir la page */
 .jour, .alerte, .carte p, .carte li, .retour .note, .mot p, ul.liste-nf .note { overflow-wrap: anywhere; }
+/* Saisie : discipline (jour de repos) et champs sans objet pour cette discipline */
+fieldset.disciplines { border: 0; padding: 0; margin: 0 0 12px; min-width: 0; }
+fieldset.disciplines legend { padding: 0; margin-bottom: 8px; font-weight: 600; }
+[data-champ][hidden] { display: none !important; }
+.retour .activite { font-weight: 700; color: var(--vert-fonce); }
 </style>
 </head>
 <body class="athlete">
@@ -487,13 +492,14 @@ var Core = (function () {
   // Libellé du niveau entier le plus proche (6,5 -> niveau 7) ; null hors échelle
   function libelleRPE(v) { if (!isNum(v) || v < 1 || v > 10) return null; var n = Math.round(v); return { niveau: n, libelle: ECHELLE_RPE[n] || '', couleur: COULEURS_RPE[n], texte: texteSur(COULEURS_RPE[n]) }; }
 
+  function estCourseOuMarche(j) { var a = activite(j); return !a || !!a.activite.chaussures; }
   // Kilomètres par paire de chaussures : km déjà parcourus à l'ajout + km des séances associées à la paire
   function kmChaussures(ch, jours) {
     var r = {};
     ((ch && ch.liste) || []).forEach(function (c) { r[c.id] = isNum(c.kmDepart) ? c.kmDepart : 0; });
     Object.keys((ch && ch.parDate) || {}).forEach(function (d) {
       var id = ch.parDate[d], j = (jours || {})[d];
-      if (r[id] !== undefined && j && isNum(j.km)) r[id] = Math.round((r[id] + j.km) * 1000) / 1000;
+      if (r[id] !== undefined && j && isNum(j.km) && estCourseOuMarche(j)) r[id] = Math.round((r[id] + j.km) * 1000) / 1000;
     });
     return r;
   }
@@ -686,10 +692,11 @@ var Core = (function () {
   function aRetour(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec) || isNum(j.rpe) || isNum(j.dplus) || isNum(j.fc) || texte(j.notes) !== ''); }
   // Somme des km et durées, moyenne des RPE renseignés (comme =SUM et =AVERAGE du tableau)
   function bilanJours(jours) {
-    var r = { km: 0, dureeSec: 0, rpeMoy: null, nbRpe: 0, prevues: 0, faites: 0 }, sRpe = 0;
+    var r = { km: 0, dureeSec: 0, rpeMoy: null, nbRpe: 0, prevues: 0, faites: 0, autres: [] }, sRpe = 0;
     (jours || []).forEach(function (j) {
       if (!j) return;
       if (aContenuCoach(j) && !estRepos(j)) r.prevues++;
+      if (!estCourse(j)) { if (aRetour(j)) r.autres.push(activite(j).activite.nom); return; }
       if (isNum(j.km)) r.km += j.km;
       if (isNum(j.dureeSec)) r.dureeSec += j.dureeSec;
       if (isNum(j.rpe)) { sRpe += j.rpe; r.nbRpe++; }
@@ -888,13 +895,36 @@ var Core = (function () {
   function noteNonRealisee(raison, message) { return '[PAS RÉALISÉE' + (texte(raison) ? ' · ' + texte(raison).replace(/[\[\]]/g, '') : '') + '] ' + texte(message); }
   function estPrevue(j) { return aContenuCoach(j) && !estRepos(j); }
   function estFaite(j) { return !!j && (isNum(j.km) || isNum(j.dureeSec)); }
+  // Autre discipline saisie un jour de repos : « [ACTIVITÉ · Vélo] notes » en tête de la note (sans changement du script Google).
+  // Sans ce repère, la séance est de la course à pied. Allure : « km » (min/km), « kmh » (km/h), « 100m » (min/100 m) ou rien.
+  var ACTIVITES = [
+    { code: 'course', nom: 'Course à pied', emoji: '🏃', allure: 'km', chaussures: true },
+    { code: 'mn', nom: 'Marche nordique', emoji: '🥾', allure: 'km', chaussures: true },
+    { code: 'marche', nom: 'Marche', emoji: '🚶', allure: 'km', chaussures: true },
+    { code: 'velo', nom: 'Vélo', emoji: '🚴', allure: 'kmh' },
+    { code: 'natation', nom: 'Natation', emoji: '🏊', allure: '100m', sansDplus: true },
+    { code: 'renfo', nom: 'Renforcement musculaire', emoji: '💪', sansDistance: true, sansDplus: true }
+  ];
+  function activite(j) {
+    var m = /^\[ACTIVITÉ · ([^\]]+)\]\s*([\s\S]*)$/.exec(texte(j && j.notes));
+    if (!m) return null;
+    var a = ACTIVITES.filter(function (x) { return x.nom.toUpperCase() === m[1].trim().toUpperCase(); })[0] || { code: 'autre', nom: m[1].trim(), emoji: '🏅' };
+    return { activite: a, notes: m[2] || '' };
+  }
+  function noteActivite(code, notes) {
+    var a = ACTIVITES.filter(function (x) { return x.code === code; })[0];
+    return !a || a.code === 'course' ? texte(notes) : '[ACTIVITÉ · ' + a.nom + '] ' + texte(notes);
+  }
+  // Course à pied : compte dans les km, durées, D+, records et chaussures ; les autres disciplines sont comptées à part
+  function estCourse(j) { var a = activite(j); return !a || a.activite.code === 'course'; }
   // Bilan du « du » au « au » inclus ; « auj » sert à compter les séances prévues déjà passées
   function bilanPeriode(athlete, du, au, auj) {
-    var r = { km: 0, dureeSec: 0, dplus: 0, seances: 0, prevues: 0, prevuesADate: 0, prevuesFaites: 0 };
+    var r = { km: 0, dureeSec: 0, dplus: 0, seances: 0, prevues: 0, prevuesADate: 0, prevuesFaites: 0, autres: 0 };
     Object.keys(athlete.jours || {}).forEach(function (d) {
       if (d < du || d > au) return;
       var j = athlete.jours[d], p = estPrevue(j);
       if (p) { r.prevues++; if (!auj || d <= auj) r.prevuesADate++; }
+      if (!estCourse(j)) { if (aRetour(j)) r.autres++; return; }
       if (estFaite(j)) {
         r.seances++;
         if (p) r.prevuesFaites++;
@@ -909,7 +939,7 @@ var Core = (function () {
 
   /* ---------- Records (calculés uniquement sur les séances saisies) ---------- */
   function records(athlete) {
-    var dates = Object.keys(athlete.jours || {}).sort(), out = [], semaines = {};
+    var dates = Object.keys(athlete.jours || {}).filter(function (d) { return estCourse(athlete.jours[d]); }).sort(), out = [], semaines = {};
     function max(cle, libelle, f, format) {
       var best = null;
       dates.forEach(function (d) { var v = f(athlete.jours[d]); if (isNum(v) && v > 0 && (!best || v > best.v)) best = { v: v, date: d }; });
@@ -1503,6 +1533,18 @@ var Core = (function () {
         /1 valeur athlète/.test(al) && /21\/06\/2027 : KM = 8100/.test(al) && ret.length === 3 && b.jours['2027-06-21'].corps === 'SL' && b.jours['2027-06-21'].rpe === 5 &&
         !('km' in b.jours['2027-06-21']) && !b.jours['2027-06-22'];
     }],
+    ['Autres disciplines un jour de repos : repère lu, notes séparées ; hors km de course, records et chaussures ; comptées à part', function () {
+      var a = { jours: {
+        '2026-10-19': { corps: 'EF', km: 10, dureeSec: 3000, rpe: 3 },
+        '2026-10-21': { corps: 'REPOS', km: 40, dureeSec: 5400, dplus: 300, rpe: 4, notes: noteActivite('velo', 'Sortie vélo') },
+        '2026-10-22': { corps: 'REPOS', dureeSec: 1800, rpe: 5, notes: noteActivite('renfo', '') },
+        '2026-10-23': { corps: 'REPOS', km: 6, dureeSec: 3600, notes: noteActivite('mn', '') } } };
+      var v = activite(a.jours['2026-10-21']), b = bilanPeriode(a, '2026-10-19', '2026-10-25'), bj = bilanJours(Object.keys(a.jours).map(function (d) { return a.jours[d]; }));
+      var rec = records(a), ch = kmChaussures({ liste: [{ id: 'p', kmDepart: 0 }], parDate: { '2026-10-19': 'p', '2026-10-21': 'p', '2026-10-23': 'p' } }, a.jours);
+      return v.activite.code === 'velo' && v.notes === 'Sortie vélo' && noteActivite('course', 'x') === 'x' && activite({ notes: 'x' }) === null &&
+        b.km === 10 && b.dureeSec === 3000 && b.seances === 1 && b.autres === 3 && bj.km === 10 && bj.autres.join() === 'Vélo,Renforcement musculaire,Marche nordique' &&
+        rec.filter(function (r) { return r.cle === 'distance'; })[0].valeur === 10 && ch.p === 16 && estCourse(a.jours['2026-10-19']) && !estCourse(a.jours['2026-10-22']);
+    }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
       // 4 -> 1/3 × 5 = 1,667 : 2/3 du chemin cyan -> vert : 99 − 3×2/3 = 97 (0x61) ; 198 − 2×2/3 = 196,7 -> 197 (0xC5) ; 221 − 123×2/3 = 139 (0x8B)
@@ -1568,7 +1610,7 @@ var Core = (function () {
     tempsDistancePct: tempsDistancePct, distanceTempsPct: distanceTempsPct, zoneVitesses: zoneVitesses, allureChrono: allureChrono,
     trouverZone: trouverZone, reperesSeance: reperesSeance, normCode: normCode, chercherCode: chercherCode,
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
-    regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, corrigerAthlete: corrigerAthlete,
+    regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse, corrigerAthlete: corrigerAthlete,
     lireXLSX: lireXLSX, importerClasseur: importerClasseur, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();
@@ -1688,13 +1730,21 @@ var UI = (function () {
   }
 
   /* ---------- Carte d'un jour ---------- */
+  // Allure selon la discipline : min/km (course, marche), km/h (vélo), min/100 m (natation), rien (renforcement)
+  function texteAllure(type, j) {
+    if (!C.isNum(j.km) || !C.isNum(j.dureeSec) || j.km <= 0 || j.dureeSec <= 0) return '';
+    if (type === 'kmh') return C.nombreFR(j.km / (j.dureeSec / 3600), 1) + ' km/h';
+    if (type === '100m') { var s = Math.round(j.dureeSec / (j.km * 10)); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2) + ' /100 m'; }
+    if (type === 'km') { var a = C.allureMoyenne(j.dureeSec, j.km); return a ? C.formatAllure(a) : ''; }
+    return '';
+  }
   // opts.role : 'coach' ou 'athlete'
   function carteJour(a, date, j, aj, opts) {
     var lg = ctx.legende() || {}, role = opts.role;
     var repos = C.estRepos(j), vide = !C.aContenuCoach(j), coul = couleurFam(j.type);
     var lp = C.chercherCode(lg.profils, j.profil), lt = C.chercherCode(lg.types, j.type);
     var rep = C.reperesSeance(j, { vma: a.vma, zones: a.zones, allures: a.allures });
-    var allure = C.allureMoyenne(j.dureeSec, j.km);
+    var act = C.activite(j), allure = texteAllure(act ? act.activite.allure : 'km', j);
     var tc = C.normCode(j.type), h = '<article class="jour' + (repos || vide ? ' repos' : '') + (date === aj ? ' auj' : '') + (tc === 'COMP' ? ' course' : tc === 'PROTO' ? ' proto' : '') + '"' + (coul ? ' style="--fam:' + coul + '"' : '') + ' id="j-' + date + '">';
     h += '<div class="tete"><span class="date">' + (date === aj ? 'Aujourd\'hui' : jourCourt(date)) + '</span><span class="corps">' + (vide ? '<span class="muet">' + (role === 'athlete' ? 'Pas de séance prévue' : '—') + '</span>' : esc(j.corps || '')) + '</span></div>';
     var puces = [];
@@ -1718,9 +1768,10 @@ var UI = (function () {
       else if (dc) h += '<span class="decalee">Décalée au ' + esc(jourCourt(dc.au)) + '</span>' + (dc.raison ? '<span class="muet">' + esc(dc.raison) + '</span>' : '');
       else if (aRet) {
         if (fl) h += '<span class="muet">Faite le ' + esc(jourCourt(fl.le)) + '</span>';
+        if (act) h += '<span class="activite">' + act.activite.emoji + ' ' + esc(act.activite.nom) + '</span>';
         h += (C.isNum(j.km) ? '<span><b>' + C.nombreFR(j.km, 2) + '</b> km</span>' : '') +
           (C.isNum(j.dureeSec) ? '<span><b>' + C.formatDuree(j.dureeSec) + '</b></span>' : '') +
-          (allure ? '<span>' + C.formatAllure(allure) + '</span>' : '') +
+          (allure ? '<span>' + allure + '</span>' : '') +
           (C.isNum(j.dplus) ? '<span>D+ ' + Math.round(j.dplus) + ' m</span>' : '') +
           (C.isNum(j.fc) ? '<span>FC moy. <b>' + Math.round(j.fc) + '</b> bpm</span>' : '') +
           (C.isNum(j.rpe) ? '<span>RPE ' + badgeRPE(j.rpe) + '</span>' : '');
@@ -1736,7 +1787,7 @@ var UI = (function () {
           h += '<button class="discret noprint" data-act="saisir" data-date="' + date + '">' + (aRet ? 'Modifier ma saisie' : 'Saisir ma séance') + '</button>';
         }
       }
-      var note = nf ? nf.message : dc ? dc.message : fl ? fl.notes : j.notes;
+      var note = nf ? nf.message : dc ? dc.message : fl ? fl.notes : act ? act.notes : j.notes;
       if (C.texte(note)) h += '<div class="note">« ' + esc(note) + ' »</div>';
       if (j.reaction) h += '<div class="reaction">' + (role === 'coach' ? 'Ta réaction' : 'Ton entraîneur') + ' : ' + esc(j.reaction) + '</div>';
       h += '</div>';
@@ -1786,7 +1837,7 @@ var UI = (function () {
       '<div class="kpi"><b>' + (bil.dureeSec ? C.formatDuree(bil.dureeSec) : '—') + '</b><span>Durée</span></div>' +
       '<div class="kpi"><b>' + (bil.rpeMoy !== null ? C.nombreFR(bil.rpeMoy, 1) : '—') + '</b><span>RPE moyen' + (bil.nbRpe ? ' (' + bil.nbRpe + ' séance' + (bil.nbRpe > 1 ? 's' : '') + ')' : '') + '</span></div>' +
       '<div class="kpi"><b>' + bil.faites + ' / ' + bil.prevues + '</b><span>Séances renseignées / prévues</span></div>' +
-      '</div></section>';
+      '</div>' + (bil.autres.length ? '<p class="muet petit" style="margin:10px 0 0">Autres activités (hors course à pied) : ' + esc(bil.autres.join(', ')) + '</p>' : '') + '</section>';
     return h;
   }
 
@@ -2242,13 +2293,16 @@ var UI = (function () {
       ['Séances', function (c) { return c.cur.seances + ec(c.cur.seances, c.prec.seances, String); }],
       ['Plan suivi', function (c) { return c.cur.prevuesADate ? c.cur.prevuesFaites + ' / ' + c.cur.prevuesADate : '—'; }]
     ];
+    // Vélo, natation, marche… : comptés à part, hors volume de course à pied
+    if (cols.some(function (c) { return c.cur.autres || c.prec.autres; }))
+      lignes.splice(4, 0, ['Autres activités', function (c) { return c.cur.autres + ec(c.cur.autres, c.prec.autres, String); }]);
     return '<section class="carte"><div class="tableau"><table class="bilan-tab"><thead><tr><th></th>' +
       cols.map(function (c, i) {
         var sous = i === 0 ? C.formatDateFR(c.p.du).slice(0, 5) + '–' + C.formatDateFR(c.p.au).slice(0, 5) : i === 1 ? new Date(c.p.du + 'T12:00:00Z').toLocaleDateString('fr-FR', { month: 'long', timeZone: 'UTC' }) : c.p.du.slice(0, 4);
         return '<th class="num">' + c.titre + '<small>' + sous + '</small></th>';
       }).join('') +
       '</tr></thead><tbody>' + lignes.map(function (l) { return '<tr><th scope="row">' + l[0] + '</th>' + cols.map(function (c) { return '<td class="num">' + l[1](c) + '</td>'; }).join('') + '</tr>'; }).join('') +
-      '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">Écarts par rapport à la période précédente de même durée. Plan suivi : séances prévues réalisées / prévues jusqu\'à aujourd\'hui.</p></section>';
+      '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">Écarts par rapport à la période précédente de même durée. Plan suivi : séances prévues réalisées / prévues jusqu\'à aujourd\'hui.' + (cols.some(function (c) { return c.cur.autres || c.prec.autres; }) ? ' Volume, D+, durée et séances : course à pied uniquement.' : '') + '</p></section>';
   }
 
   /* ---------- Chaussures (enregistrées sur ce téléphone) ---------- */
@@ -2413,23 +2467,29 @@ var UI = (function () {
     var dc = C.decalee(j), fl = C.faiteLe(j), autreJour = dc || fl, le = fl ? fl.le : (dc && dc.au <= aj ? dc.au : aj);
     if (C.nonRealisee(j) || dc) j = Object.assign({}, j, { notes: '' }); // saisir la séance finalement faite remplace « pas réalisée » ou « décalée »
     else if (fl) j = Object.assign({}, j, { notes: fl.notes });
+    // Jour de repos ou sans séance prévue : l'athlète choisit sa discipline (course à pied par défaut)
+    var choixAct = C.estRepos(j) || !C.aContenuCoach(j), actJ = C.activite(j), codeAct = actJ ? actJ.activite.code : 'course';
+    if (actJ) j = Object.assign({}, j, { notes: actJ.notes });
     var aDuree = C.isNum(j.dureeSec) && j.dureeSec > 0, ds = aDuree ? Math.round(j.dureeSec) : 0;
     var h = '<form class="boite"><h2>' + C.JOURS_LONGS[C.dayOfWeek(date)] + ' ' + C.formatDateFR(date) + '</h2>' +
       (j.corps ? '<p class="muet">Prévu : <b>' + esc(j.corps) + '</b></p>' : '') +
+      (choixAct ? '<fieldset class="disciplines"><legend>Discipline</legend><div class="raisons">' + C.ACTIVITES.map(function (x) {
+        return '<label><input type="radio" name="activite" value="' + x.code + '"' + (x.code === codeAct ? ' checked' : '') + '><span>' + x.emoji + ' ' + esc(x.nom) + '</span></label>';
+      }).join('') + '</div></fieldset>' : '') +
       (autreJour ? '<label>Faite le<input type="date" name="le" value="' + le + '" min="' + date + '" max="' + aj + '"></label>' : '') +
-      '<div class="champs"><label>Distance (km)<input name="km" inputmode="decimal" value="' + (C.isNum(j.km) ? C.nombreFR(j.km, 3) : '') + '" placeholder="12,5"></label>' +
+      '<div class="champs"><label data-champ="km">Distance (km)<input name="km" inputmode="decimal" value="' + (C.isNum(j.km) ? C.nombreFR(j.km, 3) : '') + '" placeholder="12,5"></label>' +
       // Durée en trois cases chiffrées : le pavé numérique de l'iPhone n'a pas de « : »
       '<div class="duree-hms"><span class="etiq-champ" id="lblDuree">Durée</span><div class="hms" role="group" aria-labelledby="lblDuree">' +
       [['dh', 'h', Math.floor(ds / 3600), '1'], ['dm', 'min', Math.floor(ds % 3600 / 60), '15'], ['ds', 's', ds % 60, '45']].map(function (x) {
         return '<label><input name="' + x[0] + '" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="' + (aDuree ? x[2] : '') + '" placeholder="' + x[3] + '" aria-label="' + ({ h: 'heures', min: 'minutes', s: 'secondes' })[x[1]] + '"><span>' + x[1] + '</span></label>';
       }).join('') + '</div></div>' +
-      '<label>D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (C.isNum(j.dplus) ? Math.round(j.dplus) : '') + '" placeholder="150"></label>' +
+      '<label data-champ="dplus">D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (C.isNum(j.dplus) ? Math.round(j.dplus) : '') + '" placeholder="150"></label>' +
       '<label>FC moyenne (bpm)<input name="fc" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="' + (C.isNum(j.fc) ? Math.round(j.fc) : '') + '" placeholder="145"></label></div>' +
       (function () {
         var ch = chaussures(), act = ch.liste.filter(function (c) { return !c.retiree || ch.parDate[date] === c.id; });
         if (!act.length) return '';
         var sel = ch.parDate[date] || (C.aRetour(j) ? '' : ch.defaut);
-        return '<label>Chaussures<select name="chaussure"><option value="">—</option>' + act.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.nom) + '</option>'; }).join('') + '</select></label>';
+        return '<label data-champ="chaussure">Chaussures<select name="chaussure"><option value="">—</option>' + act.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.nom) + '</option>'; }).join('') + '</select></label>';
       })() +
       '<fieldset><legend>Ressenti (RPE)</legend>' + UI.htmlBarreRPE(j.rpe) +
       '<p class="muet petit">À noter 30 min après la séance : 1 très facile → 10 effort maximal.</p></fieldset>' +
@@ -2439,6 +2499,14 @@ var UI = (function () {
     boite.innerHTML = h; boite.showModal();
     var f = $('form', boite);
     UI.brancherBarreRPE(f);
+    // Champs sans objet selon la discipline : distance (renforcement), D+ (natation, renforcement), chaussures (vélo, natation, renforcement)
+    function discipline() { var c = f.querySelector('input[name="activite"]:checked'); return C.ACTIVITES.filter(function (x) { return x.code === (c ? c.value : 'course'); })[0]; }
+    function majChamps() {
+      var x = discipline();
+      $$('[data-champ]', f).forEach(function (l) { var k = l.dataset.champ; l.hidden = (k === 'km' && x.sansDistance) || (k === 'dplus' && x.sansDplus) || (k === 'chaussure' && !x.chaussures); });
+    }
+    $$('input[name="activite"]', f).forEach(function (r) { r.onchange = majChamps; });
+    majChamps();
     // Passage automatique à la case suivante après deux chiffres (minutes, secondes)
     ['dh', 'dm'].forEach(function (n, i) {
       var el = f.elements[n], suiv = f.elements[['dm', 'ds'][i]];
@@ -2456,7 +2524,8 @@ var UI = (function () {
     f.onsubmit = function (ev) {
       ev.preventDefault();
       var d = new FormData(f), err = [];
-      var km = C.parseNumberFR(d.get('km')), du = lireDuree(d), dp = C.parseNumberFR(d.get('dplus')), fc = C.parseNumberFR(d.get('fc')), rpe = d.get('rpe') ? Number(d.get('rpe')) : null;
+      var disc = discipline();
+      var km = disc.sansDistance ? null : C.parseNumberFR(d.get('km')), du = lireDuree(d), dp = disc.sansDplus ? null : C.parseNumberFR(d.get('dplus')), fc = C.parseNumberFR(d.get('fc')), rpe = d.get('rpe') ? Number(d.get('rpe')) : null;
       if (km !== null && !(km >= 0 && km < 400)) err.push('Distance : nombre attendu, ex. 12,5');
       if (du !== null && !(du > 0 && du < 172800)) err.push('Durée : heures, minutes (0 à 59) et secondes (0 à 59)');
       if (dp !== null && !(dp >= 0 && dp < 20000)) err.push('D+ : nombre de mètres');
@@ -2466,8 +2535,9 @@ var UI = (function () {
       var leJour = String(d.get('le') || '');
       if (autreJour && !(leJour >= date && leJour <= aj)) err.push('Date de la séance : entre le ' + C.formatDateFR(date) + ' et aujourd\'hui');
       if (err.length) { var e2 = $('#erreurSaisie'); e2.hidden = false; e2.textContent = err.join(' · '); return; }
-      var n = Object.assign({}, j, { km: km, dureeSec: du, dplus: dp, rpe: rpe, fc: fc, notes: autreJour && leJour !== date ? C.noteFaiteLe(leJour, d.get('notes')) : d.get('notes') });
-      var chx = d.get('chaussure'), ch = chaussures();
+      var notes = choixAct ? C.noteActivite(disc.code, d.get('notes')) : d.get('notes');
+      var n = Object.assign({}, j, { km: km, dureeSec: du, dplus: dp, rpe: rpe, fc: fc, notes: autreJour && leJour !== date ? C.noteFaiteLe(leJour, notes) : notes });
+      var chx = disc.chaussures ? d.get('chaussure') : '', ch = chaussures();
       if (chx) ch.parDate[date] = chx; else delete ch.parDate[date];
       enregistrer(date, n); boite.close();
     };
