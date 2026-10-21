@@ -451,7 +451,7 @@ var Core = (function () {
     { code: 'marche', nom: 'Marche', allure: 'km', chaussures: true },
     { code: 'velo', nom: 'Vélo', allure: 'kmh' },
     { code: 'natation', nom: 'Natation', allure: '100m', sansDplus: true },
-    { code: 'renfo', nom: 'Renforcement musculaire', sansDistance: true, sansDplus: true }
+    { code: 'renfo', nom: 'Renforcement musculaire', court: 'Renforcement', sansDistance: true, sansDplus: true }
   ];
   function activite(j) {
     var m = /^\[ACTIVITÉ · ([^\]]+)\]\s*([\s\S]*)$/.exec(texte(j && j.notes));

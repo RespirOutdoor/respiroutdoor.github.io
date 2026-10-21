@@ -412,3 +412,27 @@ ul.extras .activite { font-weight: 700; color: var(--vert-fonce); }
 ul.extras .mesures { flex: 1 1 auto; min-width: 0; }
 ul.extras .note { flex-basis: 100%; font-style: italic; color: var(--texte-2); }
 ul.extras li > button { margin-left: auto; }
+/* Fenêtres de saisie (séance, autre activité) : sous-titre, disciplines en grille, champs sur deux colonnes */
+form.saisie h2 { margin-bottom: 2px; }
+form.saisie .sous-titre { margin: 0 0 16px; color: var(--texte-2); font-size: .95rem; }
+form.saisie .sous-titre b { color: var(--texte); font-weight: 600; }
+form.saisie fieldset.disciplines legend, form.saisie fieldset.ressenti legend { font-size: .85rem; font-weight: 600; color: var(--texte-2); padding: 0; margin-bottom: 8px; }
+form.saisie fieldset.disciplines .raisons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+form.saisie fieldset.disciplines .raisons span { display: flex; justify-content: center; text-align: center; width: 100%; min-height: 44px; padding: 6px 10px; border-radius: 12px; font-weight: 600; line-height: 1.2; }
+@media (min-width: 520px) { form.saisie fieldset.disciplines .raisons { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+form.saisie .champs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+form.saisie .duree-hms { margin: 0 0 10px; }
+form.saisie .hms { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+form.saisie .hms label { position: relative; display: block; }
+form.saisie .hms input { text-align: right; padding-right: 40px; }
+form.saisie .hms label span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; font-weight: 600; color: var(--texte-2); }
+form.saisie fieldset.ressenti { position: relative; border: 0; padding: 0; margin: 4px 0 12px; min-width: 0; }
+form.saisie .rpe-valeur { position: absolute; right: 0; top: 0; display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--texte-2); }
+.rpe-valeur:empty { display: none; }
+.barre-rpe .rpe-valeur { display: none; }
+form.saisie .barre-rpe .rpe-valeur { display: flex; }
+form.saisie fieldset.ressenti legend { float: left; width: 100%; }
+form.saisie fieldset.ressenti .barre-rpe { clear: both; }
+/* Barre RPE sans valeur : ne pas reprendre le style des écrans vides (.vide) ; « Effacer » masqué tant que rien n'est noté */
+.barre-rpe.vide { padding: 0; text-align: inherit; }
+.barre-rpe [hidden] { display: none !important; }

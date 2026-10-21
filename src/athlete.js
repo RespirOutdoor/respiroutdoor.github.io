@@ -342,19 +342,19 @@
   function autreActivite(date, i) {
     var a = A.athlete, j = a.jours[date] || {}, liste = C.extras(j), x = i != null ? liste[i] : null, code = x ? x.activite.code : 'renfo';
     var aDuree = x && C.isNum(x.dureeSec) && x.dureeSec > 0, ds = aDuree ? Math.round(x.dureeSec) : 0;
-    var h = '<form class="boite"><h2>' + (x ? 'Activité du ' : 'Autre activité · ') + C.JOURS_LONGS[C.dayOfWeek(date)].toLowerCase() + ' ' + C.formatDateFR(date) + '</h2>' +
-      '<p class="muet petit">En plus de ' + (C.aContenuCoach(j) && !C.estRepos(j) ? 'la séance prévue (<b>' + esc(j.corps) + '</b>)' : 'ta saisie du jour') + '. Ton entraîneur la verra sur ce jour.</p>' +
+    var h = '<form class="boite saisie"><h2>' + (x ? 'Modifier l\'activité' : 'Autre activité') + '</h2>' +
+      '<p class="sous-titre">' + C.JOURS_LONGS[C.dayOfWeek(date)] + ' ' + C.formatDateFR(date).slice(0, 5) + (C.aContenuCoach(j) && !C.estRepos(j) ? ' · en plus de <b>' + esc(j.corps) + '</b>' : ' · en plus de ta saisie du jour') + '</p>' +
       '<fieldset class="disciplines"><legend>Discipline</legend><div class="raisons">' + C.ACTIVITES.map(function (y) {
-        return '<label><input type="radio" name="activite" value="' + y.code + '"' + (y.code === code ? ' checked' : '') + '><span>' + esc(y.nom) + '</span></label>';
+        return '<label><input type="radio" name="activite" value="' + y.code + '"' + (y.code === code ? ' checked' : '') + '><span>' + esc(y.court || y.nom) + '</span></label>';
       }).join('') + '</div></fieldset>' +
       '<div class="champs"><label data-champ="km">Distance (km)<input name="km" inputmode="decimal" value="' + (x && C.isNum(x.km) ? C.nombreFR(x.km, 3) : '') + '" placeholder="20"></label>' +
+      '<label data-champ="dplus">D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (x && C.isNum(x.dplus) ? Math.round(x.dplus) : '') + '" placeholder="150"></label>' +
       '<div class="duree-hms"><span class="etiq-champ" id="lblDureeX">Durée</span><div class="hms" role="group" aria-labelledby="lblDureeX">' +
       [['dh', 'h', Math.floor(ds / 3600), '0'], ['dm', 'min', Math.floor(ds % 3600 / 60), '45'], ['ds', 's', ds % 60, '00']].map(function (y) {
         return '<label><input name="' + y[0] + '" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="' + (aDuree ? y[2] : '') + '" placeholder="' + y[3] + '" aria-label="' + ({ h: 'heures', min: 'minutes', s: 'secondes' })[y[1]] + '"><span>' + y[1] + '</span></label>';
       }).join('') + '</div></div>' +
-      '<label data-champ="dplus">D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (x && C.isNum(x.dplus) ? Math.round(x.dplus) : '') + '" placeholder="150"></label>' +
       '<label>FC moyenne (bpm)<input name="fc" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="' + (x && C.isNum(x.fc) ? Math.round(x.fc) : '') + '" placeholder="120"></label></div>' +
-      '<fieldset><legend>Ressenti (RPE)</legend>' + UI.htmlBarreRPE(x ? x.rpe : null) + '</fieldset>' +
+      '<fieldset class="ressenti"><legend>Ressenti (RPE)</legend>' + UI.htmlBarreRPE(x ? x.rpe : null) + '</fieldset>' +
       '<label>Note (facultatif)<input name="note" maxlength="200" value="' + esc(x ? x.note : '') + '" placeholder="ex. gainage et squats"></label>' +
       '<p class="alerte" id="erreurExtra" hidden></p><div class="pied">' + (x ? '<button type="button" class="danger" data-x="supprimer">Supprimer</button>' : '') +
       '<button type="button" class="sec" data-x="annuler">Annuler</button><button>Enregistrer</button></div></form>';
@@ -444,27 +444,28 @@
     if (actJ) j = Object.assign({}, j, { notes: actJ.notes });
     j = Object.assign({}, j, { notes: C.notesPrincipales(j.notes) }); // les activités en plus se modifient à part
     var aDuree = C.isNum(j.dureeSec) && j.dureeSec > 0, ds = aDuree ? Math.round(j.dureeSec) : 0;
-    var h = '<form class="boite"><h2>' + C.JOURS_LONGS[C.dayOfWeek(date)] + ' ' + C.formatDateFR(date) + '</h2>' +
-      (j.corps ? '<p class="muet">Prévu : <b>' + esc(j.corps) + '</b></p>' : '') +
+    var h = '<form class="boite saisie"><h2>' + (C.aRetour(a.jours[date]) ? 'Modifier ma séance' : 'Ma séance') + '</h2>' +
+      '<p class="sous-titre">' + C.JOURS_LONGS[C.dayOfWeek(date)] + ' ' + C.formatDateFR(date).slice(0, 5) + (j.corps ? ' · prévu : <b>' + esc(j.corps) + '</b>' : '') + '</p>' +
       (choixAct ? '<fieldset class="disciplines"><legend>Discipline</legend><div class="raisons">' + C.ACTIVITES.map(function (x) {
-        return '<label><input type="radio" name="activite" value="' + x.code + '"' + (x.code === codeAct ? ' checked' : '') + '><span>' + esc(x.nom) + '</span></label>';
+        return '<label><input type="radio" name="activite" value="' + x.code + '"' + (x.code === codeAct ? ' checked' : '') + '><span>' + esc(x.court || x.nom) + '</span></label>';
       }).join('') + '</div></fieldset>' : '') +
       (autreJour ? '<label>Faite le<input type="date" name="le" value="' + le + '" min="' + date + '" max="' + aj + '"></label>' : '') +
       '<div class="champs"><label data-champ="km">Distance (km)<input name="km" inputmode="decimal" value="' + (C.isNum(j.km) ? C.nombreFR(j.km, 3) : '') + '" placeholder="12,5"></label>' +
+      '<label data-champ="dplus">D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (C.isNum(j.dplus) ? Math.round(j.dplus) : '') + '" placeholder="150"></label>' +
       // Durée en trois cases chiffrées : le pavé numérique de l'iPhone n'a pas de « : »
       '<div class="duree-hms"><span class="etiq-champ" id="lblDuree">Durée</span><div class="hms" role="group" aria-labelledby="lblDuree">' +
       [['dh', 'h', Math.floor(ds / 3600), '1'], ['dm', 'min', Math.floor(ds % 3600 / 60), '15'], ['ds', 's', ds % 60, '45']].map(function (x) {
         return '<label><input name="' + x[0] + '" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="' + (aDuree ? x[2] : '') + '" placeholder="' + x[3] + '" aria-label="' + ({ h: 'heures', min: 'minutes', s: 'secondes' })[x[1]] + '"><span>' + x[1] + '</span></label>';
       }).join('') + '</div></div>' +
-      '<label data-champ="dplus">D+ (m, facultatif)<input name="dplus" inputmode="numeric" value="' + (C.isNum(j.dplus) ? Math.round(j.dplus) : '') + '" placeholder="150"></label>' +
-      '<label>FC moyenne (bpm)<input name="fc" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="' + (C.isNum(j.fc) ? Math.round(j.fc) : '') + '" placeholder="145"></label></div>' +
+      '<label>FC moyenne (bpm)<input name="fc" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="' + (C.isNum(j.fc) ? Math.round(j.fc) : '') + '" placeholder="145"></label>' +
       (function () {
         var ch = chaussures(), act = ch.liste.filter(function (c) { return !c.retiree || ch.parDate[date] === c.id; });
         if (!act.length) return '';
         var sel = ch.parDate[date] || (C.aRetour(j) ? '' : ch.defaut);
         return '<label data-champ="chaussure">Chaussures<select name="chaussure"><option value="">—</option>' + act.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.nom) + '</option>'; }).join('') + '</select></label>';
       })() +
-      '<fieldset><legend>Ressenti (RPE)</legend>' + UI.htmlBarreRPE(j.rpe) +
+      '</div>' +
+      '<fieldset class="ressenti"><legend>Ressenti (RPE)</legend>' + UI.htmlBarreRPE(j.rpe) +
       '<p class="muet petit">À noter 30 min après la séance : 1 très facile → 10 effort maximal.</p></fieldset>' +
       '<label>Notes (ressenti, douleurs, conditions…)<textarea name="notes" maxlength="2000">' + esc(j.notes) + '</textarea></label>' +
       '<p class="alerte" id="erreurSaisie" hidden></p><div class="pied">' + (C.aRetour(j) ? '<button type="button" class="danger" data-x="effacer">Effacer</button>' : '') +

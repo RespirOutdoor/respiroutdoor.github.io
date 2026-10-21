@@ -439,11 +439,14 @@ var UI = (function () {
   function htmlBarreRPE(valeur) {
     var v = C.isNum(valeur) ? Math.round(valeur) : null;
     return '<div class="barre-rpe' + (v ? '' : ' vide') + '" id="barreRPE">' +
+      '<div class="rpe-valeur" aria-hidden="true">' + texteRPE(v) + '</div>' +
       '<input type="range" id="rpeCurseur" min="1" max="10" step="1" value="' + (v || 5) + '" aria-label="Ressenti RPE de 1 (très facile) à 10 (effort maximal)" style="--degrade:' + degradeCSS() + '">' +
       '<div class="graduations" aria-hidden="true">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) { return '<span' + (n === v ? ' class="choisi"' : '') + '>' + n + '</span>'; }).join('') + '</div>' +
       '<div class="ligne" style="justify-content:flex-end"><button type="button" class="discret" id="rpeEffacer"' + (v ? '' : ' hidden') + '>Effacer le RPE</button></div>' +
       '<input type="hidden" name="rpe" value="' + (v || '') + '"></div>';
   }
+  // Valeur choisie, affichée à droite du titre « Ressenti (RPE) »
+  function texteRPE(v) { return v && C.libelleRPE(v) ? badgeRPE(v) : '<span>Non noté</span>'; }
   function brancherBarreRPE(form) {
     var z = $('#barreRPE', form), cur = $('#rpeCurseur', z), cache = $('input[name="rpe"]', z), eff = $('#rpeEffacer', z);
     function maj(v) {
@@ -453,6 +456,7 @@ var UI = (function () {
       var l = v ? C.libelleRPE(v) : null;
       if (l) { z.style.setProperty('--rpe', l.couleur); cur.setAttribute('aria-valuetext', v + (l.libelle ? ' : ' + l.libelle : '')); }
       eff.hidden = !v;
+      $('.rpe-valeur', z).innerHTML = texteRPE(v);
     }
     cur.addEventListener('input', function () { maj(Number(cur.value)); });
     cur.addEventListener('pointerdown', function () { if (!cache.value) maj(Number(cur.value)); });

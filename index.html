@@ -424,6 +424,30 @@ ul.extras .activite { font-weight: 700; color: var(--vert-fonce); }
 ul.extras .mesures { flex: 1 1 auto; min-width: 0; }
 ul.extras .note { flex-basis: 100%; font-style: italic; color: var(--texte-2); }
 ul.extras li > button { margin-left: auto; }
+/* Fenêtres de saisie (séance, autre activité) : sous-titre, disciplines en grille, champs sur deux colonnes */
+form.saisie h2 { margin-bottom: 2px; }
+form.saisie .sous-titre { margin: 0 0 16px; color: var(--texte-2); font-size: .95rem; }
+form.saisie .sous-titre b { color: var(--texte); font-weight: 600; }
+form.saisie fieldset.disciplines legend, form.saisie fieldset.ressenti legend { font-size: .85rem; font-weight: 600; color: var(--texte-2); padding: 0; margin-bottom: 8px; }
+form.saisie fieldset.disciplines .raisons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+form.saisie fieldset.disciplines .raisons span { display: flex; justify-content: center; text-align: center; width: 100%; min-height: 44px; padding: 6px 10px; border-radius: 12px; font-weight: 600; line-height: 1.2; }
+@media (min-width: 520px) { form.saisie fieldset.disciplines .raisons { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+form.saisie .champs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+form.saisie .duree-hms { margin: 0 0 10px; }
+form.saisie .hms { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+form.saisie .hms label { position: relative; display: block; }
+form.saisie .hms input { text-align: right; padding-right: 40px; }
+form.saisie .hms label span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; font-weight: 600; color: var(--texte-2); }
+form.saisie fieldset.ressenti { position: relative; border: 0; padding: 0; margin: 4px 0 12px; min-width: 0; }
+form.saisie .rpe-valeur { position: absolute; right: 0; top: 0; display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--texte-2); }
+.rpe-valeur:empty { display: none; }
+.barre-rpe .rpe-valeur { display: none; }
+form.saisie .barre-rpe .rpe-valeur { display: flex; }
+form.saisie fieldset.ressenti legend { float: left; width: 100%; }
+form.saisie fieldset.ressenti .barre-rpe { clear: both; }
+/* Barre RPE sans valeur : ne pas reprendre le style des écrans vides (.vide) ; « Effacer » masqué tant que rien n'est noté */
+.barre-rpe.vide { padding: 0; text-align: inherit; }
+.barre-rpe [hidden] { display: none !important; }
 </style>
 </head>
 <body class="coach">
@@ -916,7 +940,7 @@ var Core = (function () {
     { code: 'marche', nom: 'Marche', allure: 'km', chaussures: true },
     { code: 'velo', nom: 'Vélo', allure: 'kmh' },
     { code: 'natation', nom: 'Natation', allure: '100m', sansDplus: true },
-    { code: 'renfo', nom: 'Renforcement musculaire', sansDistance: true, sansDplus: true }
+    { code: 'renfo', nom: 'Renforcement musculaire', court: 'Renforcement', sansDistance: true, sansDplus: true }
   ];
   function activite(j) {
     var m = /^\[ACTIVITÉ · ([^\]]+)\]\s*([\s\S]*)$/.exec(texte(j && j.notes));
@@ -2133,11 +2157,14 @@ var UI = (function () {
   function htmlBarreRPE(valeur) {
     var v = C.isNum(valeur) ? Math.round(valeur) : null;
     return '<div class="barre-rpe' + (v ? '' : ' vide') + '" id="barreRPE">' +
+      '<div class="rpe-valeur" aria-hidden="true">' + texteRPE(v) + '</div>' +
       '<input type="range" id="rpeCurseur" min="1" max="10" step="1" value="' + (v || 5) + '" aria-label="Ressenti RPE de 1 (très facile) à 10 (effort maximal)" style="--degrade:' + degradeCSS() + '">' +
       '<div class="graduations" aria-hidden="true">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) { return '<span' + (n === v ? ' class="choisi"' : '') + '>' + n + '</span>'; }).join('') + '</div>' +
       '<div class="ligne" style="justify-content:flex-end"><button type="button" class="discret" id="rpeEffacer"' + (v ? '' : ' hidden') + '>Effacer le RPE</button></div>' +
       '<input type="hidden" name="rpe" value="' + (v || '') + '"></div>';
   }
+  // Valeur choisie, affichée à droite du titre « Ressenti (RPE) »
+  function texteRPE(v) { return v && C.libelleRPE(v) ? badgeRPE(v) : '<span>Non noté</span>'; }
   function brancherBarreRPE(form) {
     var z = $('#barreRPE', form), cur = $('#rpeCurseur', z), cache = $('input[name="rpe"]', z), eff = $('#rpeEffacer', z);
     function maj(v) {
@@ -2147,6 +2174,7 @@ var UI = (function () {
       var l = v ? C.libelleRPE(v) : null;
       if (l) { z.style.setProperty('--rpe', l.couleur); cur.setAttribute('aria-valuetext', v + (l.libelle ? ' : ' + l.libelle : '')); }
       eff.hidden = !v;
+      $('.rpe-valeur', z).innerHTML = texteRPE(v);
     }
     cur.addEventListener('input', function () { maj(Number(cur.value)); });
     cur.addEventListener('pointerdown', function () { if (!cache.value) maj(Number(cur.value)); });
@@ -2740,7 +2768,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v30</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v31</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
