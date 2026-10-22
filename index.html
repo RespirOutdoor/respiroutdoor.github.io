@@ -1416,19 +1416,21 @@ var Core = (function () {
 
   // Onglet des protocoles : « PROTOS », « PROTOCOLES » ou « PROTOCOLE »
   function feuilleProtos(classeur) { return feuille(classeur, 'PROTOS') || feuille(classeur, 'PROTOCOLES') || feuille(classeur, 'PROTOCOLE'); }
-  // Code « PC12 », « PC 12 » ou « pc12 » en colonne A ; tableau dans toutes les colonnes suivantes (12 au plus)
-  var RE_CODE_PROTO = /^PC\s*(\d+)\b/i;
+  // Code en colonne A : 1 à 3 lettres puis un numéro, éventuellement suivi de lettres (PC5, PC 12, PF1C, PV2…) ;
+  // un titre peut suivre après un tiret ou deux-points. Tableau dans les colonnes suivantes (12 au plus).
+  // Une ligne vide ne coupe pas un protocole ; 3 lignes vides de suite le terminent.
+  var RE_CODE_PROTO = /^([A-Z]{1,3})\s*(\d{1,3})([A-Z]{0,3})(?:$|\s*[-–:·]\s*(.+)$)/i;
   function importerProtos(f) {
     if (!f) return [];
-    var res = [], cur = null;
+    var res = [], cur = null, vides = 0;
     for (var r = 0; r < f.lignes.length; r++) {
       var l = f.lignes[r] || [], A = texte(l[0]), m = RE_CODE_PROTO.exec(A);
       var cellules = []; for (var c = 1; c <= 12; c++) cellules.push(texte(l[c]));
       var vide = !A && cellules.every(function (x) { return !x; });
-      if (m) { cur = { code: 'PC' + m[1], titre: [], grille: [] }; res.push(cur); var reste = texte(A.slice(m[0].length)).replace(/^[-–:·]\s*/, ''); if (reste) cur.titre.push(reste); }
-      else if (vide) { cur = null; continue; }
+      if (m) { cur = { code: (m[1] + m[2] + m[3]).toUpperCase(), titre: [], grille: [] }; res.push(cur); vides = 0; if (m[4]) cur.titre.push(texte(m[4])); }
+      else if (vide) { if (++vides >= 3) cur = null; continue; }
       else if (!cur) continue;
-      else if (A) cur.titre.push(A);
+      else { vides = 0; if (A) cur.titre.push(A); }
       while (cellules.length && !cellules[cellules.length - 1]) cellules.pop();
       if (cellules.length) cur.grille.push(cellules);
     }
@@ -1502,7 +1504,7 @@ var Core = (function () {
     var lg = importerLegende(feuille(classeur, 'LEGENDE'));
     var fPr = feuilleProtos(classeur), pr = importerProtos(fPr);
     if (lg) rapport.push('Légende : ' + lg.types.length + ' types, ' + lg.profils.length + ' profils');
-    if (fPr && !pr.length) rapport.push('⚠ Onglet « ' + texte(fPr.nom) + ' » : aucun protocole reconnu. Chaque protocole doit commencer par son code (ex. PC12) en colonne A.');
+    if (fPr && !pr.length) rapport.push('⚠ Onglet « ' + texte(fPr.nom) + ' » : aucun protocole reconnu. Chaque protocole doit commencer par son code en colonne A (ex. PC12, PF1C, PV2).');
     ['LEGENDE', 'ALLURES'].forEach(function (n) { if (!feuille(classeur, n)) rapport.push('Onglet ' + n + ' absent'); });
     if (!fPr) rapport.push('Onglet PROTOS absent : protocoles inchangés');
     return { athlete: a, legende: lg, protos: pr, rapport: rapport };
@@ -1736,6 +1738,15 @@ var Core = (function () {
       var ici = [{ code: 'PC5', titre: 'ici' }, { code: 'PC20', titre: 'nouveau' }], serv = [{ code: 'PC5', titre: 'service' }, { code: 'PC11' }, { code: 'PC14' }];
       var r = reunirProtos(ici, serv, ['PC14']);
       return r.map(function (p) { return p.code; }).join() === 'PC5,PC20,PC11' && r[0].titre === 'ici' && reunirProtos([], serv, []).length === 3 && reunirProtos(ici, null).length === 2;
+    }],
+    ['Protocoles de Seb (PF1C, PV2, PV3) : codes lus, ligne vide dans un protocole gardée, 3 lignes vides terminent, mots en colonne A non pris pour des codes', function () {
+      var L = [['bannière'], [], ['PF1C', '30" ALLURE LENTE'], ['', '4/5 BLOCS DE 5MIN'], ['METHODE', 'RECUP 3\''], ['30/20/10'], [], ['BLOC DE 5 MIN'],
+        ['PV2', '1 BLOC'], [], ['MONEGHETTI', '2 x 90 s', 'FRACTIONS RAPIDES'], ['FORMAT COURT 20MN', '4 x 60 s'],
+        ['PV3'], ['', 'BLOC 1 = 3KM'], ['SEANCE COMBO', 'RECUP'], ['', 'BLOC 2A', 'OU', 'BLOC2B'], [], [], [], ['NOTE DE BAS DE PAGE', 'x'], ['PC 12 - Côtes', 'a']];
+      var p = importerProtos({ nom: 'PROTOS', lignes: L });
+      return p.map(function (x) { return x.code; }).join() === 'PF1C,PV2,PV3,PC12' && p[0].titre === 'METHODE 30/20/10 BLOC DE 5 MIN' && p[0].grille.length === 3 &&
+        p[1].titre === 'MONEGHETTI FORMAT COURT 20MN' && p[1].grille[1][1] === 'FRACTIONS RAPIDES' && p[2].titre === 'SEANCE COMBO' && p[2].grille[2].join('|') === 'BLOC 2A|OU|BLOC2B' &&
+        p[3].titre === 'Côtes' && protoPrevu({ corps: 'PV2 en fin de séance' }, 'PV2') && protoPrevu({ corps: 'PF1C' }, 'PF1C') && !protoPrevu({ corps: 'PF1' }, 'PF1C');
     }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
@@ -2886,7 +2897,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v36</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v37</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
@@ -3152,7 +3163,7 @@ var Aide = (function () {
       '<p>Ferme complètement l\'application, puis rouvre-la. Si l\'ancienne version s\'affiche encore, rouvre-la une seconde fois. C\'est la même chose pour les athlètes.</p>' },
     { id: 'legende', q: 'Légende et protocoles', m: 'legende proto protos protocole protocoles abreviation code signification nouveau actualise mise a jour bibliotheque commun athletes', r:
       '<p>Les onglets <b>Légende</b> et <b>Protos</b> viennent de ton classeur Excel et sont envoyés aux athlètes. Les protocoles se modifient dans l\'onglet Protos.</p>' +
-      '<p>Les protocoles forment une <b>bibliothèque commune</b> à tous tes athlètes. À chaque import, l\'onglet PROTOS (ou PROTOCOLES) du classeur ajoute les nouveaux codes et met à jour ceux qui existent ; les autres sont conservés. Chaque protocole commence par son code en colonne A (ex. PC12). Le rapport d\'import indique les protocoles ajoutés et mis à jour.</p>' +
+      '<p>Les protocoles forment une <b>bibliothèque commune</b> à tous tes athlètes. À chaque import, l\'onglet PROTOS (ou PROTOCOLES) du classeur ajoute les nouveaux codes et met à jour ceux qui existent ; les autres sont conservés. Chaque protocole commence par son code en colonne A (ex. PC12, PF1C, PV2). Le rapport d\'import indique les protocoles ajoutés et mis à jour.</p>' +
       '<p>Dans l\'onglet Protos, ceux prévus dans le plan de l\'athlète choisi s\'affichent en premier, avec leurs dates. L\'athlète voit de même « Dans ton plan » puis les autres.</p>', a: ['Ouvrir les protos', '#/protos'] }
   ];
   var VIDES = ' le la les un une des de du d l au aux et ou a en pour sur dans par avec comment faire fait que quoi qui est je j me mon ma mes on il elle ils ce cette ces se sa son ses peut peux pourquoi quand ou quel quelle quels est-ce y ne pas plus tu te ton ta tes '.replace('pas ', '');
