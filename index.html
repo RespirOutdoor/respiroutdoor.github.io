@@ -230,7 +230,7 @@ nav.onglets { background: #0A322A; border-top-color: #0A322A; border-bottom-colo
 @media (min-width: 760px) { .kpis2 { grid-template-columns: repeat(4, 1fr); } }
 .kpi .etiq { display: block; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--texte-2); }
 .kpi .ecart { display: block; font-size: .8rem; color: var(--texte-2); }
-.mot { border-left: 5px solid var(--vert); }
+.mot { border: 2px solid #A8DCCF; border-left-width: 5px; } /* même vert clair que les icônes des onglets */
 .mot p { margin: 6px 0 0; white-space: pre-wrap; }
 .compet { display: flex; gap: 14px; align-items: center; }
 .compet .jx { font-size: 1.4rem; font-weight: 800; color: var(--fond); background: var(--sapin); border-radius: 10px; padding: 8px 12px; white-space: nowrap; }
@@ -2810,7 +2810,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v33</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v34</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
