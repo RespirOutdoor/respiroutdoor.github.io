@@ -1443,11 +1443,27 @@ var Core = (function () {
     });
     return { liste: liste, ajoutes: ajoutes, modifies: modifies, inchanges: inchanges, conserves: liste.length - (nouveaux || []).length };
   }
-  // Un protocole est prévu un jour si son code apparaît dans la séance (PC1 ne correspond pas à PC11)
-  function protoPrevu(j, code) {
-    var c = normCode(code).replace(/^PC/, ''); if (!c) return false;
-    return new RegExp('(^|[^A-Z0-9])PC\\s*' + c + '(?![0-9])', 'i').test(texte(j && j.corps) + ' ' + texte(j && j.consignes));
+  // Protocoles de deux appareils : ceux d'ici d'abord (ils gagnent pour un même code), puis ceux du service absents d'ici,
+  // sauf ceux supprimés ici (codes normalisés dans « supprimes »)
+  function reunirProtos(ici, service, supprimes) {
+    var vus = {}, sup = {}, out = [];
+    (supprimes || []).forEach(function (c) { sup[normCode(c)] = 1; });
+    (ici || []).forEach(function (p) { vus[normCode(p.code)] = 1; out.push(p); });
+    (service || []).forEach(function (p) { var k = normCode(p.code); if (!vus[k] && !sup[k]) { vus[k] = 1; out.push(p); } });
+    return out;
   }
+  // Un protocole est prévu un jour si son code apparaît dans la séance (corps ou consignes) :
+  // espaces et points tolérés (« PC 12 » = « PC12 »), PC1 ne correspond pas à PC11, tout caractère du code est accepté sans erreur
+  function protoPrevu(j, code) {
+    var k = normCode(code); if (!k) return false;
+    var t = (texte(j && j.corps) + ' ' + texte(j && j.consignes)).toUpperCase();
+    try {
+      var motif = k.split('').map(function (ch) { return ch.replace(/[\\^$.*+?()[\]{}|\/-]/g, '\\$&'); }).join('[\\s.]*');
+      var fin = /[0-9]$/.test(k) ? '(?![0-9])' : /[A-Z]$/.test(k) ? '(?![A-Z0-9])' : '';
+      return new RegExp('(^|[^A-Z0-9])' + motif + fin).test(t);
+    } catch (e) { return t.replace(/[\s.]/g, '').indexOf(k) >= 0; }
+  }
+
 
   // Onglets qui ressemblent à un plan (en-tête « DATE » avec des lignes datées), dans l'ordre du classeur :
   // [{ nom, du, au, seances }] ; un onglet par contrat ou par objectif, quel que soit son nom
@@ -1709,7 +1725,14 @@ var Core = (function () {
       var fu = fusionnerProtos(anciens, pr);
       return pr.length === 2 && pr[0].code === 'PC12' && pr[0].titre === 'Côtes longues' && pr[0].grille[0].length === 7 && pr[1].code === 'PC5' &&
         fu.liste.length === 3 && fu.ajoutes.join() === 'PC12' && fu.modifies.join() === 'PC5' && fu.conserves === 1 && fu.liste[0].notes === 'n' && fu.liste[0].grille[0][0] === 'nouveau' &&
-        protoPrevu({ corps: '2x PC1 en côte' }, 'PC1') && !protoPrevu({ corps: 'PC11' }, 'PC1') && protoPrevu({ corps: 'voir pc 11' }, 'PC11') && !protoPrevu({ corps: 'APC12' }, 'PC12');
+        protoPrevu({ corps: '2x PC1 en côte' }, 'PC1') && !protoPrevu({ corps: 'PC11' }, 'PC1') && protoPrevu({ corps: 'voir pc 11' }, 'PC11') && !protoPrevu({ corps: 'APC12' }, 'PC12') &&
+        protoPrevu({ corps: 'PROTO A en côte' }, 'PROTO A') && protoPrevu({ corps: 'P12' }, 'P12') && protoPrevu({ corps: 'PC5 bis' }, 'PC 5 bis') &&
+        protoPrevu({ corps: 'x PC* y' }, 'PC*') === true && protoPrevu({ corps: 'PC5 (court)' }, 'PC5 (court)') && !protoPrevu({ corps: 'PC5' }, 'PC5+') && protoPrevu({ corps: 'a' }, '') === false;
+    }],
+    ['Protocoles de deux appareils réunis : ajouts des deux gardés, version d\'ici pour un même code, suppression d\'ici respectée', function () {
+      var ici = [{ code: 'PC5', titre: 'ici' }, { code: 'PC20', titre: 'nouveau' }], serv = [{ code: 'PC5', titre: 'service' }, { code: 'PC11' }, { code: 'PC14' }];
+      var r = reunirProtos(ici, serv, ['PC14']);
+      return r.map(function (p) { return p.code; }).join() === 'PC5,PC20,PC11' && r[0].titre === 'ici' && reunirProtos([], serv, []).length === 3 && reunirProtos(ici, null).length === 2;
     }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
@@ -1778,7 +1801,7 @@ var Core = (function () {
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
     extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete,
-    lireXLSX: lireXLSX, importerClasseur: importerClasseur, fusionnerProtos: fusionnerProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
+    lireXLSX: lireXLSX, importerClasseur: importerClasseur, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();
 </script>
@@ -2209,8 +2232,12 @@ var UI = (function () {
       '<p class="petit"><b>Protocoles réfléchis et mis sur pied par Respir Outdoor : utilisation et reproduction interdites.</b></p>' +
       (modifiable ? '<p class="muet petit" style="margin:6px 0 0">Bibliothèque commune à tous tes athlètes : chaque import ajoute les nouveaux codes et met à jour les existants.</p>' : '') + '</section>' +
       (protos.length ? '' : '<section class="carte vide"><p class="muet">Aucun protocole pour le moment.</p></section>');
+    // Un protocole mal formé ne doit jamais empêcher l'affichage des autres
     function carte(p, i) {
-      var g = p.grille || [], nc = Math.max.apply(null, g.map(function (l) { return l.length; }).concat([0]));
+      try { return carteProto(p, i); } catch (e) { return '<section class="carte proto"><h3><span class="code">' + esc(p && p.code) + '</span>' + esc(p && p.titre) + '</h3></section>'; }
+    }
+    function carteProto(p, i) {
+      var g = (Array.isArray(p.grille) ? p.grille : []).map(function (l) { return Array.isArray(l) ? l : [l]; }), nc = Math.max.apply(null, g.map(function (l) { return l.length; }).concat([0]));
       var cols = []; for (var c = 0; c < nc; c++) if (g.some(function (l) { return C.texte(l[c]); })) cols.push(c);
       var usages = a ? Object.keys(a.jours || {}).filter(function (d) { return C.protoPrevu(a.jours[d], p.code); }).sort() : [];
       return '<section class="carte proto"><h3><span class="code">' + esc(p.code) + '</span>' + esc(p.titre) + '</h3>' +

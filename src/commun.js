@@ -421,8 +421,12 @@ var UI = (function () {
       '<p class="petit"><b>Protocoles réfléchis et mis sur pied par Respir Outdoor : utilisation et reproduction interdites.</b></p>' +
       (modifiable ? '<p class="muet petit" style="margin:6px 0 0">Bibliothèque commune à tous tes athlètes : chaque import ajoute les nouveaux codes et met à jour les existants.</p>' : '') + '</section>' +
       (protos.length ? '' : '<section class="carte vide"><p class="muet">Aucun protocole pour le moment.</p></section>');
+    // Un protocole mal formé ne doit jamais empêcher l'affichage des autres
     function carte(p, i) {
-      var g = p.grille || [], nc = Math.max.apply(null, g.map(function (l) { return l.length; }).concat([0]));
+      try { return carteProto(p, i); } catch (e) { return '<section class="carte proto"><h3><span class="code">' + esc(p && p.code) + '</span>' + esc(p && p.titre) + '</h3></section>'; }
+    }
+    function carteProto(p, i) {
+      var g = (Array.isArray(p.grille) ? p.grille : []).map(function (l) { return Array.isArray(l) ? l : [l]; }), nc = Math.max.apply(null, g.map(function (l) { return l.length; }).concat([0]));
       var cols = []; for (var c = 0; c < nc; c++) if (g.some(function (l) { return C.texte(l[c]); })) cols.push(c);
       var usages = a ? Object.keys(a.jours || {}).filter(function (d) { return C.protoPrevu(a.jours[d], p.code); }).sort() : [];
       return '<section class="carte proto"><h3><span class="code">' + esc(p.code) + '</span>' + esc(p.titre) + '</h3>' +

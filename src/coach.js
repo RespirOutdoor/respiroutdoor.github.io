@@ -32,7 +32,13 @@
   function marquer(a) { E.aPublier[a.id] = UI.maintenant(); a.maj = UI.maintenant(); planifierSync(); }
   // Jours modifiés ici et pas encore envoyés : ils ne sont pas remplacés par un plan modifié sur un autre appareil ('*' : tout le plan, après un import)
   function marquerJour(a, date) { E.joursModifies = E.joursModifies || {}; (E.joursModifies[a.id] = E.joursModifies[a.id] || {})[date] = 1; }
-  function marquerCommun() { E.communAPublier = true; planifierSync(); }
+  // Données communes (légende, protocoles, mot du coach) : seules les parties modifiées sur cet appareil sont envoyées,
+  // réunies avec celles du service ; un autre appareil (téléphone, ordinateur) ne peut plus écraser ses ajouts
+  function marquerCommun(parties) {
+    E.communModifie = E.communModifie || {};
+    (parties || ['legende', 'protos', 'mot']).forEach(function (k) { E.communModifie[k] = true; });
+    E.communAPublier = true; planifierSync();
+  }
   var minuteur = null, enCours = null;
   function planifierSync() { clearTimeout(minuteur); minuteur = setTimeout(function () { synchroniser(false); }, 1500); }
   function ficheAEnvoyer(a) { var x = JSON.parse(JSON.stringify(a)); delete x.jours; delete x.suivi; delete x.planVu; return x; }
@@ -92,19 +98,20 @@
           return p.then(function () { return appel({ action: 'coach.supprimer', id: id }); }).then(function () { E.aSupprimer = E.aSupprimer.filter(function (x) { return x !== id; }); });
         }, Promise.resolve());
       })
-      .then(function () {
-        if (!E.communAPublier) return;
-        return appel({ action: 'coach.commun', legende: E.legende, protos: E.protos, motGlobal: E.motGlobal }).then(function () { E.communAPublier = false; });
-      })
       .then(function () { return appel({ action: 'coach.lire', depuis: E.sync.depuis }); })
       .then(function (res) {
-        // Mot du coach, légende et protocoles modifiés sur un autre appareil
-        var cm = res.commun;
-        if (cm && !E.communAPublier) {
-          if (cm.legende && cm.legende.types && cm.legende.types.length) E.legende = cm.legende;
-          if (cm.protos && cm.protos.length) E.protos = cm.protos;
-          E.motGlobal = cm.motGlobal || '';
-        }
+        // Mot du coach, légende et protocoles : ce qui vient du service, sauf les parties modifiées ici
+        var cm = res.commun || {}, mod = E.communAPublier ? (E.communModifie || { legende: true, protos: true, mot: true }) : {};
+        if (!mod.legende && cm.legende && cm.legende.types && cm.legende.types.length) E.legende = cm.legende;
+        if (!mod.mot && cm.motGlobal !== undefined) E.motGlobal = cm.motGlobal || '';
+        // Protocoles : réunion par code (ceux de cet appareil gagnent ; ceux supprimés ici restent supprimés)
+        if (mod.protos) E.protos = C.reunirProtos(E.protos, cm.protos, E.protosSupprimes);
+        else if (cm.protos && cm.protos.length) E.protos = cm.protos;
+        if (!E.communAPublier) return res;
+        return appel({ action: 'coach.commun', legende: E.legende, protos: E.protos, motGlobal: E.motGlobal })
+          .then(function () { E.communAPublier = false; E.communModifie = {}; E.protosSupprimes = []; return res; });
+      })
+      .then(function (res) {
         // Athlètes absents de cet appareil, et plans modifiés sur un autre appareil depuis la dernière synchronisation
         var manquants = Object.keys(res.athletes || {}).filter(function (id) { return !parId(id) && E.aSupprimer.indexOf(id) < 0; });
         var modifies = Object.keys(res.athletes || {}).filter(function (id) { var a = parId(id), m = res.athletes[id].majPlan; return a && m && String(m) > String(a.planVu || ''); });
@@ -320,7 +327,7 @@
   }
   function brancherMot() {
     var f = $('#fMot');
-    if (f) f.onsubmit = function (ev) { ev.preventDefault(); E.motGlobal = C.texte($('#motGlobal').value); marquerCommun(); sauver().then(function () { toast('Mot du coach enregistré'); }); };
+    if (f) f.onsubmit = function (ev) { ev.preventDefault(); E.motGlobal = C.texte($('#motGlobal').value); marquerCommun(['mot']); sauver().then(function () { toast('Mot du coach enregistré'); }); };
   }
 
   /* ---------- PLAN d'un athlète ---------- */
@@ -542,7 +549,7 @@
     var f = $('form', boite);
     $('[data-x="annuler"]', f).onclick = function () { boite.close(); };
     var s = $('[data-x="suppr"]', f);
-    if (s) s.onclick = function () { if (confirm('Supprimer ' + p.code + ' ?')) { E.protos.splice(i, 1); marquerCommun(); boite.close(); sauver().then(rendre); } };
+    if (s) s.onclick = function () { if (confirm('Supprimer ' + p.code + ' ?')) { E.protos.splice(i, 1); E.protosSupprimes = (E.protosSupprimes || []).concat([C.normCode(p.code)]); marquerCommun(['protos']); boite.close(); sauver().then(rendre); } };
     f.onsubmit = function (ev) {
       ev.preventDefault();
       var d = new FormData(f), code = C.texte(d.get('code')).toUpperCase(), n = {
@@ -550,7 +557,8 @@
         grille: C.texte(d.get('grille')).split('\n').filter(function (l) { return l.trim(); }).map(function (l) { return l.split('|').map(function (c) { return c.trim(); }); })
       };
       if (i >= 0) E.protos[i] = n; else E.protos.push(n);
-      marquerCommun(); boite.close(); sauver().then(rendre);
+      E.protosSupprimes = (E.protosSupprimes || []).filter(function (c) { return c !== C.normCode(code); });
+      marquerCommun(['protos']); boite.close(); sauver().then(rendre);
     };
   }
 
@@ -588,7 +596,7 @@
       st.textContent = 'Test en cours…';
       appel({ action: 'coach.verifier' }).then(function () {
         st.textContent = '✓ Service joignable et clé acceptée.';
-        if (!avant) { E.athletes.forEach(function (x) { assurerCode(x); E.aPublier[x.id] = UI.maintenant(); }); E.communAPublier = true; E.sync.depuis = ''; }
+        if (!avant) { E.athletes.forEach(function (x) { assurerCode(x); E.aPublier[x.id] = UI.maintenant(); }); if ((E.protos || []).length) marquerCommun(['protos']); E.sync.depuis = ''; }
         return sauver().then(function () { return synchroniser(true); });
       }, function (e) { st.textContent = '✗ ' + e.message; return sauver(); });
     };
@@ -643,7 +651,7 @@
         // Onglet d'une autre période (nouveau contrat à venir…) : le plan s'ouvre sur sa première semaine
         var aj = auj();
         if (recu.planDu && (aj < recu.planDu || aj > recu.planAu)) semaineAffichee = UI.semaineDe(res, recu.planDu);
-        marquerJour(res, '*'); marquer(res); marquerCommun();
+        marquerJour(res, '*'); marquer(res); marquerCommun(['protos'].concat(r.legende && r.legende.types.length ? ['legende'] : []));
         return sauver().then(function () {
           boite.innerHTML = '<form class="boite"><h2>' + (local ? 'Plan mis à jour' : 'Athlète ajouté') + ' : ' + esc(nomComplet(res)) + '</h2>' +
             '<ul class="petit">' + r.rapport.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' +
