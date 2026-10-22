@@ -230,49 +230,59 @@
   function chaussures() { A.chaussures = A.chaussures || { liste: [], parDate: {}, defaut: '' }; A.chaussures.parDate = A.chaussures.parDate || {}; return A.chaussures; }
   function carteChaussures(a) {
     var ch = chaussures(), km = C.kmChaussures(ch, a.jours), actives = ch.liste.filter(function (c) { return !c.retiree; });
-    var h = '<section class="carte"><div class="ligne"><h3 class="espace" style="margin:0">👟 Mes chaussures</h3><button class="sec" data-act="chaussures">' + (ch.liste.length ? 'Gérer' : 'Ajouter une paire') + '</button></div>';
+    var h = '<section class="carte"><div class="ligne"><h3 class="espace" style="margin:0">Mes chaussures</h3><button class="sec" data-act="chaussures">' + (ch.liste.length ? 'Gérer' : 'Ajouter une paire') + '</button></div>';
     if (!actives.length) return h + '<p class="muet petit" style="margin:10px 0 0">Ajoute tes paires pour suivre les kilomètres parcourus avec chacune. Tu choisiras la paire à chaque séance saisie.</p></section>';
-    return h + '<div class="tableau" style="margin-top:12px"><table><thead><tr><th>Paire</th><th class="num">Km</th><th class="num">Seuil</th></tr></thead><tbody>' +
-      actives.map(function (c) {
-        var k = km[c.id] || 0, lim = C.isNum(c.limite) && c.limite > 0 ? c.limite : null, pct = lim ? Math.min(100, Math.round(k / lim * 100)) : 0;
-        return '<tr><td><b>' + esc(c.nom) + '</b>' + (ch.defaut === c.id ? ' <span class="muet petit">· par défaut</span>' : '') +
-          (lim ? '<div class="jauge' + (k >= lim ? ' pleine' : '') + '"><span style="width:' + pct + '%"></span></div>' : '') + '</td>' +
-          '<td class="num"><b>' + C.nombreFR(k, 1) + '</b></td><td class="num">' + (lim ? C.nombreFR(lim, 0) + (k >= lim ? '<span class="ecart voyant">à changer ?</span>' : '') : '—') + '</td></tr>';
-      }).join('') + '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">Enregistré sur ce téléphone uniquement : ton entraîneur ne le voit pas.</p></section>';
+    return h + '<ul class="paires" style="margin-top:12px">' + actives.map(function (c) { return htmlPaire(c, km[c.id] || 0, ch.defaut === c.id, false); }).join('') + '</ul>' +
+      '<p class="muet petit" style="margin:0">Enregistré sur ce téléphone uniquement : ton entraîneur ne le voit pas.</p></section>';
   }
-  function gererChaussures() {
+  // Une paire : nom (et « Par défaut »), km parcourus / seuil, jauge ; bouton Modifier dans la fenêtre de gestion
+  function htmlPaire(c, k, defaut, modifiable) {
+    var lim = C.isNum(c.limite) && c.limite > 0 ? c.limite : null, pct = lim ? Math.min(100, Math.round(k / lim * 100)) : 0;
+    return '<li class="paire' + (c.retiree ? ' retiree' : '') + '"><div class="paire-info"><div class="paire-nom"><b>' + esc(c.nom) + '</b>' + (defaut ? '<span class="etiquette">Par défaut</span>' : '') + '</div>' +
+      '<div class="paire-km"><b>' + C.nombreFR(k, 1) + ' km</b>' + (lim ? '<span class="muet"> / ' + C.nombreFR(lim, 0) + ' km</span>' + (k >= lim && !c.retiree ? '<span class="a-changer">à changer ?</span>' : '') : '') + '</div>' +
+      (lim && !c.retiree ? '<div class="jauge' + (k >= lim ? ' pleine' : '') + '"><span style="width:' + pct + '%"></span></div>' : '') + '</div>' +
+      (modifiable ? '<button type="button" class="discret" data-ch="modif" data-id="' + esc(c.id) + '">Modifier</button>' : '') + '</li>';
+  }
+  // Gestion des paires : liste (km, seuil, jauge), paires retirées à part, formulaire ouvert seulement pour ajouter ou modifier
+  function gererChaussures(edition) {
     var ch = chaussures(), km = C.kmChaussures(ch, (A.athlete || {}).jours);
-    var h = '<form class="boite"><h2>👟 Mes chaussures</h2>' +
-      (ch.liste.length ? '<div class="tableau"><table><thead><tr><th>Paire</th><th class="num">Km</th><th></th></tr></thead><tbody>' + ch.liste.map(function (c) {
-        return '<tr' + (c.retiree ? ' class="muet"' : '') + '><td><b>' + esc(c.nom) + '</b>' + (c.retiree ? ' · retirée' : '') + (ch.defaut === c.id ? ' · par défaut' : '') + '</td><td class="num">' + C.nombreFR(km[c.id] || 0, 1) + '</td>' +
-          '<td class="num"><button type="button" class="discret" data-ch="modif" data-id="' + esc(c.id) + '">Modifier</button></td></tr>';
-      }).join('') + '</tbody></table></div>' : '') +
-      '<h3 style="margin-top:16px" id="titrePaire">Ajouter une paire</h3><input type="hidden" name="id">' +
-      '<div class="champs"><label>Nom<input name="nom" maxlength="60" placeholder="ex. Pegasus 41" autocomplete="off"></label>' +
-      '<label>Km déjà parcourus<input name="kmDepart" inputmode="decimal" placeholder="0"></label>' +
-      '<label>Seuil d\'alerte (km)<input name="limite" inputmode="decimal" placeholder="800"></label></div>' +
-      '<label class="ligne" style="font-weight:600"><input type="checkbox" name="defaut" style="width:22px"> Paire par défaut pour mes séances</label>' +
-      '<label class="ligne" style="font-weight:600" id="ligneRetiree" hidden><input type="checkbox" name="retiree" style="width:22px"> Paire retirée (n\'apparaît plus dans la saisie)</label>' +
-      '<p class="alerte" id="erreurCh" hidden></p><div class="pied"><button type="button" class="danger" data-ch="suppr" hidden>Supprimer</button><button type="button" class="sec" data-ch="fermer">Fermer</button><button>Enregistrer la paire</button></div></form>';
+    var enService = ch.liste.filter(function (c) { return !c.retiree; }), retirees = ch.liste.filter(function (c) { return c.retiree; });
+    var c0 = edition && edition !== 'nouvelle' ? ch.liste.filter(function (x) { return x.id === edition; })[0] : null;
+    function ligne(c) { return htmlPaire(c, km[c.id] || 0, ch.defaut === c.id, true); }
+    var h = '<form class="boite saisie chaussures" novalidate><h2>Mes chaussures</h2><p class="sous-titre">Choisis la paire utilisée à chaque séance : ses kilomètres s\'ajoutent ici.</p>';
+    if (!edition) {
+      h += (enService.length ? '<ul class="paires">' + enService.map(ligne).join('') + '</ul>' : '<p class="muet">Aucune paire en service.</p>') +
+        (retirees.length ? '<details class="retirees"><summary>Paires retirées (' + retirees.length + ')</summary><ul class="paires">' + retirees.map(ligne).join('') + '</ul></details>' : '') +
+        '<button type="button" class="sec plein" data-ch="ajouter">+ Ajouter une paire</button>' +
+        '<p class="muet petit" style="margin:12px 0 0">Enregistré sur ce téléphone uniquement : ton entraîneur ne le voit pas.</p>' +
+        '<div class="pied"><button type="button" data-ch="fermer">Fermer</button></div>';
+    } else {
+      h += '<h3>' + (c0 ? 'Modifier « ' + esc(c0.nom) + ' »' : 'Nouvelle paire') + '</h3>' +
+        '<label>Nom<input name="nom" maxlength="60" placeholder="ex. Pegasus 41" autocomplete="off" value="' + esc(c0 ? c0.nom : '') + '"></label>' +
+        '<div class="champs"><label>Km déjà parcourus<input name="kmDepart" inputmode="decimal" placeholder="0" value="' + (c0 && C.isNum(c0.kmDepart) && c0.kmDepart ? C.nombreFR(c0.kmDepart) : '') + '"></label>' +
+        '<label>Seuil d\'alerte (km)<input name="limite" inputmode="decimal" placeholder="800" value="' + (c0 && C.isNum(c0.limite) ? C.nombreFR(c0.limite) : '') + '"></label></div>' +
+        '<label class="choix"><input type="checkbox" name="defaut"' + (c0 ? (ch.defaut === c0.id ? ' checked' : '') : (enService.length ? '' : ' checked')) + '><span>Paire proposée par défaut à la saisie</span></label>' +
+        (c0 ? '<label class="choix"><input type="checkbox" name="retiree"' + (c0.retiree ? ' checked' : '') + '><span>Paire retirée (plus proposée à la saisie, km conservés)</span></label>' : '') +
+        '<p class="alerte" id="erreurCh" hidden></p><div class="pied">' + (c0 ? '<button type="button" class="danger" data-ch="suppr">Supprimer</button>' : '') +
+        '<button type="button" class="sec" data-ch="retour">Annuler</button><button>Enregistrer</button></div>';
+    }
+    h += '</form>';
     boite.innerHTML = h; if (!boite.open) boite.showModal();
     var f = $('form', boite);
+    if (edition && !c0) f.elements.nom.focus();
     f.onclick = function (ev) {
       var b = ev.target.closest('[data-ch]'); if (!b) return;
-      if (b.dataset.ch === 'fermer') { boite.close(); rendre(); return; }
-      if (b.dataset.ch === 'modif') {
-        var c = ch.liste.filter(function (x) { return x.id === b.dataset.id; })[0];
-        f.elements.id.value = c.id; f.elements.nom.value = c.nom; f.elements.kmDepart.value = C.isNum(c.kmDepart) ? C.nombreFR(c.kmDepart) : '';
-        f.elements.limite.value = C.isNum(c.limite) ? C.nombreFR(c.limite) : ''; f.elements.defaut.checked = ch.defaut === c.id; f.elements.retiree.checked = !!c.retiree;
-        $('#titrePaire', f).textContent = 'Modifier « ' + c.nom + ' »'; $('#ligneRetiree', f).hidden = false; $('[data-ch="suppr"]', f).hidden = false;
-        $('[data-ch="suppr"]', f).dataset.id = c.id; f.elements.nom.focus();
-      }
-      if (b.dataset.ch === 'suppr') {
-        if (!confirm('Supprimer cette paire ? Les séances associées n\'auront plus de paire.')) return;
-        var id = b.dataset.id;
-        ch.liste = ch.liste.filter(function (x) { return x.id !== id; });
-        Object.keys(ch.parDate).forEach(function (d) { if (ch.parDate[d] === id) delete ch.parDate[d]; });
-        if (ch.defaut === id) ch.defaut = '';
-        sauver().then(gererChaussures);
+      var act = b.dataset.ch;
+      if (act === 'fermer') { boite.close(); rendre(); }
+      else if (act === 'ajouter') gererChaussures('nouvelle');
+      else if (act === 'modif') gererChaussures(b.dataset.id);
+      else if (act === 'retour') gererChaussures();
+      else if (act === 'suppr') {
+        if (!confirm('Supprimer « ' + c0.nom + ' » ? Les séances associées n\'auront plus de paire.')) return;
+        ch.liste = ch.liste.filter(function (x) { return x.id !== c0.id; });
+        Object.keys(ch.parDate).forEach(function (d) { if (ch.parDate[d] === c0.id) delete ch.parDate[d]; });
+        if (ch.defaut === c0.id) ch.defaut = '';
+        sauver().then(function () { gererChaussures(); });
       }
     };
     f.onsubmit = function (ev) {
@@ -282,9 +292,9 @@
       if (kd !== null && !(kd >= 0 && kd < 20000)) err.push('Km déjà parcourus : nombre attendu');
       if (li !== null && !(li > 0 && li < 20000)) err.push('Seuil : nombre de km attendu');
       if (err.length) { var e = $('#erreurCh', f); e.hidden = false; e.textContent = err.join(' · '); return; }
-      var id = f.elements.id.value, c = ch.liste.filter(function (x) { return x.id === id; })[0];
+      var c = c0;
       if (!c) { c = { id: 'ch' + Date.now().toString(36) }; ch.liste.push(c); }
-      c.nom = nom; c.kmDepart = kd || 0; c.limite = li === null ? 800 : li; c.retiree = f.elements.retiree.checked;
+      c.nom = nom; c.kmDepart = kd || 0; c.limite = li === null ? 800 : li; c.retiree = !!(f.elements.retiree && f.elements.retiree.checked);
       if (f.elements.defaut.checked) ch.defaut = c.id; else if (ch.defaut === c.id) ch.defaut = '';
       if (c.retiree && ch.defaut === c.id) ch.defaut = '';
       sauver().then(function () { toast('Paire enregistrée'); gererChaussures(); });
@@ -458,13 +468,16 @@
         return '<label><input name="' + x[0] + '" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="' + (aDuree ? x[2] : '') + '" placeholder="' + x[3] + '" aria-label="' + ({ h: 'heures', min: 'minutes', s: 'secondes' })[x[1]] + '"><span>' + x[1] + '</span></label>';
       }).join('') + '</div></div>' +
       '<label>FC moyenne (bpm)<input name="fc" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="' + (C.isNum(j.fc) ? Math.round(j.fc) : '') + '" placeholder="145"></label>' +
+      '</div>' +
+      // Paire utilisée : une case par paire en service (course et marche)
       (function () {
         var ch = chaussures(), act = ch.liste.filter(function (c) { return !c.retiree || ch.parDate[date] === c.id; });
         if (!act.length) return '';
         var sel = ch.parDate[date] || (C.aRetour(j) ? '' : ch.defaut);
-        return '<label data-champ="chaussure">Chaussures<select name="chaussure"><option value="">—</option>' + act.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.nom) + '</option>'; }).join('') + '</select></label>';
+        return '<fieldset class="disciplines" data-champ="chaussure"><legend>Chaussures</legend><div class="raisons">' +
+          act.map(function (c) { return '<label><input type="radio" name="chaussure" value="' + esc(c.id) + '"' + (c.id === sel ? ' checked' : '') + '><span>' + esc(c.nom) + '</span></label>'; }).join('') +
+          '<label><input type="radio" name="chaussure" value=""' + (sel ? '' : ' checked') + '><span>Aucune</span></label></div></fieldset>';
       })() +
-      '</div>' +
       '<fieldset class="ressenti"><legend>Ressenti (RPE)</legend>' + UI.htmlBarreRPE(j.rpe) +
       '<p class="muet petit">À noter 30 min après la séance : 1 très facile → 10 effort maximal.</p></fieldset>' +
       '<label>Notes (ressenti, douleurs, conditions…)<textarea name="notes" maxlength="2000">' + esc(j.notes) + '</textarea></label>' +

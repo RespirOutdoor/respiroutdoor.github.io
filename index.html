@@ -457,6 +457,22 @@ header.app .aide-entete[aria-expanded="true"] { background: #A8DCCF; color: #0A3
 @media (min-width: 900px) { .aide-panneau { top: 84px; bottom: auto; } }
 header.app .titre { flex-basis: 0; }
 @media (max-width: 380px) { header.app .aide-entete .aide-txt { display: none; } header.app .aide-entete { padding: 0 9px; } }
+/* Mes chaussures : liste des paires, paires retirées repliées, formulaire à la demande */
+ul.paires { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+li.paire { display: flex; align-items: center; gap: 10px; padding: 12px 8px 12px 14px; border: 1px solid var(--bord); border-radius: 12px; background: var(--carte); }
+li.paire .paire-info { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+li.paire .paire-km { margin-top: 2px; font-size: .9rem; }
+li.paire .jauge { max-width: none; }
+li.paire.retiree { opacity: .7; }
+.etiquette { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 99px; background: var(--vert-clair); color: var(--sapin); font-size: .72rem; font-weight: 700; vertical-align: 2px; }
+details.retirees { margin: 0 0 12px; }
+details.retirees summary { cursor: pointer; font-weight: 600; color: var(--texte-2); margin-bottom: 8px; }
+button.plein { width: 100%; }
+form.chaussures h3 { margin: 4px 0 12px; }
+form.chaussures label.choix { font-size: .95rem; }
+li.paire .paire-nom { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+li.paire .etiquette { margin-left: 0; vertical-align: 0; }
+li.paire .a-changer { margin-left: 8px; white-space: nowrap; font-weight: 700; color: var(--alerte); }
 </style>
 </head>
 <body class="coach">
