@@ -895,14 +895,18 @@ var Core = (function () {
     return lg;
   }
 
+  // Onglet des protocoles : « PROTOS », « PROTOCOLES » ou « PROTOCOLE »
+  function feuilleProtos(classeur) { return feuille(classeur, 'PROTOS') || feuille(classeur, 'PROTOCOLES') || feuille(classeur, 'PROTOCOLE'); }
+  // Code « PC12 », « PC 12 » ou « pc12 » en colonne A ; tableau dans toutes les colonnes suivantes (12 au plus)
+  var RE_CODE_PROTO = /^PC\s*(\d+)\b/i;
   function importerProtos(f) {
     if (!f) return [];
     var res = [], cur = null;
     for (var r = 0; r < f.lignes.length; r++) {
-      var l = f.lignes[r] || [], A = texte(l[0]);
-      var cellules = [1, 2, 3, 4, 5].map(function (c) { return texte(l[c]); });
+      var l = f.lignes[r] || [], A = texte(l[0]), m = RE_CODE_PROTO.exec(A);
+      var cellules = []; for (var c = 1; c <= 12; c++) cellules.push(texte(l[c]));
       var vide = !A && cellules.every(function (x) { return !x; });
-      if (/^PC\d+/i.test(A)) { cur = { code: A.toUpperCase(), titre: [], grille: [] }; res.push(cur); }
+      if (m) { cur = { code: 'PC' + m[1], titre: [], grille: [] }; res.push(cur); var reste = texte(A.slice(m[0].length)).replace(/^[-–:·]\s*/, ''); if (reste) cur.titre.push(reste); }
       else if (vide) { cur = null; continue; }
       else if (!cur) continue;
       else if (A) cur.titre.push(A);
@@ -911,10 +915,27 @@ var Core = (function () {
     }
     return res.map(function (p) { return { id: p.code, code: p.code, titre: p.titre.join(' '), grille: p.grille, notes: '' }; });
   }
+  // Bibliothèque commune à tous les athlètes : un import ajoute les nouveaux codes et met à jour les codes existants,
+  // sans retirer les protocoles absents du classeur importé (ils peuvent servir à d'autres athlètes)
+  function fusionnerProtos(anciens, nouveaux) {
+    var liste = clone(anciens || []), ajoutes = [], modifies = [], inchanges = 0;
+    (nouveaux || []).forEach(function (p) {
+      var i = -1; liste.forEach(function (x, k) { if (normCode(x.code) === normCode(p.code)) i = k; });
+      if (i < 0) { liste.push(clone(p)); ajoutes.push(p.code); return; }
+      var avant = liste[i], n = Object.assign({}, clone(p), { notes: avant.notes || p.notes || '' });
+      if (JSON.stringify([avant.titre, avant.grille]) === JSON.stringify([n.titre, n.grille])) inchanges++; else { liste[i] = n; modifies.push(p.code); }
+    });
+    return { liste: liste, ajoutes: ajoutes, modifies: modifies, inchanges: inchanges, conserves: liste.length - (nouveaux || []).length };
+  }
+  // Un protocole est prévu un jour si son code apparaît dans la séance (PC1 ne correspond pas à PC11)
+  function protoPrevu(j, code) {
+    var c = normCode(code).replace(/^PC/, ''); if (!c) return false;
+    return new RegExp('(^|[^A-Z0-9])PC\\s*' + c + '(?![0-9])', 'i').test(texte(j && j.corps) + ' ' + texte(j && j.consignes));
+  }
 
   // Onglets qui ressemblent à un plan (en-tête « DATE » avec des lignes datées), dans l'ordre du classeur :
   // [{ nom, du, au, seances }] ; un onglet par contrat ou par objectif, quel que soit son nom
-  var AUTRES_ONGLETS = ['LEGENDE', 'ALLURES', 'PROTOS'];
+  var AUTRES_ONGLETS = ['LEGENDE', 'ALLURES', 'PROTOS', 'PROTOCOLES', 'PROTOCOLE'];
   function ongletsPlan(classeur) {
     return (classeur.feuilles || []).map(function (f) {
       if (AUTRES_ONGLETS.indexOf(normCode(f.nom)) >= 0) return null;
@@ -944,10 +965,11 @@ var Core = (function () {
       rapport.push('⚠ Ces dates sont en dehors du contrat indiqué en haut de l\'onglet (du ' + formatDateFR(a.debut) + (a.fin ? ' au ' + formatDateFR(a.fin) : '') + '). Mets à jour la ligne CONTRAT puis réimporte : la numérotation des semaines en dépend.');
     importerAllures(feuille(classeur, 'ALLURES'), a, rapport);
     var lg = importerLegende(feuille(classeur, 'LEGENDE'));
-    var pr = importerProtos(feuille(classeur, 'PROTOS'));
+    var fPr = feuilleProtos(classeur), pr = importerProtos(fPr);
     if (lg) rapport.push('Légende : ' + lg.types.length + ' types, ' + lg.profils.length + ' profils');
-    rapport.push('Protos : ' + pr.length + ' protocole(s)');
-    ['LEGENDE', 'ALLURES', 'PROTOS'].forEach(function (n) { if (!feuille(classeur, n)) rapport.push('Onglet ' + n + ' absent'); });
+    if (fPr && !pr.length) rapport.push('⚠ Onglet « ' + texte(fPr.nom) + ' » : aucun protocole reconnu. Chaque protocole doit commencer par son code (ex. PC12) en colonne A.');
+    ['LEGENDE', 'ALLURES'].forEach(function (n) { if (!feuille(classeur, n)) rapport.push('Onglet ' + n + ' absent'); });
+    if (!fPr) rapport.push('Onglet PROTOS absent : protocoles inchangés');
     return { athlete: a, legende: lg, protos: pr, rapport: rapport };
   }
 
@@ -1164,6 +1186,15 @@ var Core = (function () {
       return n === 'Bonnes jambes\n[TERRAIN · Voie verte]\n[+ Vélo · 20 km]' && terrain(j) === 'Voie verte' && notesPrincipales(n) === 'Bonnes jambes' &&
         extras(j).length === 1 && terrain({ notes: 'x' }) === '' && avecExtras('', [], 'Piste') === '[TERRAIN · Piste]' && aRetour({ notes: '[TERRAIN · Piste]' }) === false;
     }],
+    ['Protocoles : onglet PROTOCOLES, code « PC 12 », 7 colonnes lus ; fusion par code (ajout, mise à jour, autres conservés) ; PC1 ≠ PC11', function () {
+      var f = { nom: 'Protocoles', lignes: [['PC 12 - Côtes longues', 'A', 'B', 'C', 'D', 'E', 'F', 'G'], ['', 'x'], [], ['PC5', 'nouveau'], ['POLISSAGE', 'y']] };
+      var r = importerClasseur({ feuilles: [{ nom: 'PLAN', lignes: [['DATE', 'CORPS'], [46034, 'PC12']] }, f] }), pr = r.protos;
+      var anciens = [{ code: 'PC5', titre: 'POLISSAGE', grille: [['ancien']], notes: 'n' }, { code: 'PC11', titre: 'DESCENTE', grille: [['d']] }];
+      var fu = fusionnerProtos(anciens, pr);
+      return pr.length === 2 && pr[0].code === 'PC12' && pr[0].titre === 'Côtes longues' && pr[0].grille[0].length === 7 && pr[1].code === 'PC5' &&
+        fu.liste.length === 3 && fu.ajoutes.join() === 'PC12' && fu.modifies.join() === 'PC5' && fu.conserves === 1 && fu.liste[0].notes === 'n' && fu.liste[0].grille[0][0] === 'nouveau' &&
+        protoPrevu({ corps: '2x PC1 en côte' }, 'PC1') && !protoPrevu({ corps: 'PC11' }, 'PC1') && protoPrevu({ corps: 'voir pc 11' }, 'PC11') && !protoPrevu({ corps: 'APC12' }, 'PC12');
+    }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
       // 4 -> 1/3 × 5 = 1,667 : 2/3 du chemin cyan -> vert : 99 − 3×2/3 = 97 (0x61) ; 198 − 2×2/3 = 196,7 -> 197 (0xC5) ; 221 − 123×2/3 = 139 (0x8B)
@@ -1231,6 +1262,6 @@ var Core = (function () {
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
     extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete,
-    lireXLSX: lireXLSX, importerClasseur: importerClasseur, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
+    lireXLSX: lireXLSX, importerClasseur: importerClasseur, fusionnerProtos: fusionnerProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();

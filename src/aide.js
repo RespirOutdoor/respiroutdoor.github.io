@@ -70,8 +70,10 @@ var Aide = (function () {
       '<p>Les données sont dans ton tableur Google (ton Drive) et sur les appareils où les applications sont ouvertes. Il n\'y a pas d\'autre serveur. Chaque lien d\'athlète ne donne accès qu\'à son propre plan, et seule ta clé entraîneur permet de lire ou modifier l\'ensemble.</p>' },
     { id: 'version', q: 'Voir la dernière version de l\'application', m: 'nouvelle version mise jour application ancienne affiche changement ancien', r:
       '<p>Ferme complètement l\'application, puis rouvre-la. Si l\'ancienne version s\'affiche encore, rouvre-la une seconde fois. C\'est la même chose pour les athlètes.</p>' },
-    { id: 'legende', q: 'Légende et protocoles', m: 'legende proto protos protocole abreviation code signification', r:
-      '<p>Les onglets <b>Légende</b> et <b>Protos</b> viennent de ton classeur Excel et sont envoyés aux athlètes. Les protocoles se modifient dans l\'onglet Protos.</p>', a: ['Ouvrir les protos', '#/protos'] }
+    { id: 'legende', q: 'Légende et protocoles', m: 'legende proto protos protocole protocoles abreviation code signification nouveau actualise mise a jour bibliotheque commun athletes', r:
+      '<p>Les onglets <b>Légende</b> et <b>Protos</b> viennent de ton classeur Excel et sont envoyés aux athlètes. Les protocoles se modifient dans l\'onglet Protos.</p>' +
+      '<p>Les protocoles forment une <b>bibliothèque commune</b> à tous tes athlètes. À chaque import, l\'onglet PROTOS (ou PROTOCOLES) du classeur ajoute les nouveaux codes et met à jour ceux qui existent ; les autres sont conservés. Chaque protocole commence par son code en colonne A (ex. PC12). Le rapport d\'import indique les protocoles ajoutés et mis à jour.</p>' +
+      '<p>Dans l\'onglet Protos, ceux prévus dans le plan de l\'athlète choisi s\'affichent en premier, avec leurs dates. L\'athlète voit de même « Dans ton plan » puis les autres.</p>', a: ['Ouvrir les protos', '#/protos'] }
   ];
   var VIDES = ' le la les un une des de du d l au aux et ou a en pour sur dans par avec comment faire fait que quoi qui est je j me mon ma mes on il elle ils ce cette ces se sa son ses peut peux pourquoi quand ou quel quelle quels est-ce y ne pas plus tu te ton ta tes '.replace('pas ', '');
   function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim(); }

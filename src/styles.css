@@ -465,3 +465,4 @@ li.paire .a-changer { margin-left: 8px; white-space: nowrap; font-weight: 700; c
 form.saisie .champs label.large { grid-column: 1 / -1; }
 .retour .terrain { padding: 1px 10px; border: 1px solid var(--bord); border-radius: 99px; font-size: .85rem; color: var(--texte-2); }
 form.saisie .champs { align-items: end; } /* cases alignées même si un libellé passe sur deux lignes */
+.titre-groupe { margin: 18px 4px 10px; font-size: .95rem; color: var(--texte-2); }

@@ -632,7 +632,13 @@
         res.id = recu.id; assurerCode(res);
         if (local) E.athletes[E.athletes.indexOf(local)] = res; else E.athletes.push(res);
         if (r.legende && r.legende.types.length) E.legende = enrichirFamilles(r.legende);
-        if (r.protos && r.protos.length) E.protos = r.protos;
+        // Protocoles : bibliothèque commune, complétée et mise à jour par code (rien n'est retiré)
+        if (r.protos && r.protos.length) {
+          var fp = C.fusionnerProtos(E.protos, r.protos); E.protos = fp.liste;
+          r.rapport.push('Protocoles : ' + [fp.ajoutes.length ? fp.ajoutes.length + ' nouveau' + (fp.ajoutes.length > 1 ? 'x' : '') + ' (' + fp.ajoutes.join(', ') + ')' : '',
+            fp.modifies.length ? fp.modifies.length + ' mis à jour (' + fp.modifies.join(', ') + ')' : '', fp.inchanges ? fp.inchanges + ' inchangé' + (fp.inchanges > 1 ? 's' : '') : ''].filter(Boolean).join(', ') +
+            (fp.conserves > 0 ? ' ; ' + fp.conserves + ' autre' + (fp.conserves > 1 ? 's' : '') + ' conservé' + (fp.conserves > 1 ? 's' : '') + ' pour tes autres athlètes' : ''));
+        }
         E.courant = res.id; semaineAffichee = null;
         // Onglet d'une autre période (nouveau contrat à venir…) : le plan s'ouvre sur sa première semaine
         var aj = auj();

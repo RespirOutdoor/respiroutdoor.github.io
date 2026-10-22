@@ -414,23 +414,32 @@ var UI = (function () {
   }
 
   /* ---------- Protos ---------- */
+  // Bibliothèque commune à tous les athlètes ; ceux prévus dans le plan de l'athlète affiché passent en premier
   function vueProtos(main, a, modifiable) {
     var protos = ctx.protos() || [];
     var h = '<section class="carte"><div class="ligne"><h2 class="espace">Protocoles</h2>' + (modifiable ? '<button data-act="editProto" data-i="-1">Nouveau protocole</button>' : '') + '</div>' +
-      '<p class="petit"><b>Protocoles réfléchis et mis sur pied par Respir Outdoor : utilisation et reproduction interdites.</b></p></section>' +
+      '<p class="petit"><b>Protocoles réfléchis et mis sur pied par Respir Outdoor : utilisation et reproduction interdites.</b></p>' +
+      (modifiable ? '<p class="muet petit" style="margin:6px 0 0">Bibliothèque commune à tous tes athlètes : chaque import ajoute les nouveaux codes et met à jour les existants.</p>' : '') + '</section>' +
       (protos.length ? '' : '<section class="carte vide"><p class="muet">Aucun protocole pour le moment.</p></section>');
-    h += protos.map(function (p, i) {
+    function carte(p, i) {
       var g = p.grille || [], nc = Math.max.apply(null, g.map(function (l) { return l.length; }).concat([0]));
       var cols = []; for (var c = 0; c < nc; c++) if (g.some(function (l) { return C.texte(l[c]); })) cols.push(c);
-      var usages = a ? Object.keys(a.jours || {}).filter(function (d) { return (C.texte(a.jours[d].corps) + ' ' + C.texte(a.jours[d].consignes)).toUpperCase().indexOf(String(p.code).toUpperCase()) >= 0; }).sort() : [];
+      var usages = a ? Object.keys(a.jours || {}).filter(function (d) { return C.protoPrevu(a.jours[d], p.code); }).sort() : [];
       return '<section class="carte proto"><h3><span class="code">' + esc(p.code) + '</span>' + esc(p.titre) + '</h3>' +
         (cols.length ? '<div class="tableau"><table><tbody>' + g.map(function (l) { return '<tr>' + cols.map(function (c) { return '<td>' + esc(l[c] || '') + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>' : '') +
         (p.notes ? '<p style="white-space:pre-wrap">' + esc(p.notes) + '</p>' : '') +
         (usages.length ? '<p class="petit muet">Prévu le : ' + usages.map(function (d) { return C.formatDateFR(d); }).join(', ') + '</p>' : '') +
         (modifiable ? '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="editProto" data-i="' + i + '">Modifier</button></div>' : '') + '</section>';
-    }).join('');
+    }
+    var idx = protos.map(function (p, i) { return { p: p, i: i, prevu: !!a && Object.keys(a.jours || {}).some(function (d) { return C.protoPrevu(a.jours[d], p.code); }) }; });
+    var dans = idx.filter(function (x) { return x.prevu; }), autres = idx.filter(function (x) { return !x.prevu; });
+    if (a && dans.length && autres.length) {
+      h += '<h3 class="titre-groupe">' + (modifiable ? 'Dans le plan de ' + esc(prenom(a)) : 'Dans ton plan') + ' (' + dans.length + ')</h3>' + dans.map(function (x) { return carte(x.p, x.i); }).join('');
+      h += '<h3 class="titre-groupe">Autres protocoles (' + autres.length + ')</h3>' + autres.map(function (x) { return carte(x.p, x.i); }).join('');
+    } else h += idx.map(function (x) { return carte(x.p, x.i); }).join('');
     main.innerHTML = h;
   }
+
 
   /* ---------- Barre RPE (saisie) : la barre et les chiffres ---------- */
   function degradeCSS() {
