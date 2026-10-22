@@ -119,13 +119,16 @@ var Aide = (function () {
   function fermer() { panneau.hidden = true; document.getElementById('aideBouton').setAttribute('aria-expanded', 'false'); }
   function installer() {
     var b = document.createElement('button');
-    b.type = 'button'; b.id = 'aideBouton'; b.className = 'aide-bouton noprint'; b.setAttribute('aria-expanded', 'false'); b.setAttribute('aria-controls', 'aidePanneau');
-    b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4V14M12 17h.01"/></svg>Aide';
+    b.type = 'button'; b.id = 'aideBouton'; b.className = 'aide-bouton noprint'; b.setAttribute('aria-expanded', 'false'); b.setAttribute('aria-controls', 'aidePanneau'); b.setAttribute('aria-label', 'Aide');
+    b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4V14M12 17h.01"/></svg><span class="aide-txt">Aide</span>';
     panneau = document.createElement('section');
     panneau.id = 'aidePanneau'; panneau.className = 'aide-panneau noprint'; panneau.hidden = true; panneau.setAttribute('role', 'dialog'); panneau.setAttribute('aria-label', 'Aide');
     panneau.innerHTML = '<div class="aide-tete"><b>Aide Respir Outdoor</b><button type="button" class="discret" data-aide-fermer aria-label="Fermer l\'aide">Fermer</button></div>' +
       '<div class="aide-liste" aria-live="polite"></div><form class="aide-form"><label class="sr" for="aideChamp">Ta question</label><input id="aideChamp" autocomplete="off" placeholder="ex. Comment envoyer le lien ?" maxlength="200"><button>Envoyer</button></form>';
-    document.body.appendChild(b); document.body.appendChild(panneau);
+    // Bouton dans l'en-tête (à droite du titre) : un bouton flottant masquait « Envoyer » et les boutons en bas des écrans
+    var tete = document.querySelector('header.app');
+    if (tete) { b.classList.add('aide-entete'); tete.insertBefore(b, tete.querySelector('.titre').nextSibling); } else document.body.appendChild(b);
+    document.body.appendChild(panneau);
     liste = panneau.querySelector('.aide-liste'); champ = panneau.querySelector('#aideChamp');
     b.onclick = function () { if (panneau.hidden) ouvrir(); else fermer(); };
     panneau.querySelector('[data-aide-fermer]').onclick = fermer;

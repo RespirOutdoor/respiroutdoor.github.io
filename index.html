@@ -448,6 +448,15 @@ form.saisie fieldset.ressenti .barre-rpe { clear: both; }
 /* Barre RPE sans valeur : ne pas reprendre le style des écrans vides (.vide) ; « Effacer » masqué tant que rien n'est noté */
 .barre-rpe.vide { padding: 0; text-align: inherit; }
 .barre-rpe [hidden] { display: none !important; }
+/* Aide : bouton dans l'en-tête (plus de bouton flottant sur le contenu) ; panneau par-dessus l'écran */
+header.app .aide-entete { position: static; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px 0 10px; border: 0; border-radius: 99px;
+  background: rgba(255, 255, 255, .15); color: #fff; font-size: .85rem; font-weight: 600; box-shadow: none; }
+header.app .aide-entete svg { width: 18px; height: 18px; }
+header.app .aide-entete[aria-expanded="true"] { background: #A8DCCF; color: #0A322A; }
+@media (max-width: 899px) { .aide-panneau { top: calc(12px + env(safe-area-inset-top, 0px)); bottom: calc(var(--nav-h) + 12px + env(safe-area-inset-bottom, 0px)); height: auto; } }
+@media (min-width: 900px) { .aide-panneau { top: 84px; bottom: auto; } }
+header.app .titre { flex-basis: 0; }
+@media (max-width: 380px) { header.app .aide-entete .aide-txt { display: none; } header.app .aide-entete { padding: 0 9px; } }
 </style>
 </head>
 <body class="coach">
@@ -2768,7 +2777,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v31</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v32</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
@@ -3075,13 +3084,16 @@ var Aide = (function () {
   function fermer() { panneau.hidden = true; document.getElementById('aideBouton').setAttribute('aria-expanded', 'false'); }
   function installer() {
     var b = document.createElement('button');
-    b.type = 'button'; b.id = 'aideBouton'; b.className = 'aide-bouton noprint'; b.setAttribute('aria-expanded', 'false'); b.setAttribute('aria-controls', 'aidePanneau');
-    b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4V14M12 17h.01"/></svg>Aide';
+    b.type = 'button'; b.id = 'aideBouton'; b.className = 'aide-bouton noprint'; b.setAttribute('aria-expanded', 'false'); b.setAttribute('aria-controls', 'aidePanneau'); b.setAttribute('aria-label', 'Aide');
+    b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4V14M12 17h.01"/></svg><span class="aide-txt">Aide</span>';
     panneau = document.createElement('section');
     panneau.id = 'aidePanneau'; panneau.className = 'aide-panneau noprint'; panneau.hidden = true; panneau.setAttribute('role', 'dialog'); panneau.setAttribute('aria-label', 'Aide');
     panneau.innerHTML = '<div class="aide-tete"><b>Aide Respir Outdoor</b><button type="button" class="discret" data-aide-fermer aria-label="Fermer l\'aide">Fermer</button></div>' +
       '<div class="aide-liste" aria-live="polite"></div><form class="aide-form"><label class="sr" for="aideChamp">Ta question</label><input id="aideChamp" autocomplete="off" placeholder="ex. Comment envoyer le lien ?" maxlength="200"><button>Envoyer</button></form>';
-    document.body.appendChild(b); document.body.appendChild(panneau);
+    // Bouton dans l'en-tête (à droite du titre) : un bouton flottant masquait « Envoyer » et les boutons en bas des écrans
+    var tete = document.querySelector('header.app');
+    if (tete) { b.classList.add('aide-entete'); tete.insertBefore(b, tete.querySelector('.titre').nextSibling); } else document.body.appendChild(b);
+    document.body.appendChild(panneau);
     liste = panneau.querySelector('.aide-liste'); champ = panneau.querySelector('#aideChamp');
     b.onclick = function () { if (panneau.hidden) ouvrir(); else fermer(); };
     panneau.querySelector('[data-aide-fermer]').onclick = fermer;

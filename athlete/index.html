@@ -448,6 +448,15 @@ form.saisie fieldset.ressenti .barre-rpe { clear: both; }
 /* Barre RPE sans valeur : ne pas reprendre le style des écrans vides (.vide) ; « Effacer » masqué tant que rien n'est noté */
 .barre-rpe.vide { padding: 0; text-align: inherit; }
 .barre-rpe [hidden] { display: none !important; }
+/* Aide : bouton dans l'en-tête (plus de bouton flottant sur le contenu) ; panneau par-dessus l'écran */
+header.app .aide-entete { position: static; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px 0 10px; border: 0; border-radius: 99px;
+  background: rgba(255, 255, 255, .15); color: #fff; font-size: .85rem; font-weight: 600; box-shadow: none; }
+header.app .aide-entete svg { width: 18px; height: 18px; }
+header.app .aide-entete[aria-expanded="true"] { background: #A8DCCF; color: #0A322A; }
+@media (max-width: 899px) { .aide-panneau { top: calc(12px + env(safe-area-inset-top, 0px)); bottom: calc(var(--nav-h) + 12px + env(safe-area-inset-bottom, 0px)); height: auto; } }
+@media (min-width: 900px) { .aide-panneau { top: 84px; bottom: auto; } }
+header.app .titre { flex-basis: 0; }
+@media (max-width: 380px) { header.app .aide-entete .aide-txt { display: none; } header.app .aide-entete { padding: 0 9px; } }
 </style>
 </head>
 <body class="athlete">
