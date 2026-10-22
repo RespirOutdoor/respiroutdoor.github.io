@@ -666,11 +666,11 @@
   }
   function exportCsv() {
     var a = athlete(), dates = Object.keys(a.jours).sort();
-    var l = [['Semaine', 'Jour', 'Date', 'Éveil (min.)', 'Éduc (min.)', 'Corps de séance', 'RAC (min.)', 'Profil', 'Type', 'Phase', 'Cycle', 'Consignes', 'KM', 'Durée', 'D+ (m)', 'RPE', 'FC moy. (bpm)', 'Discipline', 'Notes perso', 'Autres activités', 'Réaction du coach']];
+    var l = [['Semaine', 'Jour', 'Date', 'Éveil (min.)', 'Éduc (min.)', 'Corps de séance', 'RAC (min.)', 'Profil', 'Type', 'Phase', 'Cycle', 'Consignes', 'KM', 'Durée', 'D+ (m)', 'RPE', 'FC moy. (bpm)', 'Discipline', 'Terrain', 'Notes perso', 'Autres activités', 'Réaction du coach']];
     dates.forEach(function (d) {
       var j = a.jours[d], ns = UI.nomSemaine(a, UI.semaineDe(a, d)), w = ns.info;
       l.push([ns.nom + (ns.contrat ? ' (contrat du ' + C.formatDateFR(ns.contrat.debut) + ')' : ''), C.JOURS[C.dayOfWeek(d)], C.formatDateFR(d), j.eveil || '', j.educ || '', j.corps || '', j.rac || '', j.profil || '', j.type || '', w.phase || '', w.cycle || '', j.consignes || '',
-        C.isNum(j.km) ? C.nombreFR(j.km, 3) : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.dplus) ? Math.round(j.dplus) : '', C.isNum(j.rpe) ? C.nombreFR(j.rpe, 1) : '', C.isNum(j.fc) ? Math.round(j.fc) : '', C.activite(j) ? C.activite(j).activite.nom : (C.aRetour(j) ? 'Course à pied' : ''), C.activite(j) ? C.activite(j).notes : C.notesPrincipales(j.notes), C.extras(j).map(function (x) { return [x.activite.nom, C.isNum(x.km) ? C.nombreFR(x.km, 2) + ' km' : '', C.isNum(x.dureeSec) ? C.formatDuree(x.dureeSec) : ''].filter(Boolean).join(' '); }).join(' ; '), j.reaction || '']);
+        C.isNum(j.km) ? C.nombreFR(j.km, 3) : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.dplus) ? Math.round(j.dplus) : '', C.isNum(j.rpe) ? C.nombreFR(j.rpe, 1) : '', C.isNum(j.fc) ? Math.round(j.fc) : '', C.activite(j) ? C.activite(j).activite.nom : (C.aRetour(j) ? 'Course à pied' : ''), C.terrain(j), C.activite(j) ? C.activite(j).notes : C.notesPrincipales(j.notes), C.extras(j).map(function (x) { return [x.activite.nom, C.isNum(x.km) ? C.nombreFR(x.km, 2) + ' km' : '', C.isNum(x.dureeSec) ? C.formatDuree(x.dureeSec) : ''].filter(Boolean).join(' '); }).join(' ; '), j.reaction || '']);
     });
     telecharger(horodatage() + '_PLAN_' + (a.nom || '').toUpperCase() + '.csv', '﻿' + C.versCSV(l), 'text/csv;charset=utf-8');
   }

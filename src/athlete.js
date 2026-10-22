@@ -422,7 +422,7 @@
     var an = $('[data-x="annulerNf"]', f);
     if (an) an.onclick = function () {
       var n = Object.assign({}, j); C.CHAMPS_ATHLETE.forEach(function (k) { delete n[k]; });
-      enregistrer(date, n, 'Séance remise à saisir'); boite.close();
+      enregistrer(date, n, 'Séance remise à saisir', undefined, ''); boite.close();
     };
     f.onsubmit = function (ev) {
       ev.preventDefault();
@@ -431,7 +431,7 @@
       C.CHAMPS_ATHLETE.forEach(function (k) { delete n[k]; });
       n.notes = decale ? C.noteDecalee(jour, d.get('raison') || '', d.get('message') || '') : C.noteNonRealisee(d.get('raison') || '', d.get('message') || '');
       delete chaussures().parDate[date];
-      enregistrer(date, n, decale ? 'Séance décalée au ' + UI.jourCourt(jour) : 'Envoyé à ton entraîneur'); boite.close();
+      enregistrer(date, n, decale ? 'Séance décalée au ' + UI.jourCourt(jour) : 'Envoyé à ton entraîneur', undefined, ''); boite.close();
     };
   }
   // Séances décalées à aujourd'hui (ou à un jour déjà passé) et pas encore saisies
@@ -468,16 +468,18 @@
         return '<label><input name="' + x[0] + '" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="' + (aDuree ? x[2] : '') + '" placeholder="' + x[3] + '" aria-label="' + ({ h: 'heures', min: 'minutes', s: 'secondes' })[x[1]] + '"><span>' + x[1] + '</span></label>';
       }).join('') + '</div></div>' +
       '<label>FC moyenne (bpm)<input name="fc" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="' + (C.isNum(j.fc) ? Math.round(j.fc) : '') + '" placeholder="145"></label>' +
-      '</div>' +
-      // Paire utilisée : une case par paire en service (course et marche)
+      // Profil / terrain réellement couru (suggestions : profils de la légende de l'entraîneur)
+      '<label data-champ="terrain">Profil / terrain<input name="terrain" list="dlTerrains" maxlength="60" autocomplete="off" value="' + esc(C.terrain(a.jours[date])) + '" placeholder="' + esc(j.profil || 'ex. Voie verte') + '"></label>' +
+      '<datalist id="dlTerrains">' + ((A.commun.legende || DEFAUTS.legende).profils || []).map(function (p) { return '<option value="' + esc(p.code) + '">' + esc(p.desc) + '</option>'; }).join('') + '</datalist>' +
+      // Paire utilisée : menu des paires en service (course et marche)
       (function () {
         var ch = chaussures(), act = ch.liste.filter(function (c) { return !c.retiree || ch.parDate[date] === c.id; });
         if (!act.length) return '';
         var sel = ch.parDate[date] || (C.aRetour(j) ? '' : ch.defaut);
-        return '<fieldset class="disciplines" data-champ="chaussure"><legend>Chaussures</legend><div class="raisons">' +
-          act.map(function (c) { return '<label><input type="radio" name="chaussure" value="' + esc(c.id) + '"' + (c.id === sel ? ' checked' : '') + '><span>' + esc(c.nom) + '</span></label>'; }).join('') +
-          '<label><input type="radio" name="chaussure" value=""' + (sel ? '' : ' checked') + '><span>Aucune</span></label></div></fieldset>';
+        return '<label data-champ="chaussure" class="large">Chaussures<select name="chaussure"><option value="">—</option>' +
+          act.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.nom) + '</option>'; }).join('') + '</select></label>';
       })() +
+      '</div>' +
       '<fieldset class="ressenti"><legend>Ressenti (RPE)</legend>' + UI.htmlBarreRPE(j.rpe) +
       '<p class="muet petit">À noter 30 min après la séance : 1 très facile → 10 effort maximal.</p></fieldset>' +
       '<label>Notes (ressenti, douleurs, conditions…)<textarea name="notes" maxlength="2000">' + esc(j.notes) + '</textarea></label>' +
@@ -490,7 +492,7 @@
     function discipline() { var c = f.querySelector('input[name="activite"]:checked'); return C.ACTIVITES.filter(function (x) { return x.code === (c ? c.value : 'course'); })[0]; }
     function majChamps() {
       var x = discipline();
-      $$('[data-champ]', f).forEach(function (l) { var k = l.dataset.champ; l.hidden = (k === 'km' && x.sansDistance) || (k === 'dplus' && x.sansDplus) || (k === 'chaussure' && !x.chaussures); });
+      $$('[data-champ]', f).forEach(function (l) { var k = l.dataset.champ; l.hidden = (k === 'km' && x.sansDistance) || (k === 'terrain' && x.sansDistance) || (k === 'dplus' && x.sansDplus) || (k === 'chaussure' && !x.chaussures); });
     }
     $$('input[name="activite"]', f).forEach(function (r) { r.onchange = majChamps; });
     majChamps();
@@ -506,7 +508,7 @@
       if (!confirm('Effacer ta saisie du ' + C.formatDateFR(date) + ' ?')) return;
       var n = Object.assign({}, j); C.CHAMPS_ATHLETE.forEach(function (k) { delete n[k]; });
       delete chaussures().parDate[date];
-      enregistrer(date, n); boite.close();
+      enregistrer(date, n, undefined, undefined, ''); boite.close();
     };
     f.onsubmit = function (ev) {
       ev.preventDefault();
@@ -526,13 +528,14 @@
       var n = Object.assign({}, j, { km: km, dureeSec: du, dplus: dp, rpe: rpe, fc: fc, notes: autreJour && leJour !== date ? C.noteFaiteLe(leJour, notes) : notes });
       var chx = disc.chaussures ? d.get('chaussure') : '', ch = chaussures();
       if (chx) ch.parDate[date] = chx; else delete ch.parDate[date];
-      enregistrer(date, n); boite.close();
+      enregistrer(date, n, undefined, undefined, C.texte(d.get('terrain'))); boite.close();
     };
   }
   // extras : nouvelle liste des activités en plus du jour ; sans elle, celles déjà enregistrées sont gardées
-  function enregistrer(date, j, message, extras) {
+  // ter : terrain de la séance (sans lui, celui déjà enregistré est gardé)
+  function enregistrer(date, j, message, extras, ter) {
     var a = A.athlete;
-    j.notes = C.avecExtras(j.notes, extras || C.extras(a.jours[date]));
+    j.notes = C.avecExtras(j.notes, extras || C.extras(a.jours[date]), ter !== undefined ? ter : C.terrain(a.jours[date]));
     j.majA = UI.maintenant();
     var n = C.nettoyerJour(j);
     a.jours[date] = n;

@@ -443,7 +443,7 @@ header.app .aide-entete svg { width: 18px; height: 18px; }
 header.app .aide-entete[aria-expanded="true"] { background: #A8DCCF; color: #0A322A; }
 @media (max-width: 899px) { .aide-panneau { top: calc(12px + env(safe-area-inset-top, 0px)); bottom: calc(var(--nav-h) + 12px + env(safe-area-inset-bottom, 0px)); height: auto; } }
 @media (min-width: 900px) { .aide-panneau { top: 84px; bottom: auto; } }
-header.app .titre { flex-basis: 0; }
+body:not(.athlete) header.app .titre { flex-basis: 0; } /* coach : bouton Aide sur la ligne du titre */
 @media (max-width: 380px) { header.app .aide-entete .aide-txt { display: none; } header.app .aide-entete { padding: 0 9px; } }
 /* Mes chaussures : liste des paires, paires retirées repliées, formulaire à la demande */
 ul.paires { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
@@ -461,3 +461,7 @@ form.chaussures label.choix { font-size: .95rem; }
 li.paire .paire-nom { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 li.paire .etiquette { margin-left: 0; vertical-align: 0; }
 li.paire .a-changer { margin-left: 8px; white-space: nowrap; font-weight: 700; color: var(--alerte); }
+/* Saisie : menu des chaussures sur toute la largeur ; terrain affiché sur la carte du jour */
+form.saisie .champs label.large { grid-column: 1 / -1; }
+.retour .terrain { padding: 1px 10px; border: 1px solid var(--bord); border-radius: 99px; font-size: .85rem; color: var(--texte-2); }
+form.saisie .champs { align-items: end; } /* cases alignées même si un libellé passe sur deux lignes */

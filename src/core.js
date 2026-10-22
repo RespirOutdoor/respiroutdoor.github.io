@@ -493,9 +493,16 @@ var Core = (function () {
     if (isNum(x.rpe)) p.push('RPE ' + nombreFR(x.rpe, 1));
     return '[+ ' + p.join(' · ').replace(/[\[\]\n]/g, '') + ']' + (texte(x.note) ? ' ' + texte(x.note).replace(/\s+/g, ' ') : '');
   }
-  function notesPrincipales(notes) { return texte(String(notes == null ? '' : notes).split('\n').filter(function (l) { return !RE_EXTRA.test(l.trim()); }).join('\n')); }
-  function avecExtras(notes, liste) {
-    var lignes = (liste || []).map(ligneExtra), n = notesPrincipales(notes);
+  // Profil / terrain de la séance réellement courue (saisi par l'athlète) : ligne « [TERRAIN · Voie verte] » de la note
+  var RE_TERRAIN = /^\[TERRAIN · ([^\]]*)\]$/;
+  function terrain(j) {
+    var l = texte(j && j.notes).split('\n').map(function (x) { return RE_TERRAIN.exec(x.trim()); }).filter(Boolean)[0];
+    return l ? texte(l[1]) : '';
+  }
+  function notesPrincipales(notes) { return texte(String(notes == null ? '' : notes).split('\n').filter(function (l) { return !RE_EXTRA.test(l.trim()) && !RE_TERRAIN.test(l.trim()); }).join('\n')); }
+  // Note complète : texte de l'athlète, puis terrain, puis activités en plus
+  function avecExtras(notes, liste, ter) {
+    var lignes = (texte(ter) ? ['[TERRAIN · ' + texte(ter).replace(/[\[\]\n]/g, '').slice(0, 60) + ']'] : []).concat((liste || []).map(ligneExtra)), n = notesPrincipales(notes);
     return lignes.length ? (n ? n + '\n' : '') + lignes.join('\n') : n;
   }
   // Toutes les séances d'un jour : la saisie principale puis les activités en plus { code, nom, km, dureeSec, dplus, rpe, principale }
@@ -1152,6 +1159,11 @@ var Core = (function () {
         b.km === 15 && b.dureeSec === 4500 && b.seances === 2 && b.prevuesFaites === 1 && b.autres === 2 && bj.faites === 2 && bj.autres.join() === 'Vélo' &&
         rec.filter(function (r) { return r.cle === 'semaine'; })[0].valeur === 15;
     }],
+    ['Terrain saisi par l\'athlète : ligne lue, retirée du texte de la note, gardée avec les activités en plus', function () {
+      var n = avecExtras('Bonnes jambes', [{ activite: ACTIVITES[3], km: 20 }], 'Voie verte'), j = { notes: n };
+      return n === 'Bonnes jambes\n[TERRAIN · Voie verte]\n[+ Vélo · 20 km]' && terrain(j) === 'Voie verte' && notesPrincipales(n) === 'Bonnes jambes' &&
+        extras(j).length === 1 && terrain({ notes: 'x' }) === '' && avecExtras('', [], 'Piste') === '[TERRAIN · Piste]' && aRetour({ notes: '[TERRAIN · Piste]' }) === false;
+    }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
       // 4 -> 1/3 × 5 = 1,667 : 2/3 du chemin cyan -> vert : 99 − 3×2/3 = 97 (0x61) ; 198 − 2×2/3 = 196,7 -> 197 (0xC5) ; 221 − 123×2/3 = 139 (0x8B)
@@ -1218,7 +1230,7 @@ var Core = (function () {
     trouverZone: trouverZone, reperesSeance: reperesSeance, normCode: normCode, chercherCode: chercherCode,
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
-    extras: extras, avecExtras: avecExtras, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete,
+    extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete,
     lireXLSX: lireXLSX, importerClasseur: importerClasseur, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();

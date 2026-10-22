@@ -455,7 +455,7 @@ header.app .aide-entete svg { width: 18px; height: 18px; }
 header.app .aide-entete[aria-expanded="true"] { background: #A8DCCF; color: #0A322A; }
 @media (max-width: 899px) { .aide-panneau { top: calc(12px + env(safe-area-inset-top, 0px)); bottom: calc(var(--nav-h) + 12px + env(safe-area-inset-bottom, 0px)); height: auto; } }
 @media (min-width: 900px) { .aide-panneau { top: 84px; bottom: auto; } }
-header.app .titre { flex-basis: 0; }
+body:not(.athlete) header.app .titre { flex-basis: 0; } /* coach : bouton Aide sur la ligne du titre */
 @media (max-width: 380px) { header.app .aide-entete .aide-txt { display: none; } header.app .aide-entete { padding: 0 9px; } }
 /* Mes chaussures : liste des paires, paires retirées repliées, formulaire à la demande */
 ul.paires { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
@@ -473,6 +473,10 @@ form.chaussures label.choix { font-size: .95rem; }
 li.paire .paire-nom { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 li.paire .etiquette { margin-left: 0; vertical-align: 0; }
 li.paire .a-changer { margin-left: 8px; white-space: nowrap; font-weight: 700; color: var(--alerte); }
+/* Saisie : menu des chaussures sur toute la largeur ; terrain affiché sur la carte du jour */
+form.saisie .champs label.large { grid-column: 1 / -1; }
+.retour .terrain { padding: 1px 10px; border: 1px solid var(--bord); border-radius: 99px; font-size: .85rem; color: var(--texte-2); }
+form.saisie .champs { align-items: end; } /* cases alignées même si un libellé passe sur deux lignes */
 </style>
 </head>
 <body class="coach">
@@ -1007,9 +1011,16 @@ var Core = (function () {
     if (isNum(x.rpe)) p.push('RPE ' + nombreFR(x.rpe, 1));
     return '[+ ' + p.join(' · ').replace(/[\[\]\n]/g, '') + ']' + (texte(x.note) ? ' ' + texte(x.note).replace(/\s+/g, ' ') : '');
   }
-  function notesPrincipales(notes) { return texte(String(notes == null ? '' : notes).split('\n').filter(function (l) { return !RE_EXTRA.test(l.trim()); }).join('\n')); }
-  function avecExtras(notes, liste) {
-    var lignes = (liste || []).map(ligneExtra), n = notesPrincipales(notes);
+  // Profil / terrain de la séance réellement courue (saisi par l'athlète) : ligne « [TERRAIN · Voie verte] » de la note
+  var RE_TERRAIN = /^\[TERRAIN · ([^\]]*)\]$/;
+  function terrain(j) {
+    var l = texte(j && j.notes).split('\n').map(function (x) { return RE_TERRAIN.exec(x.trim()); }).filter(Boolean)[0];
+    return l ? texte(l[1]) : '';
+  }
+  function notesPrincipales(notes) { return texte(String(notes == null ? '' : notes).split('\n').filter(function (l) { return !RE_EXTRA.test(l.trim()) && !RE_TERRAIN.test(l.trim()); }).join('\n')); }
+  // Note complète : texte de l'athlète, puis terrain, puis activités en plus
+  function avecExtras(notes, liste, ter) {
+    var lignes = (texte(ter) ? ['[TERRAIN · ' + texte(ter).replace(/[\[\]\n]/g, '').slice(0, 60) + ']'] : []).concat((liste || []).map(ligneExtra)), n = notesPrincipales(notes);
     return lignes.length ? (n ? n + '\n' : '') + lignes.join('\n') : n;
   }
   // Toutes les séances d'un jour : la saisie principale puis les activités en plus { code, nom, km, dureeSec, dplus, rpe, principale }
@@ -1666,6 +1677,11 @@ var Core = (function () {
         b.km === 15 && b.dureeSec === 4500 && b.seances === 2 && b.prevuesFaites === 1 && b.autres === 2 && bj.faites === 2 && bj.autres.join() === 'Vélo' &&
         rec.filter(function (r) { return r.cle === 'semaine'; })[0].valeur === 15;
     }],
+    ['Terrain saisi par l\'athlète : ligne lue, retirée du texte de la note, gardée avec les activités en plus', function () {
+      var n = avecExtras('Bonnes jambes', [{ activite: ACTIVITES[3], km: 20 }], 'Voie verte'), j = { notes: n };
+      return n === 'Bonnes jambes\n[TERRAIN · Voie verte]\n[+ Vélo · 20 km]' && terrain(j) === 'Voie verte' && notesPrincipales(n) === 'Bonnes jambes' &&
+        extras(j).length === 1 && terrain({ notes: 'x' }) === '' && avecExtras('', [], 'Piste') === '[TERRAIN · Piste]' && aRetour({ notes: '[TERRAIN · Piste]' }) === false;
+    }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
       // 4 -> 1/3 × 5 = 1,667 : 2/3 du chemin cyan -> vert : 99 − 3×2/3 = 97 (0x61) ; 198 − 2×2/3 = 196,7 -> 197 (0xC5) ; 221 − 123×2/3 = 139 (0x8B)
@@ -1732,7 +1748,7 @@ var Core = (function () {
     trouverZone: trouverZone, reperesSeance: reperesSeance, normCode: normCode, chercherCode: chercherCode,
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
-    extras: extras, avecExtras: avecExtras, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete,
+    extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete,
     lireXLSX: lireXLSX, importerClasseur: importerClasseur, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();
@@ -1896,7 +1912,8 @@ var UI = (function () {
           (allure ? '<span>' + allure + '</span>' : '') +
           (C.isNum(j.dplus) ? '<span>D+ ' + Math.round(j.dplus) + ' m</span>' : '') +
           (C.isNum(j.fc) ? '<span>FC moy. <b>' + Math.round(j.fc) + '</b> bpm</span>' : '') +
-          (C.isNum(j.rpe) ? '<span>RPE ' + badgeRPE(j.rpe) + '</span>' : '');
+          (C.isNum(j.rpe) ? '<span>RPE ' + badgeRPE(j.rpe) + '</span>' : '') +
+          (C.terrain(j) ? '<span class="terrain">' + esc(C.terrain(j)) + '</span>' : '');
       } else h += '<span class="muet petit">' + (role === 'athlete' ? (passe ? 'Pas encore saisie' : 'À venir') : 'Pas encore de retour') + '</span>';
       h += '<span class="espace"></span>';
       if (role === 'coach') {
@@ -2793,7 +2810,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v32</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v33</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
@@ -2889,11 +2906,11 @@ var UI = (function () {
   }
   function exportCsv() {
     var a = athlete(), dates = Object.keys(a.jours).sort();
-    var l = [['Semaine', 'Jour', 'Date', 'Éveil (min.)', 'Éduc (min.)', 'Corps de séance', 'RAC (min.)', 'Profil', 'Type', 'Phase', 'Cycle', 'Consignes', 'KM', 'Durée', 'D+ (m)', 'RPE', 'FC moy. (bpm)', 'Discipline', 'Notes perso', 'Autres activités', 'Réaction du coach']];
+    var l = [['Semaine', 'Jour', 'Date', 'Éveil (min.)', 'Éduc (min.)', 'Corps de séance', 'RAC (min.)', 'Profil', 'Type', 'Phase', 'Cycle', 'Consignes', 'KM', 'Durée', 'D+ (m)', 'RPE', 'FC moy. (bpm)', 'Discipline', 'Terrain', 'Notes perso', 'Autres activités', 'Réaction du coach']];
     dates.forEach(function (d) {
       var j = a.jours[d], ns = UI.nomSemaine(a, UI.semaineDe(a, d)), w = ns.info;
       l.push([ns.nom + (ns.contrat ? ' (contrat du ' + C.formatDateFR(ns.contrat.debut) + ')' : ''), C.JOURS[C.dayOfWeek(d)], C.formatDateFR(d), j.eveil || '', j.educ || '', j.corps || '', j.rac || '', j.profil || '', j.type || '', w.phase || '', w.cycle || '', j.consignes || '',
-        C.isNum(j.km) ? C.nombreFR(j.km, 3) : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.dplus) ? Math.round(j.dplus) : '', C.isNum(j.rpe) ? C.nombreFR(j.rpe, 1) : '', C.isNum(j.fc) ? Math.round(j.fc) : '', C.activite(j) ? C.activite(j).activite.nom : (C.aRetour(j) ? 'Course à pied' : ''), C.activite(j) ? C.activite(j).notes : C.notesPrincipales(j.notes), C.extras(j).map(function (x) { return [x.activite.nom, C.isNum(x.km) ? C.nombreFR(x.km, 2) + ' km' : '', C.isNum(x.dureeSec) ? C.formatDuree(x.dureeSec) : ''].filter(Boolean).join(' '); }).join(' ; '), j.reaction || '']);
+        C.isNum(j.km) ? C.nombreFR(j.km, 3) : '', C.isNum(j.dureeSec) ? C.formatDuree(j.dureeSec) : '', C.isNum(j.dplus) ? Math.round(j.dplus) : '', C.isNum(j.rpe) ? C.nombreFR(j.rpe, 1) : '', C.isNum(j.fc) ? Math.round(j.fc) : '', C.activite(j) ? C.activite(j).activite.nom : (C.aRetour(j) ? 'Course à pied' : ''), C.terrain(j), C.activite(j) ? C.activite(j).notes : C.notesPrincipales(j.notes), C.extras(j).map(function (x) { return [x.activite.nom, C.isNum(x.km) ? C.nombreFR(x.km, 2) + ' km' : '', C.isNum(x.dureeSec) ? C.formatDuree(x.dureeSec) : ''].filter(Boolean).join(' '); }).join(' ; '), j.reaction || '']);
     });
     telecharger(horodatage() + '_PLAN_' + (a.nom || '').toUpperCase() + '.csv', '﻿' + C.versCSV(l), 'text/csv;charset=utf-8');
   }
