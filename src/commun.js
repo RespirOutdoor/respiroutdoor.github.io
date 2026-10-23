@@ -417,9 +417,9 @@ var UI = (function () {
   // Bibliothèque commune à tous les athlètes ; ceux prévus dans le plan de l'athlète affiché passent en premier
   function vueProtos(main, a, modifiable) {
     var protos = ctx.protos() || [];
-    var h = '<section class="carte"><div class="ligne"><h2 class="espace">Protocoles</h2>' + (modifiable ? '<button data-act="editProto" data-i="-1">Nouveau protocole</button>' : '') + '</div>' +
+    var h = '<section class="carte"><div class="ligne"><h2 class="espace">Protocoles</h2>' + (modifiable ? '<button class="sec" data-act="importXlsx">Importer des protocoles</button><button data-act="editProto" data-i="-1">Nouveau protocole</button>' : '') + '</div>' +
       '<p class="petit"><b>Protocoles réfléchis et mis sur pied par Respir Outdoor : utilisation et reproduction interdites.</b></p>' +
-      (modifiable ? '<p class="muet petit" style="margin:6px 0 0">Bibliothèque commune à tous tes athlètes : chaque import ajoute les nouveaux codes et met à jour les existants.</p>' : '') + '</section>' +
+      (modifiable ? '<p class="muet petit" style="margin:6px 0 0">Bibliothèque commune à tous tes athlètes : chaque import (classeur d\'athlète ou classeur de protocoles) ajoute les nouveaux codes et met à jour les existants.</p>' : '') + '</section>' +
       (protos.length ? '' : '<section class="carte vide"><p class="muet">Aucun protocole pour le moment.</p></section>');
     // Un protocole mal formé ne doit jamais empêcher l'affichage des autres
     function carte(p, i) {
@@ -435,7 +435,10 @@ var UI = (function () {
         (usages.length ? '<p class="petit muet">Prévu le : ' + usages.map(function (d) { return C.formatDateFR(d); }).join(', ') + '</p>' : '') +
         (modifiable ? '<div class="ligne noprint" style="justify-content:flex-end"><button class="discret" data-act="editProto" data-i="' + i + '">Modifier</button></div>' : '') + '</section>';
     }
-    var idx = protos.map(function (p, i) { return { p: p, i: i, prevu: !!a && Object.keys(a.jours || {}).some(function (d) { return C.protoPrevu(a.jours[d], p.code); }) }; });
+    // Tri par code : lettres, puis numéro, puis suffixe (PC1, PC2… PC8, PC8B, PC10… PF1A, PP1, PV1)
+    function cle(code) { var m = /^([A-Z]*)\s*(\d*)(.*)$/.exec(C.normCode(code)) || []; return [m[1] || '', m[2] ? Number(m[2]) : -1, m[3] || '']; }
+    var idx = protos.map(function (p, i) { return { p: p, i: i, k: cle(p.code), prevu: !!a && Object.keys(a.jours || {}).some(function (d) { return C.protoPrevu(a.jours[d], p.code); }) }; })
+      .sort(function (x, y) { return x.k[0] < y.k[0] ? -1 : x.k[0] > y.k[0] ? 1 : x.k[1] - y.k[1] || (x.k[2] < y.k[2] ? -1 : x.k[2] > y.k[2] ? 1 : 0); });
     var dans = idx.filter(function (x) { return x.prevu; }), autres = idx.filter(function (x) { return !x.prevu; });
     if (a && dans.length && autres.length) {
       h += '<h3 class="titre-groupe">' + (modifiable ? 'Dans le plan de ' + esc(prenom(a)) : 'Dans ton plan') + ' (' + dans.length + ')</h3>' + dans.map(function (x) { return carte(x.p, x.i); }).join('');

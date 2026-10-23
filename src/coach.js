@@ -615,6 +615,8 @@
     choisirFichier('.xlsx', function (f) {
       f.arrayBuffer().then(function (buf) { return C.lireXLSX(new Uint8Array(buf)); }).then(function (cl) {
         var onglets = C.ongletsPlan(cl);
+        // Classeur sans plan (ex. PROTOCOLES.xlsx) : bibliothèque de protocoles commune à tous les athlètes
+        if (!onglets.length && !(cl.feuilles || []).some(function (f) { return C.normCode(f.nom) === 'PLAN'; })) return importerBibliotheque(cl);
         if (onglets.length < 2) return importerClasseur(cl, onglets[0] && onglets[0].nom);
         // Un onglet par contrat ou par objectif : Manu choisit celui à importer
         var defaut = C.ongletParDefaut(onglets);
@@ -631,6 +633,22 @@
           boite.close(); importerClasseur(cl, onglets[c ? +c.value : 0].nom).catch(function (ex) { toast('Import impossible : ' + ex.message); });
         };
       }).catch(function (e) { toast('Import impossible : ' + e.message); });
+    });
+  }
+  function importerBibliotheque(cl) {
+    var r = C.importerBibliotheque(cl, E.legende);
+    if (!r.protos.length) throw new Error('aucun plan ni protocole reconnu dans ce classeur (code du protocole en colonne A, ex. PC12, PF1C)');
+    var fp = C.fusionnerProtos(E.protos, r.protos); E.protos = fp.liste;
+    E.protosSupprimes = (E.protosSupprimes || []).filter(function (c) { return !r.protos.some(function (p) { return C.normCode(p.code) === c; }); });
+    marquerCommun(['protos']);
+    return sauver().then(function () {
+      boite.innerHTML = '<form class="boite"><h2>Bibliothèque de protocoles importée</h2>' +
+        '<p>' + r.protos.length + ' protocoles lus : ' + [fp.ajoutes.length ? fp.ajoutes.length + ' nouveau' + (fp.ajoutes.length > 1 ? 'x' : '') : '', fp.modifies.length ? fp.modifies.length + ' mis à jour' : '', fp.inchanges ? fp.inchanges + ' inchangé' + (fp.inchanges > 1 ? 's' : '') : ''].filter(Boolean).join(', ') + '.</p>' +
+        '<ul class="petit">' + r.rapport.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' +
+        '<p class="muet petit">Ils sont envoyés à tous tes athlètes à la synchronisation. Les onglets sans code de protocole en colonne A (fiches, tableaux d\'allures…) ne sont pas importés.</p>' +
+        '<div class="pied"><button type="button" data-x="ok">Voir les protocoles</button></div></form>';
+      boite.showModal();
+      $('[data-x="ok"]', boite).onclick = function () { boite.close(); location.hash = '#/protos'; rendre(); };
     });
   }
   function importerClasseur(cl, nomOnglet) {

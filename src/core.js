@@ -899,7 +899,7 @@ var Core = (function () {
   function feuilleProtos(classeur) { return feuille(classeur, 'PROTOS') || feuille(classeur, 'PROTOCOLES') || feuille(classeur, 'PROTOCOLE'); }
   // Code en colonne A : 1 à 3 lettres puis un numéro, éventuellement suivi de lettres (PC5, PC 12, PF1C, PV2…) ;
   // un titre peut suivre après un tiret ou deux-points. Tableau dans les colonnes suivantes (12 au plus).
-  // Une ligne vide ne coupe pas un protocole ; 3 lignes vides de suite le terminent.
+  // Une ligne vide ne coupe pas un protocole ; 2 lignes vides de suite le terminent (encadré « CALCUL » sous PC11…).
   var RE_CODE_PROTO = /^([A-Z]{1,3})\s*(\d{1,3})([A-Z]{0,3})(?:$|\s*[-–:·]\s*(.+)$)/i;
   function importerProtos(f) {
     if (!f) return [];
@@ -909,13 +909,25 @@ var Core = (function () {
       var cellules = []; for (var c = 1; c <= 12; c++) cellules.push(texte(l[c]));
       var vide = !A && cellules.every(function (x) { return !x; });
       if (m) { cur = { code: (m[1] + m[2] + m[3]).toUpperCase(), titre: [], grille: [] }; res.push(cur); vides = 0; if (m[4]) cur.titre.push(texte(m[4])); }
-      else if (vide) { if (++vides >= 3) cur = null; continue; }
+      else if (vide) { if (++vides >= 2) cur = null; continue; }
       else if (!cur) continue;
       else { vides = 0; if (A) cur.titre.push(A); }
       while (cellules.length && !cellules[cellules.length - 1]) cellules.pop();
       if (cellules.length) cur.grille.push(cellules);
     }
     return res.map(function (p) { return { id: p.code, code: p.code, titre: p.titre.join(' '), grille: p.grille, notes: '' }; });
+  }
+  // Classeur « bibliothèque de protocoles » (sans onglet de plan) : tous les onglets sont lus ; les codes qui sont des types
+  // de séance de la légende (SPE10…) ou des zones d'allure (Z2…) ne sont pas des protocoles. Renvoie { protos, rapport }
+  function importerBibliotheque(classeur, legende) {
+    var types = {}, protos = [], vus = {}, rapport = [];
+    ((legende && legende.types) || []).forEach(function (t) { types[normCode(t.code)] = 1; });
+    (classeur.feuilles || []).forEach(function (f) {
+      var lus = importerProtos(f).filter(function (p) { return !types[normCode(p.code)] && !/^Z\d/.test(p.code) && !vus[p.code]; });
+      lus.forEach(function (p) { vus[p.code] = 1; protos.push(p); });
+      if (lus.length) rapport.push('Onglet « ' + texte(f.nom) + ' » : ' + lus.map(function (p) { return p.code; }).join(', '));
+    });
+    return { protos: protos, rapport: rapport };
   }
   // Bibliothèque commune à tous les athlètes : un import ajoute les nouveaux codes et met à jour les codes existants,
   // sans retirer les protocoles absents du classeur importé (ils peuvent servir à d'autres athlètes)
@@ -1220,7 +1232,7 @@ var Core = (function () {
       var r = reunirProtos(ici, serv, ['PC14']);
       return r.map(function (p) { return p.code; }).join() === 'PC5,PC20,PC11' && r[0].titre === 'ici' && reunirProtos([], serv, []).length === 3 && reunirProtos(ici, null).length === 2;
     }],
-    ['Protocoles de Seb (PF1C, PV2, PV3) : codes lus, ligne vide dans un protocole gardée, 3 lignes vides terminent, mots en colonne A non pris pour des codes', function () {
+    ['Protocoles de Seb (PF1C, PV2, PV3) : codes lus, ligne vide dans un protocole gardée, 2 lignes vides terminent, mots en colonne A non pris pour des codes', function () {
       var L = [['bannière'], [], ['PF1C', '30" ALLURE LENTE'], ['', '4/5 BLOCS DE 5MIN'], ['METHODE', 'RECUP 3\''], ['30/20/10'], [], ['BLOC DE 5 MIN'],
         ['PV2', '1 BLOC'], [], ['MONEGHETTI', '2 x 90 s', 'FRACTIONS RAPIDES'], ['FORMAT COURT 20MN', '4 x 60 s'],
         ['PV3'], ['', 'BLOC 1 = 3KM'], ['SEANCE COMBO', 'RECUP'], ['', 'BLOC 2A', 'OU', 'BLOC2B'], [], [], [], ['NOTE DE BAS DE PAGE', 'x'], ['PC 12 - Côtes', 'a']];
@@ -1228,6 +1240,13 @@ var Core = (function () {
       return p.map(function (x) { return x.code; }).join() === 'PF1C,PV2,PV3,PC12' && p[0].titre === 'METHODE 30/20/10 BLOC DE 5 MIN' && p[0].grille.length === 3 &&
         p[1].titre === 'MONEGHETTI FORMAT COURT 20MN' && p[1].grille[1][1] === 'FRACTIONS RAPIDES' && p[2].titre === 'SEANCE COMBO' && p[2].grille[2].join('|') === 'BLOC 2A|OU|BLOC2B' &&
         p[3].titre === 'Côtes' && protoPrevu({ corps: 'PV2 en fin de séance' }, 'PV2') && protoPrevu({ corps: 'PF1C' }, 'PF1C') && !protoPrevu({ corps: 'PF1' }, 'PF1C');
+    }],
+    ['Bibliothèque de protocoles (classeur sans plan) : tous les onglets lus ; SPE10 (type de la légende) et Z2 (zone) écartés ; encadré après 2 lignes vides non rattaché', function () {
+      var cl = { feuilles: [
+        { nom: 'COTE', lignes: [['PC11', 'ECHAUFFEMENT'], ['DESCENTE', 'x'], ['TECHNIQUE'], [], [], ['CALCUL', 'Pente en %'], [], ['PC12', 'FAUX-PLAT']] },
+        { nom: 'VMA', lignes: [['PV1', '2 BLOCS'], ['VMA']] }, { nom: 'SPE type', lignes: [['SPE 10', '5x1000']] }, { nom: 'Allures', lignes: [['Z2', 'MAR']] }] };
+      var r = importerBibliotheque(cl, { types: [{ code: 'SPE10' }] });
+      return r.protos.map(function (p) { return p.code; }).join() === 'PC11,PC12,PV1' && r.protos[0].titre === 'DESCENTE TECHNIQUE' && r.rapport.length === 2;
     }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
@@ -1296,6 +1315,6 @@ var Core = (function () {
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
     extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete,
-    lireXLSX: lireXLSX, importerClasseur: importerClasseur, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
+    lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();
