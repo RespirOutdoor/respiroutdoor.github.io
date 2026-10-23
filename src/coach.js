@@ -608,7 +608,8 @@
     i.click();
   }
   function enrichirFamilles(lg) {
-    lg.types.forEach(function (t) { var r = C.chercherCode(DEFAUTS.legende.types, t.code); if (r && !r.variante) t.famille = r.entree.famille; });
+    // Famille écrite dans la colonne H du classeur prioritaire ; sinon celle des codes connus de l'application
+    lg.types.forEach(function (t) { if (t.famille) return; var r = C.chercherCode(DEFAUTS.legende.types, t.code); if (r && !r.variante) t.famille = r.entree.famille; });
     return lg;
   }
   function importXlsx() {
@@ -660,10 +661,11 @@
         var res = local ? C.fusionner(local, recu, 'excel') : recu;
         res.id = recu.id; assurerCode(res);
         if (local) E.athletes[E.athletes.indexOf(local)] = res; else E.athletes.push(res);
-        if (r.legende && r.legende.types.length) E.legende = C.fusionnerLegende(E.legende, enrichirFamilles(r.legende)).legende;
+        // Classeur d'athlète : légende et protocoles ne font qu'ajouter les codes absents (le fichier PROTOCOLES met à jour)
+        if (r.legende && r.legende.types.length) E.legende = C.fusionnerLegende(E.legende, enrichirFamilles(r.legende), true).legende;
         // Protocoles : bibliothèque commune, complétée et mise à jour par code (rien n'est retiré)
         if (r.protos && r.protos.length) {
-          var fp = C.fusionnerProtos(E.protos, r.protos); E.protos = fp.liste;
+          var fp = C.fusionnerProtos(E.protos, r.protos, true); E.protos = fp.liste;
           r.rapport.push('Protocoles : ' + [fp.ajoutes.length ? fp.ajoutes.length + ' nouveau' + (fp.ajoutes.length > 1 ? 'x' : '') + ' (' + fp.ajoutes.join(', ') + ')' : '',
             fp.modifies.length ? fp.modifies.length + ' mis à jour (' + fp.modifies.join(', ') + ')' : '', fp.inchanges ? fp.inchanges + ' inchangé' + (fp.inchanges > 1 ? 's' : '') : ''].filter(Boolean).join(', ') +
             (fp.conserves > 0 ? ' ; ' + fp.conserves + ' autre' + (fp.conserves > 1 ? 's' : '') + ' conservé' + (fp.conserves > 1 ? 's' : '') + ' pour tes autres athlètes' : ''));

@@ -26,7 +26,10 @@ var UI = (function () {
     var r = C.chercherCode((ctx.legende() || {}).types, code);
     return r && r.entree.famille ? r.entree.famille : null;
   }
-  function couleurFam(code) { var f = famille(code); return f ? FAMILLES[f] : null; }
+  // Famille ajoutée par l'entraîneur (ex. Marche nordique) : couleur stable tirée de son nom
+  var PALETTE_FAM = ['#2F7D5C', '#9C4F96', '#A0522D', '#2E6F95', '#7B6D2A', '#B0476B'];
+  function couleurNouvelle(f) { var h = 0; for (var i = 0; i < f.length; i++) h = (h * 31 + f.charCodeAt(i)) >>> 0; return PALETTE_FAM[h % PALETTE_FAM.length]; }
+  function couleurFam(code) { var f = famille(code); return f ? FAMILLES[f] || couleurNouvelle(f) : null; }
   function minutes(v) { var t = C.texte(v); return /^\d+([.,]\d+)?$/.test(t) ? t + ' min' : t; }
   function badgeRPE(v) {
     var l = C.libelleRPE(v);
@@ -325,7 +328,7 @@ var UI = (function () {
     types.forEach(function (t) { var f = t.famille || 'Autres'; (fams[f] = fams[f] || []).push(t); });
     h += '<section class="carte"><h3>Colonne TYPE</h3>' + (types.length ? '' : '<p class="muet">Aucun résultat.</p>') +
       Object.keys(fams).map(function (f) {
-        return '<h3 style="margin-top:14px;font-size:.95rem"><span class="fam" style="--fam:' + (FAMILLES[f] || 'var(--bord)') + '"></span>' + esc(f) + '</h3>' + liste(fams[f]);
+        return '<h3 style="margin-top:14px;font-size:.95rem"><span class="fam" style="--fam:' + (FAMILLES[f] || (f === 'Autres' ? 'var(--bord)' : couleurNouvelle(f))) + '"></span>' + esc(f) + '</h3>' + liste(fams[f]);
       }).join('') +
       (q ? '' : '<p class="muet petit" style="margin-top:14px">Les familles reprennent les regroupements de la colonne H de l\'onglet LEGENDE. « COMP » (compétition) et « PROTO » sont utilisés dans le plan mais ne figurent pas dans la légende.</p>') + '</section>';
     h += '<section class="carte"><h3>Échelle RPE</h3><p class="muet petit">Niveau d\'intensité perçu de la séance, à noter 30 min après la séance.</p><div class="echelle">' +

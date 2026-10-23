@@ -1400,17 +1400,28 @@ var Core = (function () {
     if (pf) { var pct = aDroite(f, pf, 3); if (isNum(pct)) a.allures.preFatPct = pct; }
   }
 
+  // Famille écrite en toutes lettres dans la colonne H de la légende (DIVERS, RENFO, RESP., MARCHE NORDIQUE…) ;
+  // les lettres écrites une par ligne (A-E-R-O-B-I-E) sont ignorées : la famille vient alors des codes connus
+  var NOMS_FAMILLES = [[/^AERO/, 'Aérobie'], [/^RECUP/, 'Récupérations'], [/^VMA/, 'VMA'], [/^FART/, 'Fartlek'], [/^COTE/, 'Côtes'],
+    [/^(SPE|ALL)/, 'Spécifique / allures'], [/^DIVERS/, 'Divers'], [/^RENFO/, 'Renfo'], [/^RESP/, 'Respiration'], [/^COMP/, 'Compétition']];
+  function libelleFamille(v) {
+    var t = texte(v).replace(/\.+$/, ''), k = t.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (t.replace(/[^A-Za-zÀ-ÿ]/g, '').length < 2) return '';
+    for (var i = 0; i < NOMS_FAMILLES.length; i++) if (NOMS_FAMILLES[i][0].test(k)) return NOMS_FAMILLES[i][1];
+    return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+  }
   function importerLegende(f) {
     if (!f) return null;
-    var lg = { principes: [], colonnes: [], profils: [], types: [] }, section = null, dernier = null;
+    var lg = { principes: [], colonnes: [], profils: [], types: [] }, section = null, dernier = null, fam = '';
     for (var r = 0; r < f.lignes.length; r++) {
-      var l = f.lignes[r] || [], A = texte(l[0]), C = texte(l[2]);
+      var l = f.lignes[r] || [], A = texte(l[0]), C = texte(l[2]), H = libelleFamille(l[7]);
+      if (H) fam = H; else if (!A && !C) fam = '';
       if (/^\d\.\s/.test(A)) { lg.principes.push(A.replace(/^\d\.\s*/, '')); continue; }
       if (/^COLONNES DU TABLEAU/i.test(A)) { section = 'colonnes'; dernier = null; continue; }
       if (/^LEGENDE COLONNE PROFIL/i.test(A)) { section = 'profils'; dernier = null; continue; }
       if (/^LEGENDE COLONNE TYPE/i.test(A)) { section = 'types'; dernier = null; continue; }
       if (!section) continue;
-      if (A) { dernier = { code: A, desc: C }; lg[section].push(dernier); }
+      if (A) { dernier = { code: A, desc: C }; if (section === 'types' && fam) dernier.famille = fam; lg[section].push(dernier); }
       else if (C && dernier) dernier.desc += ' — ' + C;
       if (!A && !C) dernier = null;
     }
@@ -1458,7 +1469,7 @@ var Core = (function () {
   }
   // Légende commune : complétée et mise à jour par code (types, profils, colonnes), principes remplacés s'il y en a ;
   // un ancien classeur d'athlète ne peut plus ramener une légende périmée en effaçant des codes. Renvoie { legende, ajoutes, modifies }
-  function fusionnerLegende(ancienne, nouvelle) {
+  function fusionnerLegende(ancienne, nouvelle, ajoutSeul) {
     var res = clone(ancienne || { principes: [], colonnes: [], profils: [], types: [] }), ajoutes = 0, modifies = 0;
     if (!nouvelle) return { legende: res, ajoutes: 0, modifies: 0 };
     ['colonnes', 'profils', 'types'].forEach(function (k) {
@@ -1466,19 +1477,22 @@ var Core = (function () {
       (nouvelle[k] || []).forEach(function (e) {
         var i = -1; res[k].forEach(function (x, n) { if (normCode(x.code) === normCode(e.code)) i = n; });
         if (i < 0) { res[k].push(clone(e)); ajoutes++; }
+        else if (ajoutSeul) return;
         else if (res[k][i].desc !== e.desc || res[k][i].famille !== (e.famille || res[k][i].famille)) { res[k][i] = Object.assign({}, res[k][i], clone(e)); modifies++; }
       });
     });
-    if ((nouvelle.principes || []).length) res.principes = clone(nouvelle.principes);
+    if ((nouvelle.principes || []).length && (!ajoutSeul || !(res.principes || []).length)) res.principes = clone(nouvelle.principes);
     return { legende: res, ajoutes: ajoutes, modifies: modifies };
   }
   // Bibliothèque commune à tous les athlètes : un import ajoute les nouveaux codes et met à jour les codes existants,
   // sans retirer les protocoles absents du classeur importé (ils peuvent servir à d'autres athlètes)
-  function fusionnerProtos(anciens, nouveaux) {
+  // ajoutSeul (classeur d'athlète) : seuls les codes absents sont ajoutés, le fichier PROTOCOLES reste la référence
+  function fusionnerProtos(anciens, nouveaux, ajoutSeul) {
     var liste = clone(anciens || []), ajoutes = [], modifies = [], inchanges = 0;
     (nouveaux || []).forEach(function (p) {
       var i = -1; liste.forEach(function (x, k) { if (normCode(x.code) === normCode(p.code)) i = k; });
       if (i < 0) { liste.push(clone(p)); ajoutes.push(p.code); return; }
+      if (ajoutSeul) { inchanges++; return; }
       var avant = liste[i], n = Object.assign({}, clone(p), { notes: avant.notes || p.notes || '', famille: p.famille || avant.famille || '' });
       if (!n.famille) delete n.famille;
       if (JSON.stringify([avant.titre, avant.grille]) === JSON.stringify([n.titre, n.grille])) inchanges++; else { liste[i] = n; modifies.push(p.code); }
@@ -1800,6 +1814,16 @@ var Core = (function () {
       return r.protos.length === 0 && r.legende.types.length === 2 && t.length === 3 && t[0].desc === 'ENDURANCE FONDAMENTALE NOUVELLE' && t[0].famille === 'Aérobie' &&
         t[1].code === 'SL' && t[2].code === 'NOUV' && f.ajoutes === 2 && f.modifies === 1 && f.legende.principes[0] === 'Principe un' && f.legende.colonnes.length === 1;
     }],
+    ['Familles de la légende : mot de la colonne H (BIP → Marche nordique, RESP. → Respiration) appliqué jusqu\'à la ligne vide ; lettres verticales ignorées ; fichier d\'athlète = ajout seul', function () {
+      var H = function (a, c, h) { var l = [a, '', c, '', '', '', '', h]; return l; };
+      var L = [['LEGENDE COLONNE TYPE'], H('EF', 'ENDURANCE', 'A'), H('SL', 'SORTIE LONGUE', 'E'), [], H('RSP', 'RESPIRATOIRE', 'RESP.'), H('COCA', 'COHERENCE', ''), [], H('BIP', 'SEANCE BIPEDE MARCHE NORDIQUE', 'MARCHE NORDIQUE'), [], H('ZZ', 'SANS FAMILLE', '')];
+      var lg = importerLegende({ nom: 'LEGENDE', lignes: L }), t = {}; lg.types.forEach(function (x) { t[x.code] = x.famille || ''; });
+      var anc = { types: [{ code: 'EF', desc: 'maître', famille: 'Aérobie' }] }, f = fusionnerLegende(anc, { types: [{ code: 'EF', desc: 'vieux' }, { code: 'BIP', desc: 'b' }] }, true);
+      var fp = fusionnerProtos([{ code: 'PC5', titre: 'maître', grille: [] }], [{ code: 'PC5', titre: 'vieux', grille: [] }, { code: 'PV9', titre: 'n', grille: [] }], true);
+      return t.EF === '' && t.SL === '' && t.RSP === 'Respiration' && t.COCA === 'Respiration' && t.BIP === 'Marche nordique' && t.ZZ === '' &&
+        f.legende.types[0].desc === 'maître' && f.legende.types.length === 2 && f.ajoutes === 1 && f.modifies === 0 &&
+        fp.liste[0].titre === 'maître' && fp.ajoutes.join() === 'PV9' && fp.modifies.length === 0;
+    }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
       // 4 -> 1/3 × 5 = 1,667 : 2/3 du chemin cyan -> vert : 99 − 3×2/3 = 97 (0x61) ; 198 − 2×2/3 = 196,7 -> 197 (0xC5) ; 221 − 123×2/3 = 139 (0x8B)
@@ -1903,7 +1927,10 @@ var UI = (function () {
     var r = C.chercherCode((ctx.legende() || {}).types, code);
     return r && r.entree.famille ? r.entree.famille : null;
   }
-  function couleurFam(code) { var f = famille(code); return f ? FAMILLES[f] : null; }
+  // Famille ajoutée par l'entraîneur (ex. Marche nordique) : couleur stable tirée de son nom
+  var PALETTE_FAM = ['#2F7D5C', '#9C4F96', '#A0522D', '#2E6F95', '#7B6D2A', '#B0476B'];
+  function couleurNouvelle(f) { var h = 0; for (var i = 0; i < f.length; i++) h = (h * 31 + f.charCodeAt(i)) >>> 0; return PALETTE_FAM[h % PALETTE_FAM.length]; }
+  function couleurFam(code) { var f = famille(code); return f ? FAMILLES[f] || couleurNouvelle(f) : null; }
   function minutes(v) { var t = C.texte(v); return /^\d+([.,]\d+)?$/.test(t) ? t + ' min' : t; }
   function badgeRPE(v) {
     var l = C.libelleRPE(v);
@@ -2202,7 +2229,7 @@ var UI = (function () {
     types.forEach(function (t) { var f = t.famille || 'Autres'; (fams[f] = fams[f] || []).push(t); });
     h += '<section class="carte"><h3>Colonne TYPE</h3>' + (types.length ? '' : '<p class="muet">Aucun résultat.</p>') +
       Object.keys(fams).map(function (f) {
-        return '<h3 style="margin-top:14px;font-size:.95rem"><span class="fam" style="--fam:' + (FAMILLES[f] || 'var(--bord)') + '"></span>' + esc(f) + '</h3>' + liste(fams[f]);
+        return '<h3 style="margin-top:14px;font-size:.95rem"><span class="fam" style="--fam:' + (FAMILLES[f] || (f === 'Autres' ? 'var(--bord)' : couleurNouvelle(f))) + '"></span>' + esc(f) + '</h3>' + liste(fams[f]);
       }).join('') +
       (q ? '' : '<p class="muet petit" style="margin-top:14px">Les familles reprennent les regroupements de la colonne H de l\'onglet LEGENDE. « COMP » (compétition) et « PROTO » sont utilisés dans le plan mais ne figurent pas dans la légende.</p>') + '</section>';
     h += '<section class="carte"><h3>Échelle RPE</h3><p class="muet petit">Niveau d\'intensité perçu de la séance, à noter 30 min après la séance.</p><div class="echelle">' +
@@ -2966,7 +2993,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v39</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v40</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
@@ -2996,7 +3023,8 @@ var UI = (function () {
     i.click();
   }
   function enrichirFamilles(lg) {
-    lg.types.forEach(function (t) { var r = C.chercherCode(DEFAUTS.legende.types, t.code); if (r && !r.variante) t.famille = r.entree.famille; });
+    // Famille écrite dans la colonne H du classeur prioritaire ; sinon celle des codes connus de l'application
+    lg.types.forEach(function (t) { if (t.famille) return; var r = C.chercherCode(DEFAUTS.legende.types, t.code); if (r && !r.variante) t.famille = r.entree.famille; });
     return lg;
   }
   function importXlsx() {
@@ -3048,10 +3076,11 @@ var UI = (function () {
         var res = local ? C.fusionner(local, recu, 'excel') : recu;
         res.id = recu.id; assurerCode(res);
         if (local) E.athletes[E.athletes.indexOf(local)] = res; else E.athletes.push(res);
-        if (r.legende && r.legende.types.length) E.legende = C.fusionnerLegende(E.legende, enrichirFamilles(r.legende)).legende;
+        // Classeur d'athlète : légende et protocoles ne font qu'ajouter les codes absents (le fichier PROTOCOLES met à jour)
+        if (r.legende && r.legende.types.length) E.legende = C.fusionnerLegende(E.legende, enrichirFamilles(r.legende), true).legende;
         // Protocoles : bibliothèque commune, complétée et mise à jour par code (rien n'est retiré)
         if (r.protos && r.protos.length) {
-          var fp = C.fusionnerProtos(E.protos, r.protos); E.protos = fp.liste;
+          var fp = C.fusionnerProtos(E.protos, r.protos, true); E.protos = fp.liste;
           r.rapport.push('Protocoles : ' + [fp.ajoutes.length ? fp.ajoutes.length + ' nouveau' + (fp.ajoutes.length > 1 ? 'x' : '') + ' (' + fp.ajoutes.join(', ') + ')' : '',
             fp.modifies.length ? fp.modifies.length + ' mis à jour (' + fp.modifies.join(', ') + ')' : '', fp.inchanges ? fp.inchanges + ' inchangé' + (fp.inchanges > 1 ? 's' : '') : ''].filter(Boolean).join(', ') +
             (fp.conserves > 0 ? ' ; ' + fp.conserves + ' autre' + (fp.conserves > 1 ? 's' : '') + ' conservé' + (fp.conserves > 1 ? 's' : '') + ' pour tes autres athlètes' : ''));
@@ -3253,7 +3282,7 @@ var Aide = (function () {
       '<p>Ferme complètement l\'application, puis rouvre-la. Si l\'ancienne version s\'affiche encore, rouvre-la une seconde fois. C\'est la même chose pour les athlètes.</p>' },
     { id: 'legende', q: 'Légende et protocoles', m: 'legende proto protos protocole protocoles abreviation code signification nouveau actualise mise a jour bibliotheque commun athletes', r:
       '<p>Les onglets <b>Légende</b> et <b>Protos</b> viennent de ton classeur Excel et sont envoyés aux athlètes. Les protocoles se modifient dans l\'onglet Protos.</p>' +
-      '<p>Les protocoles forment une <b>bibliothèque commune</b> à tous tes athlètes. À chaque import, l\'onglet PROTOS (ou PROTOCOLES) du classeur ajoute les nouveaux codes et met à jour ceux qui existent ; les autres sont conservés. Chaque protocole commence par son code en colonne A (ex. PC12, PF1C, PV2). Le rapport d\'import indique les protocoles ajoutés et mis à jour. Un classeur ne contenant que tes protocoles (ex. PROTOCOLES.xlsx téléchargé depuis Google Sheets) ou que ta légende s\'importe de la même façon : onglet Protos → <b>Importer des protocoles</b>. La légende est elle aussi complétée et mise à jour code par code.</p><p>Dans l\'onglet Protos, la barre de recherche trouve un protocole par son code, son titre, sa famille (COTE, FARTLEK…) ou son contenu.</p>' +
+      '<p>Les protocoles forment une <b>bibliothèque commune</b> à tous tes athlètes. À chaque import, l\'onglet PROTOS (ou PROTOCOLES) du classeur ajoute les nouveaux codes et met à jour ceux qui existent ; les autres sont conservés. Chaque protocole commence par son code en colonne A (ex. PC12, PF1C, PV2). Le rapport d\'import indique les protocoles ajoutés et mis à jour. Un classeur ne contenant que tes protocoles (ex. PROTOCOLES.xlsx téléchargé depuis Google Sheets) ou que ta légende s\'importe de la même façon : onglet Protos → <b>Importer des protocoles</b>. La légende est elle aussi complétée et mise à jour code par code ; la famille d\'un type se lit dans la colonne H (en toutes lettres, ex. MARCHE NORDIQUE). Ton fichier PROTOCOLES est la référence : un classeur d\'athlète ne fait qu\'ajouter les codes absents, sans modifier les existants. Les onglets LEGENDE et PROTOS ne sont donc plus nécessaires dans les classeurs d\'athlètes.</p><p>Dans l\'onglet Protos, la barre de recherche trouve un protocole par son code, son titre, sa famille (COTE, FARTLEK…) ou son contenu.</p>' +
       '<p>Dans l\'onglet Protos, ceux prévus dans le plan de l\'athlète choisi s\'affichent en premier, avec leurs dates. L\'athlète voit de même « Dans ton plan » puis les autres.</p>', a: ['Ouvrir les protos', '#/protos'] }
   ];
   var VIDES = ' le la les un une des de du d l au aux et ou a en pour sur dans par avec comment faire fait que quoi qui est je j me mon ma mes on il elle ils ce cette ces se sa son ses peut peux pourquoi quand ou quel quelle quels est-ce y ne pas plus tu te ton ta tes '.replace('pas ', '');
