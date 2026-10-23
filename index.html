@@ -1484,6 +1484,24 @@ var Core = (function () {
     if ((nouvelle.principes || []).length && (!ajoutSeul || !(res.principes || []).length)) res.principes = clone(nouvelle.principes);
     return { legende: res, ajoutes: ajoutes, modifies: modifies };
   }
+  // Fichier de référence (PROTOCOLES) : codes présents dans l'application mais plus dans le fichier.
+  // Une section vide dans le fichier (pas de colonnes, pas de protocoles…) n'est pas comparée.
+  function codesAbsents(actuels, fichier) {
+    if (!(fichier || []).length) return [];
+    var dans = {}; fichier.forEach(function (x) { dans[normCode(x.code)] = 1; });
+    return (actuels || []).filter(function (x) { return !dans[normCode(x.code)]; }).map(function (x) { return x.code; });
+  }
+  function absentsLegende(actuelle, fichier) {
+    var r = {}; ['types', 'profils', 'colonnes'].forEach(function (k) { r[k] = codesAbsents((actuelle || {})[k], (fichier || {})[k]); }); return r;
+  }
+  function retirerLegende(lg, absents) {
+    var res = clone(lg);
+    ['types', 'profils', 'colonnes'].forEach(function (k) {
+      var a = {}; (absents[k] || []).forEach(function (c) { a[normCode(c)] = 1; });
+      res[k] = (res[k] || []).filter(function (x) { return !a[normCode(x.code)]; });
+    });
+    return res;
+  }
   // Bibliothèque commune à tous les athlètes : un import ajoute les nouveaux codes et met à jour les codes existants,
   // sans retirer les protocoles absents du classeur importé (ils peuvent servir à d'autres athlètes)
   // ajoutSeul (classeur d'athlète) : seuls les codes absents sont ajoutés, le fichier PROTOCOLES reste la référence
@@ -1824,6 +1842,13 @@ var Core = (function () {
         f.legende.types[0].desc === 'maître' && f.legende.types.length === 2 && f.ajoutes === 1 && f.modifies === 0 &&
         fp.liste[0].titre === 'maître' && fp.ajoutes.join() === 'PV9' && fp.modifies.length === 0;
     }],
+    ['Fichier de référence : codes supprimés du fichier repérés (ESSAI), section vide du fichier ignorée, retrait appliqué', function () {
+      var app = { types: [{ code: 'EF' }, { code: 'ESSAI' }], profils: [{ code: 'PLAT' }], colonnes: [{ code: 'RPE' }] };
+      var fic = { types: [{ code: 'EF' }], profils: [{ code: 'PLAT' }, { code: 'PISTE' }], colonnes: [] };
+      var a = absentsLegende(app, fic), lg = retirerLegende(app, a);
+      return a.types.join() === 'ESSAI' && a.profils.length === 0 && a.colonnes.length === 0 && lg.types.length === 1 && lg.colonnes.length === 1 &&
+        codesAbsents([{ code: 'PC1' }, { code: 'PC 2' }], [{ code: 'PC2' }]).join() === 'PC1' && codesAbsents([{ code: 'PC1' }], []).length === 0;
+    }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
       // 4 -> 1/3 × 5 = 1,667 : 2/3 du chemin cyan -> vert : 99 − 3×2/3 = 97 (0x61) ; 198 − 2×2/3 = 196,7 -> 197 (0xC5) ; 221 − 123×2/3 = 139 (0x8B)
@@ -1891,7 +1916,7 @@ var Core = (function () {
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
     extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete,
-    lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerLegende: fusionnerLegende, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
+    lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerLegende: fusionnerLegende, codesAbsents: codesAbsents, absentsLegende: absentsLegende, retirerLegende: retirerLegende, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();
 </script>
@@ -2993,7 +3018,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v40</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v41</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
@@ -3054,14 +3079,24 @@ var UI = (function () {
   function importerBibliotheque(cl) {
     var r = C.importerBibliotheque(cl, E.legende);
     if (!r.protos.length && !r.legende) throw new Error('aucun plan, protocole ni légende reconnu dans ce classeur (code du protocole en colonne A, ex. PC12, PF1C ; onglet LEGENDE)');
+    // Fichier PROTOCOLES = référence : ce qui n'y figure plus (ex. ESSAI supprimé) est retiré de l'application, après confirmation
+    var absP = C.codesAbsents(E.protos, r.protos), absL = r.legende ? C.absentsLegende(E.legende, r.legende) : { types: [], profils: [], colonnes: [] };
+    var tousL = absL.types.concat(absL.profils, absL.colonnes);
+    var retirer = (absP.length || tousL.length) && confirm('Ton fichier ne contient plus :\n' + (absP.length ? '• protocoles : ' + absP.join(', ') + '\n' : '') +
+      (tousL.length ? '• légende : ' + tousL.join(', ') + '\n' : '') + '\nLes retirer aussi de l\'application, pour tous tes athlètes ?');
     var fl = r.legende ? C.fusionnerLegende(E.legende, enrichirFamilles(r.legende)) : null;
-    if (fl) { E.legende = fl.legende; marquerCommun(['legende']); }
+    if (fl) { E.legende = retirer ? C.retirerLegende(fl.legende, absL) : fl.legende; marquerCommun(['legende']); }
     var fp = C.fusionnerProtos(E.protos, r.protos); E.protos = fp.liste;
     E.protosSupprimes = (E.protosSupprimes || []).filter(function (c) { return !r.protos.some(function (p) { return C.normCode(p.code) === c; }); });
+    if (retirer && absP.length) {
+      E.protos = E.protos.filter(function (p) { return absP.indexOf(p.code) < 0; });
+      E.protosSupprimes = E.protosSupprimes.concat(absP.map(C.normCode));
+    }
     if (r.protos.length) marquerCommun(['protos']);
+    if (absP.length || tousL.length) r.rapport.push((retirer ? 'Retirés (absents de ton fichier) : ' : 'Conservés bien qu\'absents de ton fichier : ') + absP.concat(tousL).join(', '));
     return sauver().then(function () {
       boite.innerHTML = '<form class="boite"><h2>' + (r.protos.length ? 'Bibliothèque de protocoles importée' : 'Légende importée') + '</h2>' +
-        (fl ? '<p>Légende : ' + fl.ajoutes + ' code' + (fl.ajoutes > 1 ? 's' : '') + ' ajouté' + (fl.ajoutes > 1 ? 's' : '') + ', ' + fl.modifies + ' mis à jour ; les autres sont conservés.</p>' : '') +
+        (fl ? '<p>Légende : ' + fl.ajoutes + ' code' + (fl.ajoutes > 1 ? 's' : '') + ' ajouté' + (fl.ajoutes > 1 ? 's' : '') + ', ' + fl.modifies + ' mis à jour.</p>' : '') +
         (!r.protos.length ? '' : '<p>' + r.protos.length + ' protocoles lus : ' + [fp.ajoutes.length ? fp.ajoutes.length + ' nouveau' + (fp.ajoutes.length > 1 ? 'x' : '') : '', fp.modifies.length ? fp.modifies.length + ' mis à jour' : '', fp.inchanges ? fp.inchanges + ' inchangé' + (fp.inchanges > 1 ? 's' : '') : ''].filter(Boolean).join(', ') + '.</p>') +
         '<ul class="petit">' + r.rapport.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' +
         '<p class="muet petit">' + (r.protos.length ? 'Envoyés à tous tes athlètes à la synchronisation. Les onglets sans code de protocole en colonne A (fiches, tableaux d\'allures…) ne sont pas importés.' : 'Envoyée à tous tes athlètes à la synchronisation.') + '</p>' +
@@ -3282,7 +3317,7 @@ var Aide = (function () {
       '<p>Ferme complètement l\'application, puis rouvre-la. Si l\'ancienne version s\'affiche encore, rouvre-la une seconde fois. C\'est la même chose pour les athlètes.</p>' },
     { id: 'legende', q: 'Légende et protocoles', m: 'legende proto protos protocole protocoles abreviation code signification nouveau actualise mise a jour bibliotheque commun athletes', r:
       '<p>Les onglets <b>Légende</b> et <b>Protos</b> viennent de ton classeur Excel et sont envoyés aux athlètes. Les protocoles se modifient dans l\'onglet Protos.</p>' +
-      '<p>Les protocoles forment une <b>bibliothèque commune</b> à tous tes athlètes. À chaque import, l\'onglet PROTOS (ou PROTOCOLES) du classeur ajoute les nouveaux codes et met à jour ceux qui existent ; les autres sont conservés. Chaque protocole commence par son code en colonne A (ex. PC12, PF1C, PV2). Le rapport d\'import indique les protocoles ajoutés et mis à jour. Un classeur ne contenant que tes protocoles (ex. PROTOCOLES.xlsx téléchargé depuis Google Sheets) ou que ta légende s\'importe de la même façon : onglet Protos → <b>Importer des protocoles</b>. La légende est elle aussi complétée et mise à jour code par code ; la famille d\'un type se lit dans la colonne H (en toutes lettres, ex. MARCHE NORDIQUE). Ton fichier PROTOCOLES est la référence : un classeur d\'athlète ne fait qu\'ajouter les codes absents, sans modifier les existants. Les onglets LEGENDE et PROTOS ne sont donc plus nécessaires dans les classeurs d\'athlètes.</p><p>Dans l\'onglet Protos, la barre de recherche trouve un protocole par son code, son titre, sa famille (COTE, FARTLEK…) ou son contenu.</p>' +
+      '<p>Les protocoles forment une <b>bibliothèque commune</b> à tous tes athlètes. À chaque import, l\'onglet PROTOS (ou PROTOCOLES) du classeur ajoute les nouveaux codes et met à jour ceux qui existent ; les autres sont conservés. Chaque protocole commence par son code en colonne A (ex. PC12, PF1C, PV2). Le rapport d\'import indique les protocoles ajoutés et mis à jour. Un classeur ne contenant que tes protocoles (ex. PROTOCOLES.xlsx téléchargé depuis Google Sheets) ou que ta légende s\'importe de la même façon : onglet Protos → <b>Importer des protocoles</b>. La légende est elle aussi complétée et mise à jour code par code ; la famille d\'un type se lit dans la colonne H (en toutes lettres, ex. MARCHE NORDIQUE). Ton fichier PROTOCOLES est la référence : un classeur d\'athlète ne fait qu\'ajouter les codes absents, sans modifier les existants ; à l\'import du fichier PROTOCOLES, les codes que tu en as supprimés sont retirés de l\'application, après confirmation. Les onglets LEGENDE et PROTOS ne sont donc plus nécessaires dans les classeurs d\'athlètes.</p><p>Dans l\'onglet Protos, la barre de recherche trouve un protocole par son code, son titre, sa famille (COTE, FARTLEK…) ou son contenu.</p>' +
       '<p>Dans l\'onglet Protos, ceux prévus dans le plan de l\'athlète choisi s\'affichent en premier, avec leurs dates. L\'athlète voit de même « Dans ton plan » puis les autres.</p>', a: ['Ouvrir les protos', '#/protos'] }
   ];
   var VIDES = ' le la les un une des de du d l au aux et ou a en pour sur dans par avec comment faire fait que quoi qui est je j me mon ma mes on il elle ils ce cette ces se sa son ses peut peux pourquoi quand ou quel quelle quels est-ce y ne pas plus tu te ton ta tes '.replace('pas ', '');

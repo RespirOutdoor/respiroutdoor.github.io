@@ -639,14 +639,24 @@
   function importerBibliotheque(cl) {
     var r = C.importerBibliotheque(cl, E.legende);
     if (!r.protos.length && !r.legende) throw new Error('aucun plan, protocole ni légende reconnu dans ce classeur (code du protocole en colonne A, ex. PC12, PF1C ; onglet LEGENDE)');
+    // Fichier PROTOCOLES = référence : ce qui n'y figure plus (ex. ESSAI supprimé) est retiré de l'application, après confirmation
+    var absP = C.codesAbsents(E.protos, r.protos), absL = r.legende ? C.absentsLegende(E.legende, r.legende) : { types: [], profils: [], colonnes: [] };
+    var tousL = absL.types.concat(absL.profils, absL.colonnes);
+    var retirer = (absP.length || tousL.length) && confirm('Ton fichier ne contient plus :\n' + (absP.length ? '• protocoles : ' + absP.join(', ') + '\n' : '') +
+      (tousL.length ? '• légende : ' + tousL.join(', ') + '\n' : '') + '\nLes retirer aussi de l\'application, pour tous tes athlètes ?');
     var fl = r.legende ? C.fusionnerLegende(E.legende, enrichirFamilles(r.legende)) : null;
-    if (fl) { E.legende = fl.legende; marquerCommun(['legende']); }
+    if (fl) { E.legende = retirer ? C.retirerLegende(fl.legende, absL) : fl.legende; marquerCommun(['legende']); }
     var fp = C.fusionnerProtos(E.protos, r.protos); E.protos = fp.liste;
     E.protosSupprimes = (E.protosSupprimes || []).filter(function (c) { return !r.protos.some(function (p) { return C.normCode(p.code) === c; }); });
+    if (retirer && absP.length) {
+      E.protos = E.protos.filter(function (p) { return absP.indexOf(p.code) < 0; });
+      E.protosSupprimes = E.protosSupprimes.concat(absP.map(C.normCode));
+    }
     if (r.protos.length) marquerCommun(['protos']);
+    if (absP.length || tousL.length) r.rapport.push((retirer ? 'Retirés (absents de ton fichier) : ' : 'Conservés bien qu\'absents de ton fichier : ') + absP.concat(tousL).join(', '));
     return sauver().then(function () {
       boite.innerHTML = '<form class="boite"><h2>' + (r.protos.length ? 'Bibliothèque de protocoles importée' : 'Légende importée') + '</h2>' +
-        (fl ? '<p>Légende : ' + fl.ajoutes + ' code' + (fl.ajoutes > 1 ? 's' : '') + ' ajouté' + (fl.ajoutes > 1 ? 's' : '') + ', ' + fl.modifies + ' mis à jour ; les autres sont conservés.</p>' : '') +
+        (fl ? '<p>Légende : ' + fl.ajoutes + ' code' + (fl.ajoutes > 1 ? 's' : '') + ' ajouté' + (fl.ajoutes > 1 ? 's' : '') + ', ' + fl.modifies + ' mis à jour.</p>' : '') +
         (!r.protos.length ? '' : '<p>' + r.protos.length + ' protocoles lus : ' + [fp.ajoutes.length ? fp.ajoutes.length + ' nouveau' + (fp.ajoutes.length > 1 ? 'x' : '') : '', fp.modifies.length ? fp.modifies.length + ' mis à jour' : '', fp.inchanges ? fp.inchanges + ' inchangé' + (fp.inchanges > 1 ? 's' : '') : ''].filter(Boolean).join(', ') + '.</p>') +
         '<ul class="petit">' + r.rapport.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' +
         '<p class="muet petit">' + (r.protos.length ? 'Envoyés à tous tes athlètes à la synchronisation. Les onglets sans code de protocole en colonne A (fiches, tableaux d\'allures…) ne sont pas importés.' : 'Envoyée à tous tes athlètes à la synchronisation.') + '</p>' +

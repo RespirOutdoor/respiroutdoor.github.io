@@ -1481,6 +1481,24 @@ var Core = (function () {
     if ((nouvelle.principes || []).length && (!ajoutSeul || !(res.principes || []).length)) res.principes = clone(nouvelle.principes);
     return { legende: res, ajoutes: ajoutes, modifies: modifies };
   }
+  // Fichier de référence (PROTOCOLES) : codes présents dans l'application mais plus dans le fichier.
+  // Une section vide dans le fichier (pas de colonnes, pas de protocoles…) n'est pas comparée.
+  function codesAbsents(actuels, fichier) {
+    if (!(fichier || []).length) return [];
+    var dans = {}; fichier.forEach(function (x) { dans[normCode(x.code)] = 1; });
+    return (actuels || []).filter(function (x) { return !dans[normCode(x.code)]; }).map(function (x) { return x.code; });
+  }
+  function absentsLegende(actuelle, fichier) {
+    var r = {}; ['types', 'profils', 'colonnes'].forEach(function (k) { r[k] = codesAbsents((actuelle || {})[k], (fichier || {})[k]); }); return r;
+  }
+  function retirerLegende(lg, absents) {
+    var res = clone(lg);
+    ['types', 'profils', 'colonnes'].forEach(function (k) {
+      var a = {}; (absents[k] || []).forEach(function (c) { a[normCode(c)] = 1; });
+      res[k] = (res[k] || []).filter(function (x) { return !a[normCode(x.code)]; });
+    });
+    return res;
+  }
   // Bibliothèque commune à tous les athlètes : un import ajoute les nouveaux codes et met à jour les codes existants,
   // sans retirer les protocoles absents du classeur importé (ils peuvent servir à d'autres athlètes)
   // ajoutSeul (classeur d'athlète) : seuls les codes absents sont ajoutés, le fichier PROTOCOLES reste la référence
@@ -1821,6 +1839,13 @@ var Core = (function () {
         f.legende.types[0].desc === 'maître' && f.legende.types.length === 2 && f.ajoutes === 1 && f.modifies === 0 &&
         fp.liste[0].titre === 'maître' && fp.ajoutes.join() === 'PV9' && fp.modifies.length === 0;
     }],
+    ['Fichier de référence : codes supprimés du fichier repérés (ESSAI), section vide du fichier ignorée, retrait appliqué', function () {
+      var app = { types: [{ code: 'EF' }, { code: 'ESSAI' }], profils: [{ code: 'PLAT' }], colonnes: [{ code: 'RPE' }] };
+      var fic = { types: [{ code: 'EF' }], profils: [{ code: 'PLAT' }, { code: 'PISTE' }], colonnes: [] };
+      var a = absentsLegende(app, fic), lg = retirerLegende(app, a);
+      return a.types.join() === 'ESSAI' && a.profils.length === 0 && a.colonnes.length === 0 && lg.types.length === 1 && lg.colonnes.length === 1 &&
+        codesAbsents([{ code: 'PC1' }, { code: 'PC 2' }], [{ code: 'PC2' }]).join() === 'PC1' && codesAbsents([{ code: 'PC1' }], []).length === 0;
+    }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
       // 4 -> 1/3 × 5 = 1,667 : 2/3 du chemin cyan -> vert : 99 − 3×2/3 = 97 (0x61) ; 198 − 2×2/3 = 196,7 -> 197 (0xC5) ; 221 − 123×2/3 = 139 (0x8B)
@@ -1888,7 +1913,7 @@ var Core = (function () {
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
     extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete,
-    lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerLegende: fusionnerLegende, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
+    lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerLegende: fusionnerLegende, codesAbsents: codesAbsents, absentsLegende: absentsLegende, retirerLegende: retirerLegende, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();
 </script>
