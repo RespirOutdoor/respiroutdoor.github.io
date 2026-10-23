@@ -478,6 +478,7 @@ form.saisie .champs label.large { grid-column: 1 / -1; }
 .retour .terrain { padding: 1px 10px; border: 1px solid var(--bord); border-radius: 99px; font-size: .85rem; color: var(--texte-2); }
 form.saisie .champs { align-items: end; } /* cases alignées même si un libellé passe sur deux lignes */
 .titre-groupe { margin: 18px 4px 10px; font-size: .95rem; color: var(--texte-2); }
+.proto h3 .famille-proto { margin-left: 8px; padding: 1px 8px; border: 1px solid var(--bord); border-radius: 99px; font-size: .72rem; font-weight: 600; color: var(--texte-2); vertical-align: 2px; white-space: nowrap; }
 </style>
 </head>
 <body class="athlete">
@@ -1226,8 +1227,10 @@ var Core = (function () {
   }
 
   /* ---------- Import du classeur de l'entraîneur (onglets PLAN, LEGENDE, ALLURES, PROTOS) ---------- */
+  // Onglet par son nom, sans tenir compte des espaces, majuscules ni accents (« Légende » = « LEGENDE »)
+  function nomOnglet(n) { return normCode(n).normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
   function feuille(classeur, nom) {
-    return (classeur.feuilles || []).filter(function (f) { return normCode(f.nom) === normCode(nom); })[0] || null;
+    return (classeur.feuilles || []).filter(function (f) { return nomOnglet(f.nom) === nomOnglet(nom); })[0] || null;
   }
   function cel(f, r, c) { return f && f.lignes[r] ? f.lignes[r][c] : undefined; }
   // Position de la première cellule dont le texte vérifie « re »
@@ -1437,13 +1440,34 @@ var Core = (function () {
   // de séance de la légende (SPE10…) ou des zones d'allure (Z2…) ne sont pas des protocoles. Renvoie { protos, rapport }
   function importerBibliotheque(classeur, legende) {
     var types = {}, protos = [], vus = {}, rapport = [];
-    ((legende && legende.types) || []).forEach(function (t) { types[normCode(t.code)] = 1; });
+    // Onglet LEGENDE éventuel (classeur de légende seule, ou légende + protocoles)
+    var lg = importerLegende(feuille(classeur, 'LEGENDE'));
+    if (lg && !lg.types.length && !lg.profils.length) lg = null;
+    if (lg) rapport.push('Onglet « LEGENDE » : ' + lg.types.length + ' types, ' + lg.profils.length + ' profils, ' + lg.colonnes.length + ' colonnes');
+    ((legende && legende.types) || []).concat(lg ? lg.types : []).forEach(function (t) { types[normCode(t.code)] = 1; });
     (classeur.feuilles || []).forEach(function (f) {
+      if (['LEGENDE', 'ALLURES'].indexOf(nomOnglet(f.nom)) >= 0) return;
       var lus = importerProtos(f).filter(function (p) { return !types[normCode(p.code)] && !/^Z\d/.test(p.code) && !vus[p.code]; });
-      lus.forEach(function (p) { vus[p.code] = 1; protos.push(p); });
+      lus.forEach(function (p) { vus[p.code] = 1; p.famille = texte(f.nom); protos.push(p); }); // famille = onglet d'origine (COTE, FARTLEK…)
       if (lus.length) rapport.push('Onglet « ' + texte(f.nom) + ' » : ' + lus.map(function (p) { return p.code; }).join(', '));
     });
-    return { protos: protos, rapport: rapport };
+    return { protos: protos, legende: lg, rapport: rapport };
+  }
+  // Légende commune : complétée et mise à jour par code (types, profils, colonnes), principes remplacés s'il y en a ;
+  // un ancien classeur d'athlète ne peut plus ramener une légende périmée en effaçant des codes. Renvoie { legende, ajoutes, modifies }
+  function fusionnerLegende(ancienne, nouvelle) {
+    var res = clone(ancienne || { principes: [], colonnes: [], profils: [], types: [] }), ajoutes = 0, modifies = 0;
+    if (!nouvelle) return { legende: res, ajoutes: 0, modifies: 0 };
+    ['colonnes', 'profils', 'types'].forEach(function (k) {
+      res[k] = res[k] || [];
+      (nouvelle[k] || []).forEach(function (e) {
+        var i = -1; res[k].forEach(function (x, n) { if (normCode(x.code) === normCode(e.code)) i = n; });
+        if (i < 0) { res[k].push(clone(e)); ajoutes++; }
+        else if (res[k][i].desc !== e.desc || res[k][i].famille !== (e.famille || res[k][i].famille)) { res[k][i] = Object.assign({}, res[k][i], clone(e)); modifies++; }
+      });
+    });
+    if ((nouvelle.principes || []).length) res.principes = clone(nouvelle.principes);
+    return { legende: res, ajoutes: ajoutes, modifies: modifies };
   }
   // Bibliothèque commune à tous les athlètes : un import ajoute les nouveaux codes et met à jour les codes existants,
   // sans retirer les protocoles absents du classeur importé (ils peuvent servir à d'autres athlètes)
@@ -1452,7 +1476,8 @@ var Core = (function () {
     (nouveaux || []).forEach(function (p) {
       var i = -1; liste.forEach(function (x, k) { if (normCode(x.code) === normCode(p.code)) i = k; });
       if (i < 0) { liste.push(clone(p)); ajoutes.push(p.code); return; }
-      var avant = liste[i], n = Object.assign({}, clone(p), { notes: avant.notes || p.notes || '' });
+      var avant = liste[i], n = Object.assign({}, clone(p), { notes: avant.notes || p.notes || '', famille: p.famille || avant.famille || '' });
+      if (!n.famille) delete n.famille;
       if (JSON.stringify([avant.titre, avant.grille]) === JSON.stringify([n.titre, n.grille])) inchanges++; else { liste[i] = n; modifies.push(p.code); }
     });
     return { liste: liste, ajoutes: ajoutes, modifies: modifies, inchanges: inchanges, conserves: liste.length - (nouveaux || []).length };
@@ -1764,6 +1789,14 @@ var Core = (function () {
       var r = importerBibliotheque(cl, { types: [{ code: 'SPE10' }] });
       return r.protos.map(function (p) { return p.code; }).join() === 'PC11,PC12,PV1' && r.protos[0].titre === 'DESCENTE TECHNIQUE' && r.rapport.length === 2;
     }],
+    ['Légende : classeur de légende seule importé ; fusion par code (ajout, mise à jour, rien d\'effacé), principes remplacés', function () {
+      var L = [['1. Principe un'], ['LEGENDE COLONNE TYPE'], ['EF', '', 'ENDURANCE FONDAMENTALE NOUVELLE'], ['NOUV', '', 'NOUVEAU TYPE'], ['LEGENDE COLONNE PROFIL'], ['PLAT', '', 'TRES PLAT']];
+      var r = importerBibliotheque({ feuilles: [{ nom: 'Légende', lignes: L }] }, null);
+      var anc = { principes: ['ancien'], colonnes: [{ code: 'RPE', desc: 'x' }], profils: [], types: [{ code: 'EF', desc: 'ancien', famille: 'Aérobie' }, { code: 'SL', desc: 'sortie' }] };
+      var f = fusionnerLegende(anc, r.legende), t = f.legende.types;
+      return r.protos.length === 0 && r.legende.types.length === 2 && t.length === 3 && t[0].desc === 'ENDURANCE FONDAMENTALE NOUVELLE' && t[0].famille === 'Aérobie' &&
+        t[1].code === 'SL' && t[2].code === 'NOUV' && f.ajoutes === 2 && f.modifies === 1 && f.legende.principes[0] === 'Principe un' && f.legende.colonnes.length === 1;
+    }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
       // 4 -> 1/3 × 5 = 1,667 : 2/3 du chemin cyan -> vert : 99 − 3×2/3 = 97 (0x61) ; 198 − 2×2/3 = 196,7 -> 197 (0xC5) ; 221 − 123×2/3 = 139 (0x8B)
@@ -1831,7 +1864,7 @@ var Core = (function () {
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
     extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete,
-    lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
+    lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerLegende: fusionnerLegende, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();
 </script>
@@ -2255,11 +2288,15 @@ var UI = (function () {
   }
 
   /* ---------- Protos ---------- */
-  // Bibliothèque commune à tous les athlètes ; ceux prévus dans le plan de l'athlète affiché passent en premier
+  // Bibliothèque commune à tous les athlètes ; ceux prévus dans le plan de l'athlète affiché passent en premier.
+  // Recherche par code, titre ou contenu (sans tenir compte des majuscules ni des accents)
+  var rechercheProtos = '';
+  function simplifier(t) { return C.texte(t).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
   function vueProtos(main, a, modifiable) {
-    var protos = ctx.protos() || [];
+    var protos = ctx.protos() || [], q = simplifier(rechercheProtos.trim());
     var h = '<section class="carte"><div class="ligne"><h2 class="espace">Protocoles</h2>' + (modifiable ? '<button class="sec" data-act="importXlsx">Importer des protocoles</button><button data-act="editProto" data-i="-1">Nouveau protocole</button>' : '') + '</div>' +
       '<p class="petit"><b>Protocoles réfléchis et mis sur pied par Respir Outdoor : utilisation et reproduction interdites.</b></p>' +
+      (protos.length ? '<label for="rechProto" style="margin:12px 0 0">Rechercher un protocole<input id="rechProto" type="search" value="' + esc(rechercheProtos) + '" placeholder="ex. PC12, fartlek, côte, VMA"></label>' : '') +
       (modifiable ? '<p class="muet petit" style="margin:6px 0 0">Bibliothèque commune à tous tes athlètes : chaque import (classeur d\'athlète ou classeur de protocoles) ajoute les nouveaux codes et met à jour les existants.</p>' : '') + '</section>' +
       (protos.length ? '' : '<section class="carte vide"><p class="muet">Aucun protocole pour le moment.</p></section>');
     // Un protocole mal formé ne doit jamais empêcher l'affichage des autres
@@ -2270,7 +2307,7 @@ var UI = (function () {
       var g = (Array.isArray(p.grille) ? p.grille : []).map(function (l) { return Array.isArray(l) ? l : [l]; }), nc = Math.max.apply(null, g.map(function (l) { return l.length; }).concat([0]));
       var cols = []; for (var c = 0; c < nc; c++) if (g.some(function (l) { return C.texte(l[c]); })) cols.push(c);
       var usages = a ? Object.keys(a.jours || {}).filter(function (d) { return C.protoPrevu(a.jours[d], p.code); }).sort() : [];
-      return '<section class="carte proto"><h3><span class="code">' + esc(p.code) + '</span>' + esc(p.titre) + '</h3>' +
+      return '<section class="carte proto"><h3><span class="code">' + esc(p.code) + '</span>' + esc(p.titre) + (p.famille ? '<span class="famille-proto">' + esc(p.famille) + '</span>' : '') + '</h3>' +
         (cols.length ? '<div class="tableau"><table><tbody>' + g.map(function (l) { return '<tr>' + cols.map(function (c) { return '<td>' + esc(l[c] || '') + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>' : '') +
         (p.notes ? '<p style="white-space:pre-wrap">' + esc(p.notes) + '</p>' : '') +
         (usages.length ? '<p class="petit muet">Prévu le : ' + usages.map(function (d) { return C.formatDateFR(d); }).join(', ') + '</p>' : '') +
@@ -2280,12 +2317,22 @@ var UI = (function () {
     function cle(code) { var m = /^([A-Z]*)\s*(\d*)(.*)$/.exec(C.normCode(code)) || []; return [m[1] || '', m[2] ? Number(m[2]) : -1, m[3] || '']; }
     var idx = protos.map(function (p, i) { return { p: p, i: i, k: cle(p.code), prevu: !!a && Object.keys(a.jours || {}).some(function (d) { return C.protoPrevu(a.jours[d], p.code); }) }; })
       .sort(function (x, y) { return x.k[0] < y.k[0] ? -1 : x.k[0] > y.k[0] ? 1 : x.k[1] - y.k[1] || (x.k[2] < y.k[2] ? -1 : x.k[2] > y.k[2] ? 1 : 0); });
+    if (q) {
+      var qc = q.replace(/[\s.]/g, '');
+      idx = idx.filter(function (x) {
+        var p = x.p, tout = simplifier([p.code, p.titre, p.famille, p.notes].concat([].concat.apply([], (Array.isArray(p.grille) ? p.grille : []).map(function (l) { return Array.isArray(l) ? l : [l]; }))).join(' '));
+        return tout.indexOf(q) >= 0 || simplifier(p.code).replace(/[\s.]/g, '') === qc;
+      });
+      h += '<p class="muet petit titre-groupe">' + (idx.length ? idx.length + ' protocole' + (idx.length > 1 ? 's' : '') + ' pour « ' + esc(rechercheProtos.trim()) + ' »' : 'Aucun protocole ne correspond à « ' + esc(rechercheProtos.trim()) + ' ».') + '</p>';
+    }
     var dans = idx.filter(function (x) { return x.prevu; }), autres = idx.filter(function (x) { return !x.prevu; });
     if (a && dans.length && autres.length) {
       h += '<h3 class="titre-groupe">' + (modifiable ? 'Dans le plan de ' + esc(prenom(a)) : 'Dans ton plan') + ' (' + dans.length + ')</h3>' + dans.map(function (x) { return carte(x.p, x.i); }).join('');
       h += '<h3 class="titre-groupe">Autres protocoles (' + autres.length + ')</h3>' + autres.map(function (x) { return carte(x.p, x.i); }).join('');
     } else h += idx.map(function (x) { return carte(x.p, x.i); }).join('');
     main.innerHTML = h;
+    var r = $('#rechProto');
+    if (r) r.oninput = function () { rechercheProtos = r.value; var pos = r.selectionStart; vueProtos(main, a, modifiable); var n = $('#rechProto'); n.focus(); n.setSelectionRange(pos, pos); };
   }
 
 

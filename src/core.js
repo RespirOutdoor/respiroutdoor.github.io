@@ -710,8 +710,10 @@ var Core = (function () {
   }
 
   /* ---------- Import du classeur de l'entraîneur (onglets PLAN, LEGENDE, ALLURES, PROTOS) ---------- */
+  // Onglet par son nom, sans tenir compte des espaces, majuscules ni accents (« Légende » = « LEGENDE »)
+  function nomOnglet(n) { return normCode(n).normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
   function feuille(classeur, nom) {
-    return (classeur.feuilles || []).filter(function (f) { return normCode(f.nom) === normCode(nom); })[0] || null;
+    return (classeur.feuilles || []).filter(function (f) { return nomOnglet(f.nom) === nomOnglet(nom); })[0] || null;
   }
   function cel(f, r, c) { return f && f.lignes[r] ? f.lignes[r][c] : undefined; }
   // Position de la première cellule dont le texte vérifie « re »
@@ -921,13 +923,34 @@ var Core = (function () {
   // de séance de la légende (SPE10…) ou des zones d'allure (Z2…) ne sont pas des protocoles. Renvoie { protos, rapport }
   function importerBibliotheque(classeur, legende) {
     var types = {}, protos = [], vus = {}, rapport = [];
-    ((legende && legende.types) || []).forEach(function (t) { types[normCode(t.code)] = 1; });
+    // Onglet LEGENDE éventuel (classeur de légende seule, ou légende + protocoles)
+    var lg = importerLegende(feuille(classeur, 'LEGENDE'));
+    if (lg && !lg.types.length && !lg.profils.length) lg = null;
+    if (lg) rapport.push('Onglet « LEGENDE » : ' + lg.types.length + ' types, ' + lg.profils.length + ' profils, ' + lg.colonnes.length + ' colonnes');
+    ((legende && legende.types) || []).concat(lg ? lg.types : []).forEach(function (t) { types[normCode(t.code)] = 1; });
     (classeur.feuilles || []).forEach(function (f) {
+      if (['LEGENDE', 'ALLURES'].indexOf(nomOnglet(f.nom)) >= 0) return;
       var lus = importerProtos(f).filter(function (p) { return !types[normCode(p.code)] && !/^Z\d/.test(p.code) && !vus[p.code]; });
-      lus.forEach(function (p) { vus[p.code] = 1; protos.push(p); });
+      lus.forEach(function (p) { vus[p.code] = 1; p.famille = texte(f.nom); protos.push(p); }); // famille = onglet d'origine (COTE, FARTLEK…)
       if (lus.length) rapport.push('Onglet « ' + texte(f.nom) + ' » : ' + lus.map(function (p) { return p.code; }).join(', '));
     });
-    return { protos: protos, rapport: rapport };
+    return { protos: protos, legende: lg, rapport: rapport };
+  }
+  // Légende commune : complétée et mise à jour par code (types, profils, colonnes), principes remplacés s'il y en a ;
+  // un ancien classeur d'athlète ne peut plus ramener une légende périmée en effaçant des codes. Renvoie { legende, ajoutes, modifies }
+  function fusionnerLegende(ancienne, nouvelle) {
+    var res = clone(ancienne || { principes: [], colonnes: [], profils: [], types: [] }), ajoutes = 0, modifies = 0;
+    if (!nouvelle) return { legende: res, ajoutes: 0, modifies: 0 };
+    ['colonnes', 'profils', 'types'].forEach(function (k) {
+      res[k] = res[k] || [];
+      (nouvelle[k] || []).forEach(function (e) {
+        var i = -1; res[k].forEach(function (x, n) { if (normCode(x.code) === normCode(e.code)) i = n; });
+        if (i < 0) { res[k].push(clone(e)); ajoutes++; }
+        else if (res[k][i].desc !== e.desc || res[k][i].famille !== (e.famille || res[k][i].famille)) { res[k][i] = Object.assign({}, res[k][i], clone(e)); modifies++; }
+      });
+    });
+    if ((nouvelle.principes || []).length) res.principes = clone(nouvelle.principes);
+    return { legende: res, ajoutes: ajoutes, modifies: modifies };
   }
   // Bibliothèque commune à tous les athlètes : un import ajoute les nouveaux codes et met à jour les codes existants,
   // sans retirer les protocoles absents du classeur importé (ils peuvent servir à d'autres athlètes)
@@ -936,7 +959,8 @@ var Core = (function () {
     (nouveaux || []).forEach(function (p) {
       var i = -1; liste.forEach(function (x, k) { if (normCode(x.code) === normCode(p.code)) i = k; });
       if (i < 0) { liste.push(clone(p)); ajoutes.push(p.code); return; }
-      var avant = liste[i], n = Object.assign({}, clone(p), { notes: avant.notes || p.notes || '' });
+      var avant = liste[i], n = Object.assign({}, clone(p), { notes: avant.notes || p.notes || '', famille: p.famille || avant.famille || '' });
+      if (!n.famille) delete n.famille;
       if (JSON.stringify([avant.titre, avant.grille]) === JSON.stringify([n.titre, n.grille])) inchanges++; else { liste[i] = n; modifies.push(p.code); }
     });
     return { liste: liste, ajoutes: ajoutes, modifies: modifies, inchanges: inchanges, conserves: liste.length - (nouveaux || []).length };
@@ -1248,6 +1272,14 @@ var Core = (function () {
       var r = importerBibliotheque(cl, { types: [{ code: 'SPE10' }] });
       return r.protos.map(function (p) { return p.code; }).join() === 'PC11,PC12,PV1' && r.protos[0].titre === 'DESCENTE TECHNIQUE' && r.rapport.length === 2;
     }],
+    ['Légende : classeur de légende seule importé ; fusion par code (ajout, mise à jour, rien d\'effacé), principes remplacés', function () {
+      var L = [['1. Principe un'], ['LEGENDE COLONNE TYPE'], ['EF', '', 'ENDURANCE FONDAMENTALE NOUVELLE'], ['NOUV', '', 'NOUVEAU TYPE'], ['LEGENDE COLONNE PROFIL'], ['PLAT', '', 'TRES PLAT']];
+      var r = importerBibliotheque({ feuilles: [{ nom: 'Légende', lignes: L }] }, null);
+      var anc = { principes: ['ancien'], colonnes: [{ code: 'RPE', desc: 'x' }], profils: [], types: [{ code: 'EF', desc: 'ancien', famille: 'Aérobie' }, { code: 'SL', desc: 'sortie' }] };
+      var f = fusionnerLegende(anc, r.legende), t = f.legende.types;
+      return r.protos.length === 0 && r.legende.types.length === 2 && t.length === 3 && t[0].desc === 'ENDURANCE FONDAMENTALE NOUVELLE' && t[0].famille === 'Aérobie' &&
+        t[1].code === 'SL' && t[2].code === 'NOUV' && f.ajoutes === 2 && f.modifies === 1 && f.legende.principes[0] === 'Principe un' && f.legende.colonnes.length === 1;
+    }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
       // 4 -> 1/3 × 5 = 1,667 : 2/3 du chemin cyan -> vert : 99 − 3×2/3 = 97 (0x61) ; 198 − 2×2/3 = 196,7 -> 197 (0xC5) ; 221 − 123×2/3 = 139 (0x8B)
@@ -1315,6 +1347,6 @@ var Core = (function () {
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
     extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete,
-    lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
+    lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerLegende: fusionnerLegende, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();

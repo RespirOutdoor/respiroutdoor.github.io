@@ -637,18 +637,21 @@
   }
   function importerBibliotheque(cl) {
     var r = C.importerBibliotheque(cl, E.legende);
-    if (!r.protos.length) throw new Error('aucun plan ni protocole reconnu dans ce classeur (code du protocole en colonne A, ex. PC12, PF1C)');
+    if (!r.protos.length && !r.legende) throw new Error('aucun plan, protocole ni légende reconnu dans ce classeur (code du protocole en colonne A, ex. PC12, PF1C ; onglet LEGENDE)');
+    var fl = r.legende ? C.fusionnerLegende(E.legende, enrichirFamilles(r.legende)) : null;
+    if (fl) { E.legende = fl.legende; marquerCommun(['legende']); }
     var fp = C.fusionnerProtos(E.protos, r.protos); E.protos = fp.liste;
     E.protosSupprimes = (E.protosSupprimes || []).filter(function (c) { return !r.protos.some(function (p) { return C.normCode(p.code) === c; }); });
-    marquerCommun(['protos']);
+    if (r.protos.length) marquerCommun(['protos']);
     return sauver().then(function () {
-      boite.innerHTML = '<form class="boite"><h2>Bibliothèque de protocoles importée</h2>' +
-        '<p>' + r.protos.length + ' protocoles lus : ' + [fp.ajoutes.length ? fp.ajoutes.length + ' nouveau' + (fp.ajoutes.length > 1 ? 'x' : '') : '', fp.modifies.length ? fp.modifies.length + ' mis à jour' : '', fp.inchanges ? fp.inchanges + ' inchangé' + (fp.inchanges > 1 ? 's' : '') : ''].filter(Boolean).join(', ') + '.</p>' +
+      boite.innerHTML = '<form class="boite"><h2>' + (r.protos.length ? 'Bibliothèque de protocoles importée' : 'Légende importée') + '</h2>' +
+        (fl ? '<p>Légende : ' + fl.ajoutes + ' code' + (fl.ajoutes > 1 ? 's' : '') + ' ajouté' + (fl.ajoutes > 1 ? 's' : '') + ', ' + fl.modifies + ' mis à jour ; les autres sont conservés.</p>' : '') +
+        (!r.protos.length ? '' : '<p>' + r.protos.length + ' protocoles lus : ' + [fp.ajoutes.length ? fp.ajoutes.length + ' nouveau' + (fp.ajoutes.length > 1 ? 'x' : '') : '', fp.modifies.length ? fp.modifies.length + ' mis à jour' : '', fp.inchanges ? fp.inchanges + ' inchangé' + (fp.inchanges > 1 ? 's' : '') : ''].filter(Boolean).join(', ') + '.</p>') +
         '<ul class="petit">' + r.rapport.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' +
-        '<p class="muet petit">Ils sont envoyés à tous tes athlètes à la synchronisation. Les onglets sans code de protocole en colonne A (fiches, tableaux d\'allures…) ne sont pas importés.</p>' +
-        '<div class="pied"><button type="button" data-x="ok">Voir les protocoles</button></div></form>';
+        '<p class="muet petit">' + (r.protos.length ? 'Envoyés à tous tes athlètes à la synchronisation. Les onglets sans code de protocole en colonne A (fiches, tableaux d\'allures…) ne sont pas importés.' : 'Envoyée à tous tes athlètes à la synchronisation.') + '</p>' +
+        '<div class="pied"><button type="button" data-x="ok">' + (r.protos.length ? 'Voir les protocoles' : 'Voir la légende') + '</button></div></form>';
       boite.showModal();
-      $('[data-x="ok"]', boite).onclick = function () { boite.close(); location.hash = '#/protos'; rendre(); };
+      $('[data-x="ok"]', boite).onclick = function () { boite.close(); location.hash = r.protos.length ? '#/protos' : '#/legende'; rendre(); };
     });
   }
   function importerClasseur(cl, nomOnglet) {
@@ -657,7 +660,7 @@
         var res = local ? C.fusionner(local, recu, 'excel') : recu;
         res.id = recu.id; assurerCode(res);
         if (local) E.athletes[E.athletes.indexOf(local)] = res; else E.athletes.push(res);
-        if (r.legende && r.legende.types.length) E.legende = enrichirFamilles(r.legende);
+        if (r.legende && r.legende.types.length) E.legende = C.fusionnerLegende(E.legende, enrichirFamilles(r.legende)).legende;
         // Protocoles : bibliothèque commune, complétée et mise à jour par code (rien n'est retiré)
         if (r.protos && r.protos.length) {
           var fp = C.fusionnerProtos(E.protos, r.protos); E.protos = fp.liste;

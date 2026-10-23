@@ -414,11 +414,15 @@ var UI = (function () {
   }
 
   /* ---------- Protos ---------- */
-  // Bibliothèque commune à tous les athlètes ; ceux prévus dans le plan de l'athlète affiché passent en premier
+  // Bibliothèque commune à tous les athlètes ; ceux prévus dans le plan de l'athlète affiché passent en premier.
+  // Recherche par code, titre ou contenu (sans tenir compte des majuscules ni des accents)
+  var rechercheProtos = '';
+  function simplifier(t) { return C.texte(t).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
   function vueProtos(main, a, modifiable) {
-    var protos = ctx.protos() || [];
+    var protos = ctx.protos() || [], q = simplifier(rechercheProtos.trim());
     var h = '<section class="carte"><div class="ligne"><h2 class="espace">Protocoles</h2>' + (modifiable ? '<button class="sec" data-act="importXlsx">Importer des protocoles</button><button data-act="editProto" data-i="-1">Nouveau protocole</button>' : '') + '</div>' +
       '<p class="petit"><b>Protocoles réfléchis et mis sur pied par Respir Outdoor : utilisation et reproduction interdites.</b></p>' +
+      (protos.length ? '<label for="rechProto" style="margin:12px 0 0">Rechercher un protocole<input id="rechProto" type="search" value="' + esc(rechercheProtos) + '" placeholder="ex. PC12, fartlek, côte, VMA"></label>' : '') +
       (modifiable ? '<p class="muet petit" style="margin:6px 0 0">Bibliothèque commune à tous tes athlètes : chaque import (classeur d\'athlète ou classeur de protocoles) ajoute les nouveaux codes et met à jour les existants.</p>' : '') + '</section>' +
       (protos.length ? '' : '<section class="carte vide"><p class="muet">Aucun protocole pour le moment.</p></section>');
     // Un protocole mal formé ne doit jamais empêcher l'affichage des autres
@@ -429,7 +433,7 @@ var UI = (function () {
       var g = (Array.isArray(p.grille) ? p.grille : []).map(function (l) { return Array.isArray(l) ? l : [l]; }), nc = Math.max.apply(null, g.map(function (l) { return l.length; }).concat([0]));
       var cols = []; for (var c = 0; c < nc; c++) if (g.some(function (l) { return C.texte(l[c]); })) cols.push(c);
       var usages = a ? Object.keys(a.jours || {}).filter(function (d) { return C.protoPrevu(a.jours[d], p.code); }).sort() : [];
-      return '<section class="carte proto"><h3><span class="code">' + esc(p.code) + '</span>' + esc(p.titre) + '</h3>' +
+      return '<section class="carte proto"><h3><span class="code">' + esc(p.code) + '</span>' + esc(p.titre) + (p.famille ? '<span class="famille-proto">' + esc(p.famille) + '</span>' : '') + '</h3>' +
         (cols.length ? '<div class="tableau"><table><tbody>' + g.map(function (l) { return '<tr>' + cols.map(function (c) { return '<td>' + esc(l[c] || '') + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>' : '') +
         (p.notes ? '<p style="white-space:pre-wrap">' + esc(p.notes) + '</p>' : '') +
         (usages.length ? '<p class="petit muet">Prévu le : ' + usages.map(function (d) { return C.formatDateFR(d); }).join(', ') + '</p>' : '') +
@@ -439,12 +443,22 @@ var UI = (function () {
     function cle(code) { var m = /^([A-Z]*)\s*(\d*)(.*)$/.exec(C.normCode(code)) || []; return [m[1] || '', m[2] ? Number(m[2]) : -1, m[3] || '']; }
     var idx = protos.map(function (p, i) { return { p: p, i: i, k: cle(p.code), prevu: !!a && Object.keys(a.jours || {}).some(function (d) { return C.protoPrevu(a.jours[d], p.code); }) }; })
       .sort(function (x, y) { return x.k[0] < y.k[0] ? -1 : x.k[0] > y.k[0] ? 1 : x.k[1] - y.k[1] || (x.k[2] < y.k[2] ? -1 : x.k[2] > y.k[2] ? 1 : 0); });
+    if (q) {
+      var qc = q.replace(/[\s.]/g, '');
+      idx = idx.filter(function (x) {
+        var p = x.p, tout = simplifier([p.code, p.titre, p.famille, p.notes].concat([].concat.apply([], (Array.isArray(p.grille) ? p.grille : []).map(function (l) { return Array.isArray(l) ? l : [l]; }))).join(' '));
+        return tout.indexOf(q) >= 0 || simplifier(p.code).replace(/[\s.]/g, '') === qc;
+      });
+      h += '<p class="muet petit titre-groupe">' + (idx.length ? idx.length + ' protocole' + (idx.length > 1 ? 's' : '') + ' pour « ' + esc(rechercheProtos.trim()) + ' »' : 'Aucun protocole ne correspond à « ' + esc(rechercheProtos.trim()) + ' ».') + '</p>';
+    }
     var dans = idx.filter(function (x) { return x.prevu; }), autres = idx.filter(function (x) { return !x.prevu; });
     if (a && dans.length && autres.length) {
       h += '<h3 class="titre-groupe">' + (modifiable ? 'Dans le plan de ' + esc(prenom(a)) : 'Dans ton plan') + ' (' + dans.length + ')</h3>' + dans.map(function (x) { return carte(x.p, x.i); }).join('');
       h += '<h3 class="titre-groupe">Autres protocoles (' + autres.length + ')</h3>' + autres.map(function (x) { return carte(x.p, x.i); }).join('');
     } else h += idx.map(function (x) { return carte(x.p, x.i); }).join('');
     main.innerHTML = h;
+    var r = $('#rechProto');
+    if (r) r.oninput = function () { rechercheProtos = r.value; var pos = r.selectionStart; vueProtos(main, a, modifiable); var n = $('#rechProto'); n.focus(); n.setSelectionRange(pos, pos); };
   }
 
 
