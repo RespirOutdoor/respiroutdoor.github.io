@@ -467,3 +467,16 @@ form.saisie .champs label.large { grid-column: 1 / -1; }
 form.saisie .champs { align-items: end; } /* cases alignées même si un libellé passe sur deux lignes */
 .titre-groupe { margin: 18px 4px 10px; font-size: .95rem; color: var(--texte-2); }
 .proto h3 .famille-proto { margin-left: 8px; padding: 1px 8px; border: 1px solid var(--bord); border-radius: 99px; font-size: .72rem; font-weight: 600; color: var(--texte-2); vertical-align: 2px; white-space: nowrap; }
+/* Ma VMA (athlète) : carte rouge, VMA en grand sur toute la largeur */
+:root { --rouge: #B42318; --rouge-fond: #FDECEA; }
+:root[data-theme="dark"] { --rouge: #F4877C; --rouge-fond: #2E1715; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --rouge: #F4877C; --rouge-fond: #2E1715; } }
+.ma-vma { border-left: 5px solid var(--rouge); }
+.ma-vma h2 { color: var(--rouge); }
+.ma-vma .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ma-vma .kpi { background: var(--rouge-fond); }
+.ma-vma .kpi:first-child { grid-column: 1 / -1; }
+.ma-vma .kpi:first-child b { font-size: 1.6rem; color: var(--rouge); }
+/* Mes RP : une distance par bloc (chrono h/min/s puis date) */
+form.saisie fieldset.rp { border: 1px solid var(--bord); border-radius: var(--rayon); padding: 10px 12px 2px; margin: 0 0 12px; min-width: 0; }
+form.saisie fieldset.rp legend { font-weight: 700; padding: 0 6px; }

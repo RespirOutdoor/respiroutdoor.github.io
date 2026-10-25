@@ -58,8 +58,8 @@ var Aide = (function () {
       '<p>Choisis l\'athlète dans la liste en haut, puis onglet <b>Réglages</b> → section Athlètes → <b>Supprimer …</b>. Il est aussi retiré du tableur Google à la synchronisation et son lien ne fonctionne plus.</p>', a: ['Ouvrir les réglages', '#/reglages'] },
     { id: 'compet', q: 'Les compétitions', m: 'competition competitions course comp jour j prochaine dossard', r:
       '<p>Les séances de type <b>COMP</b> sont des compétitions. Celles des 7 prochains jours sont listées dans l\'onglet Athlètes, et l\'athlète voit le compte à rebours (J-…) sur son accueil.</p>', a: ['Ouvrir les athlètes', '#/athletes'] },
-    { id: 'allures', q: 'VMA et allures', m: 'allure allures vma zone zones vitesse test chrono demi cooper calcul', r:
-      '<p>Onglet <b>Allures</b> : modifie la VMA, le test et les chronos, les calculs se mettent à jour. Les zones (% de VMA) se règlent dans <b>Modifier la fiche</b>. L\'athlète voit les mêmes valeurs, sans pouvoir les changer.</p>', a: ['Ouvrir les allures', '#/allures'] },
+    { id: 'allures', q: 'VMA et allures', m: 'allure allures vma zone zones vitesse test chrono demi cooper calcul rp record records', r:
+      '<p>Onglet <b>Allures</b> : modifie la VMA, le test et les chronos, les calculs se mettent à jour. Les zones (% de VMA) se règlent dans <b>Modifier la fiche</b>. L\'athlète voit sa VMA (carte « Ma VMA »), les zones et les allures calculées, sans pouvoir les changer. Il saisit lui-même ses records 5 km, 10 km, semi et marathon (« Mes RP ») : ils restent sur son téléphone, tu ne les vois pas.</p>', a: ['Ouvrir les allures', '#/allures'] },
     { id: 'semaine', q: 'Copier une semaine, cycle et phase', m: 'copier semaine cycle phase dupliquer reproduire planif', r:
       '<p>Onglet <b>Plan</b>, sous la semaine affichée : <b>Cycle / phase</b> pour nommer la situation de la semaine, <b>Copier vers…</b> pour recopier la partie entraîneur de cette semaine sur une autre.</p>', a: ['Ouvrir le plan', '#/plan'] },
     { id: 'imprimer', q: 'Imprimer le plan', m: 'imprimer impression pdf papier feuille', r:

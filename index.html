@@ -479,6 +479,19 @@ form.saisie .champs label.large { grid-column: 1 / -1; }
 form.saisie .champs { align-items: end; } /* cases alignées même si un libellé passe sur deux lignes */
 .titre-groupe { margin: 18px 4px 10px; font-size: .95rem; color: var(--texte-2); }
 .proto h3 .famille-proto { margin-left: 8px; padding: 1px 8px; border: 1px solid var(--bord); border-radius: 99px; font-size: .72rem; font-weight: 600; color: var(--texte-2); vertical-align: 2px; white-space: nowrap; }
+/* Ma VMA (athlète) : carte rouge, VMA en grand sur toute la largeur */
+:root { --rouge: #B42318; --rouge-fond: #FDECEA; }
+:root[data-theme="dark"] { --rouge: #F4877C; --rouge-fond: #2E1715; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --rouge: #F4877C; --rouge-fond: #2E1715; } }
+.ma-vma { border-left: 5px solid var(--rouge); }
+.ma-vma h2 { color: var(--rouge); }
+.ma-vma .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ma-vma .kpi { background: var(--rouge-fond); }
+.ma-vma .kpi:first-child { grid-column: 1 / -1; }
+.ma-vma .kpi:first-child b { font-size: 1.6rem; color: var(--rouge); }
+/* Mes RP : une distance par bloc (chrono h/min/s puis date) */
+form.saisie fieldset.rp { border: 1px solid var(--bord); border-radius: var(--rayon); padding: 10px 12px 2px; margin: 0 0 12px; min-width: 0; }
+form.saisie fieldset.rp legend { font-weight: 700; padding: 0 6px; }
 </style>
 </head>
 <body class="coach">
@@ -2325,17 +2338,16 @@ var UI = (function () {
   }
 
   /* ---------- Allures ---------- */
-  // modifiable : formulaire actif (entraîneur) ou lecture seule (athlète) ; enregistrer(a) appelé après modification
-  function vueAllures(main, a, modifiable, enregistrer) {
+  // modifiable : formulaire actif (entraîneur) ou lecture seule (athlète) ; enregistrer(a) appelé après modification ;
+  // apres : HTML ajouté sous la carte « Ma VMA » (athlète)
+  function vueAllures(main, a, modifiable, enregistrer, apres) {
     var vma = a.vma, al = a.allures || {}, dis = modifiable ? '' : ' disabled';
     var h;
     if (!modifiable) {
-      // Lecture seule (athlète) : valeurs en cases, pas de champs grisés
-      var vals = [['VMA', C.isNum(vma) ? C.nombreFR(vma) + ' km/h' : ''], ['Type de test', (a.test || {}).type], ['Date du test', C.dateTest((a.test || {}).date)],
-        ['Chrono 10 km', C.isNum(al.chrono10) ? C.formatDuree(al.chrono10) : ''], ['Chrono semi', C.isNum(al.chronoSemi) ? C.formatDuree(al.chronoSemi) : ''],
-        ['Chrono marathon', C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : ''], ['Pré-fatigue', C.isNum(al.preFatPct) ? C.nombreFR(al.preFatPct, 1) + ' % VMA' : '']];
-      h = '<section class="carte"><h2>VMA &amp; allures</h2><div class="kpis kpis2 valeurs">' + vals.map(function (x) { return '<div class="kpi"><span class="etiq">' + x[0] + '</span><b>' + (C.texte(x[1]) ? esc(x[1]) : '—') + '</b></div>'; }).join('') +
-        '</div><p class="muet petit" style="margin:12px 0 0">Valeurs fixées par ton entraîneur. Formules de l\'onglet ALLURES du tableau de l\'entraîneur.</p></section>';
+      // Lecture seule (athlète) : carte « Ma VMA » (couleur rouge) ; les records sont saisis par l'athlète (apres)
+      var vals = [['VMA', C.isNum(vma) ? C.nombreFR(vma) + ' km/h' : ''], ['Type de test', (a.test || {}).type], ['Date du test', C.dateTest((a.test || {}).date)]];
+      h = '<section class="carte ma-vma"><h2>Ma VMA</h2><div class="kpis valeurs">' + vals.map(function (x) { return '<div class="kpi"><span class="etiq">' + x[0] + '</span><b>' + (C.texte(x[1]) ? esc(x[1]) : '—') + '</b></div>'; }).join('') +
+        '</div><p class="muet petit" style="margin:12px 0 0">Valeur fixée par ton entraîneur, d\'après ton dernier test.</p></section>' + (apres || '');
     } else h = '<section class="carte"><h2>VMA &amp; allures</h2><form id="fAll" class="champs">' +
       '<label>VMA (km/h)<input name="vma" inputmode="decimal"' + dis + ' value="' + (C.isNum(vma) ? C.nombreFR(vma) : '') + '"></label>' +
       '<label>Type de test<input name="ttype"' + dis + ' value="' + esc((a.test || {}).type) + '" placeholder="1/2 COOPER"></label>' +
@@ -2357,7 +2369,7 @@ var UI = (function () {
     // Records personnels (tableau RECORDS PERSONNELS de l'onglet ALLURES) : record et évolution par année
     var rp = a.recordsPerso;
     if (rp && (rp.lignes || []).length) {
-      h += '<section class="carte"><h3>Records personnels</h3><div class="tableau"><table><thead><tr><th>Distance</th><th class="num">Record</th>' +
+      h += '<section class="carte"><h3>' + (modifiable ? 'Records personnels' : 'Records notés par ton entraîneur') + '</h3><div class="tableau"><table><thead><tr><th>Distance</th><th class="num">Record</th>' +
         (rp.annees || []).map(function (n) { return '<th class="num">' + esc(n) + '</th>'; }).join('') + '</tr></thead><tbody>' +
         rp.lignes.map(function (l) { return '<tr><td><b>' + esc(l.distance) + '</b></td><td class="num"><b>' + (l.record ? esc(l.record) : '—') + '</b></td>' +
           (l.annees || []).map(function (v, i) { var d = /^DATE/i.test((rp.annees || [])[i]) || /^\d{5}$/.test(C.texte(v)) ? C.dateTest(v) : v; return '<td class="num">' + (d ? esc(d) : '') + '</td>'; }).join('') + '</tr>'; }).join('') +
@@ -3087,7 +3099,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v43</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v44</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
@@ -3372,8 +3384,8 @@ var Aide = (function () {
       '<p>Choisis l\'athlète dans la liste en haut, puis onglet <b>Réglages</b> → section Athlètes → <b>Supprimer …</b>. Il est aussi retiré du tableur Google à la synchronisation et son lien ne fonctionne plus.</p>', a: ['Ouvrir les réglages', '#/reglages'] },
     { id: 'compet', q: 'Les compétitions', m: 'competition competitions course comp jour j prochaine dossard', r:
       '<p>Les séances de type <b>COMP</b> sont des compétitions. Celles des 7 prochains jours sont listées dans l\'onglet Athlètes, et l\'athlète voit le compte à rebours (J-…) sur son accueil.</p>', a: ['Ouvrir les athlètes', '#/athletes'] },
-    { id: 'allures', q: 'VMA et allures', m: 'allure allures vma zone zones vitesse test chrono demi cooper calcul', r:
-      '<p>Onglet <b>Allures</b> : modifie la VMA, le test et les chronos, les calculs se mettent à jour. Les zones (% de VMA) se règlent dans <b>Modifier la fiche</b>. L\'athlète voit les mêmes valeurs, sans pouvoir les changer.</p>', a: ['Ouvrir les allures', '#/allures'] },
+    { id: 'allures', q: 'VMA et allures', m: 'allure allures vma zone zones vitesse test chrono demi cooper calcul rp record records', r:
+      '<p>Onglet <b>Allures</b> : modifie la VMA, le test et les chronos, les calculs se mettent à jour. Les zones (% de VMA) se règlent dans <b>Modifier la fiche</b>. L\'athlète voit sa VMA (carte « Ma VMA »), les zones et les allures calculées, sans pouvoir les changer. Il saisit lui-même ses records 5 km, 10 km, semi et marathon (« Mes RP ») : ils restent sur son téléphone, tu ne les vois pas.</p>', a: ['Ouvrir les allures', '#/allures'] },
     { id: 'semaine', q: 'Copier une semaine, cycle et phase', m: 'copier semaine cycle phase dupliquer reproduire planif', r:
       '<p>Onglet <b>Plan</b>, sous la semaine affichée : <b>Cycle / phase</b> pour nommer la situation de la semaine, <b>Copier vers…</b> pour recopier la partie entraîneur de cette semaine sur une autre.</p>', a: ['Ouvrir le plan', '#/plan'] },
     { id: 'imprimer', q: 'Imprimer le plan', m: 'imprimer impression pdf papier feuille', r:
