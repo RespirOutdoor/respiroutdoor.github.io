@@ -361,6 +361,12 @@ var Core = (function () {
       Object.keys(recu).forEach(function (k) {
         if (k === 'jours' || k === 'id') return;
         if (mode === 'excel' && CLES_LOCALES.indexOf(k) >= 0 && !recu[k]) return;
+        // Chronos de base : une case vide du classeur ne remplace pas une valeur saisie dans l'application
+        if (mode === 'excel' && k === 'allures' && local.allures) {
+          res.allures = clone(local.allures);
+          Object.keys(recu.allures || {}).forEach(function (x) { if (recu.allures[x] !== null && recu.allures[x] !== undefined && recu.allures[x] !== '') res.allures[x] = recu.allures[x]; });
+          return;
+        }
         res[k] = clone(recu[k]);
       });
     }
@@ -845,8 +851,44 @@ var Core = (function () {
     return a;
   }
 
+  // Date de test : date Excel (nombre de jours, ex. 46235), date ISO ou texte libre (« 11/24 ») -> texte affichable
+  function dateTest(v) {
+    var t = texte(v);
+    if (isNum(v) || /^\d{5}$/.test(t)) { var n = Number(t); if (n > 20000 && n < 80000) return formatDateFR(excelSerialToISO(n)); }
+    if (isValidISODate(t)) return formatDateFR(t);
+    return t;
+  }
+  // Chrono d'une case : durée Excel (fraction de jour), texte « 39:30 » / « 1:28:45 » ou texte libre gardé tel quel
+  function texteChrono(v) {
+    if (v === undefined || v === null || texte(v) === '') return '';
+    if (isNum(v)) return v >= 0 && v < 2 ? formatDuree(Math.round(v * 86400)) : texte(v);
+    var d = parseDuree(v); return isNum(d) && /:/.test(texte(v)) ? formatDuree(d) : texte(v);
+  }
+  // Tableau « RECORDS PERSONNELS » de l'onglet ALLURES : une ligne par distance (5KM… 100KM), colonne RECORD puis une colonne par année
+  function importerRecordsPerso(f) {
+    var p = chercher(f, /^RECORDS PERSONNELS/i); if (!p) return null;
+    var ph = chercher(f, /^DISTANCE$/i, p.r); if (!ph || ph.r > p.r + 5) return null;
+    var ent = f.lignes[ph.r] || [], cRec = null, cols = [];
+    for (var c = ph.c + 1; c < ent.length; c++) {
+      if (ent[c] === undefined || texte(ent[c]) === '') continue;
+      if (/^RECORD/i.test(texte(ent[c]))) cRec = c; else cols.push({ c: c, nom: texte(ent[c]) });
+    }
+    var lignes = [];
+    for (var r = ph.r + 1; r < ph.r + 15; r++) {
+      var d = texte(cel(f, r, ph.c)); if (!d) break;
+      lignes.push({ distance: d, record: cRec === null ? '' : texteChrono(cel(f, r, cRec)), annees: cols.map(function (x) { return texteChrono(cel(f, r, x.c)); }) });
+    }
+    // Colonnes d'années vides retirées ; en-tête « ANNEE » sans année précisée -> « Année 1, 2… »
+    var garder = cols.map(function (x, i) { return lignes.some(function (l) { return l.annees[i]; }); });
+    var noms = cols.map(function (x, i) { return /^ANN[EÉ]E$/i.test(x.nom) ? 'Année ' + (i + 1) : x.nom; }).filter(function (x, i) { return garder[i]; });
+    lignes.forEach(function (l) { l.annees = l.annees.filter(function (x, i) { return garder[i]; }); });
+    if (!lignes.some(function (l) { return l.record || l.annees.length; })) return null;
+    return { annees: noms, lignes: lignes };
+  }
   function importerAllures(f, a, rapport) {
     if (!f) return;
+    var rp = importerRecordsPerso(f);
+    if (rp) { a.recordsPerso = rp; rapport.push('Records personnels : ' + rp.lignes.filter(function (l) { return l.record; }).length + ' distance(s) renseignée(s)' + (rp.annees.length ? ', ' + rp.annees.length + ' année(s)' : '')); }
     var p = chercher(f, /^TYPE\s*:?$/i);
     if (p) {
       a.test.type = texte(cel(f, p.r, p.c + 1));
@@ -855,7 +897,7 @@ var Core = (function () {
       if (isNum(vma) && isNum(a.vma) && Math.abs(vma - a.vma) > 1e-9) rapport.push('VMA différente entre PLAN (' + nombreFR(a.vma) + ') et ALLURES (' + nombreFR(vma) + ') : celle du PLAN est gardée');
     }
     var pd = chercher(f, /^DATE\s*:$/i);
-    if (pd) a.test.date = texte(cel(f, pd.r, pd.c + 1));
+    if (pd) a.test.date = dateTest(cel(f, pd.r, pd.c + 1));
     var pe = chercher(f, /VMA ESTIM/i);
     if (pe) a.test.estimee = /^O/i.test(texte(aDroite(f, pe, 3)));
     var ph = chercher(f, /^EVOLUTION DE LA VMA/i);
@@ -864,7 +906,7 @@ var Core = (function () {
       for (var r = ph.r + 2; r < ph.r + 40; r++) {
         var t = cel(f, r, ph.c), d = cel(f, r, ph.c + 1), v = cel(f, r, ph.c + 2);
         if (t === undefined && d === undefined && v === undefined) break;
-        if (isNum(v)) hist.push({ test: texte(t), date: texte(d), vma: v });
+        if (isNum(v)) hist.push({ test: texte(t), date: dateTest(d), vma: v });
       }
       a.historiqueVMA = hist;
     }
@@ -1329,6 +1371,16 @@ var Core = (function () {
       return a.types.join() === 'ESSAI' && a.profils.length === 0 && a.colonnes.length === 0 && lg.types.length === 1 && lg.colonnes.length === 1 &&
         codesAbsents([{ code: 'PC1' }, { code: 'PC 2' }], [{ code: 'PC2' }]).join() === 'PC1' && codesAbsents([{ code: 'PC1' }], []).length === 0;
     }],
+    ['ALLURES : dates de test Excel (46235) lues en date ; records personnels lus (RECORD + années) ; chrono de base saisi gardé si la case du classeur est vide', function () {
+      var L = [['TEST VMA', 'TYPE :', '1/2 COOPER', '', '', '', 17], ['', 'DATE :', 46235], [], ['RECORDS PERSONNELS'], ['Distance', 'RECORD', 'ANNEE', 2024, 'ANNEE'],
+        ['5KM', 0.0137152777, '0:20:30', '0:19:45'], ['10KM', '39:30', 0.0291666666, ''], ['100KM', '', '', ''], []];
+      var a = nouvelAthlete({}), rap = []; importerAllures({ nom: 'ALLURES', lignes: L }, a, rap);
+      var rp = a.recordsPerso, loc = { id: 'X', jours: {}, allures: { chrono10: 2400, chronoSemi: 5000 } };
+      var m = fusionner(loc, { id: 'X', jours: {}, allures: { chrono10: null, chronoSemi: 5100, chronoMarathon: null } }, 'excel');
+      return a.test.date === '01/08/2026' && dateTest('46320') === '25/10/2026' && dateTest('11/24') === '11/24' && rp.annees.join() === 'Année 1,2024' &&
+        rp.lignes[0].record === '0:19:45' && rp.lignes[0].annees[0] === '0:20:30' && rp.lignes[0].annees[1] === '0:19:45' && rp.lignes[1].record === '0:39:30' && rp.lignes[1].annees[0] === '0:42:00' &&
+        rp.lignes[2].record === '' && rp.lignes.length === 3 && m.allures.chrono10 === 2400 && m.allures.chronoSemi === 5100;
+    }],
     ['Dégradé RPE : 1 = bleu #4879C6, 10 = rouge #C54135 (texte blanc), 2 interpolé, 4 entre cyan et vert', function () {
       // 6 couleurs, niveau n à (n − 1) / 9 : 2 -> 5/9 du chemin bleu -> cyan : 72 + 27×5/9 = 87 (0x57) ; 121 + 77×5/9 = 163,8 -> 164 (0xA4) ; 198 + 23×5/9 = 210,8 -> 211 (0xD3)
       // 4 -> 1/3 × 5 = 1,667 : 2/3 du chemin cyan -> vert : 99 − 3×2/3 = 97 (0x61) ; 198 − 2×2/3 = 196,7 -> 197 (0xC5) ; 221 − 123×2/3 = 139 (0x8B)
@@ -1394,7 +1446,7 @@ var Core = (function () {
     tempsDistancePct: tempsDistancePct, distanceTempsPct: distanceTempsPct, zoneVitesses: zoneVitesses, allureChrono: allureChrono,
     trouverZone: trouverZone, reperesSeance: reperesSeance, normCode: normCode, chercherCode: chercherCode,
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
-    regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
+    regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, dateTest: dateTest, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
     extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete,
     lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerLegende: fusionnerLegende, codesAbsents: codesAbsents, absentsLegende: absentsLegende, retirerLegende: retirerLegende, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };

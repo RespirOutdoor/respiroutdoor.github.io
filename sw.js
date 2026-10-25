@@ -3,7 +3,7 @@
 // Autres fichiers (icônes, manifeste) : réponse depuis le cache, mise à jour en arrière-plan.
 // Aucune donnée d'athlète n'est mise en cache ici : elles restent dans IndexedDB et le tableur de l'entraîneur.
 var PREFIXE = 'respir-outdoor-';
-var VERSION = PREFIXE + 'v41';
+var VERSION = PREFIXE + 'v42';
 var FICHIERS = ['./', './index.html', './manifest.json', './config.json', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {

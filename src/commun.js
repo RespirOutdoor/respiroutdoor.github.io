@@ -345,7 +345,7 @@ var UI = (function () {
     var h;
     if (!modifiable) {
       // Lecture seule (athlète) : valeurs en cases, pas de champs grisés
-      var vals = [['VMA', C.isNum(vma) ? C.nombreFR(vma) + ' km/h' : ''], ['Type de test', (a.test || {}).type], ['Date du test', (a.test || {}).date],
+      var vals = [['VMA', C.isNum(vma) ? C.nombreFR(vma) + ' km/h' : ''], ['Type de test', (a.test || {}).type], ['Date du test', C.dateTest((a.test || {}).date)],
         ['Chrono 10 km', C.isNum(al.chrono10) ? C.formatDuree(al.chrono10) : ''], ['Chrono semi', C.isNum(al.chronoSemi) ? C.formatDuree(al.chronoSemi) : ''],
         ['Chrono marathon', C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : ''], ['Pré-fatigue', C.isNum(al.preFatPct) ? C.nombreFR(al.preFatPct, 1) + ' % VMA' : '']];
       h = '<section class="carte"><h2>VMA &amp; allures</h2><div class="kpis kpis2 valeurs">' + vals.map(function (x) { return '<div class="kpi"><span class="etiq">' + x[0] + '</span><b>' + (C.texte(x[1]) ? esc(x[1]) : '—') + '</b></div>'; }).join('') +
@@ -353,7 +353,7 @@ var UI = (function () {
     } else h = '<section class="carte"><h2>VMA &amp; allures</h2><form id="fAll" class="champs">' +
       '<label>VMA (km/h)<input name="vma" inputmode="decimal"' + dis + ' value="' + (C.isNum(vma) ? C.nombreFR(vma) : '') + '"></label>' +
       '<label>Type de test<input name="ttype"' + dis + ' value="' + esc((a.test || {}).type) + '" placeholder="1/2 COOPER"></label>' +
-      '<label>Date du test<input name="tdate"' + dis + ' value="' + esc((a.test || {}).date) + '" placeholder="11/24"></label>' +
+      '<label>Date du test<input name="tdate"' + dis + ' value="' + esc(C.dateTest((a.test || {}).date)) + '" placeholder="11/24"></label>' +
       '<label>Chrono 10 km<input name="c10"' + dis + ' value="' + (C.isNum(al.chrono10) ? C.formatDuree(al.chrono10) : '') + '" placeholder="0:37:00"></label>' +
       '<label>Chrono semi<input name="cs"' + dis + ' value="' + (C.isNum(al.chronoSemi) ? C.formatDuree(al.chronoSemi) : '') + '" placeholder="1:22:45"></label>' +
       '<label>Chrono marathon<input name="cm"' + dis + ' value="' + (C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : '') + '" placeholder="2:59:00"></label>' +
@@ -365,9 +365,18 @@ var UI = (function () {
       '</tbody></table></div></section>';
     var hist = a.historiqueVMA || [];
     h += '<section class="carte"><h3>Évolution de la VMA</h3>' + (hist.length ? '<div class="tableau"><table><thead><tr><th>Test</th><th>Date</th><th class="num">VMA</th>' + (modifiable ? '<th></th>' : '') + '</tr></thead><tbody>' +
-      hist.map(function (x, i) { return '<tr><td>' + esc(x.test) + '</td><td>' + esc(x.date) + '</td><td class="num">' + C.nombreFR(x.vma, 2) + ' km/h</td>' + (modifiable ? '<td><button class="discret" data-act="supprVma" data-i="' + i + '" aria-label="Supprimer">✕</button></td>' : '') + '</tr>'; }).join('') +
+      hist.map(function (x, i) { return '<tr><td>' + esc(x.test) + '</td><td>' + esc(C.dateTest(x.date)) + '</td><td class="num">' + C.nombreFR(x.vma, 2) + ' km/h</td>' + (modifiable ? '<td><button class="discret" data-act="supprVma" data-i="' + i + '" aria-label="Supprimer">✕</button></td>' : '') + '</tr>'; }).join('') +
       '</tbody></table></div>' : '<p class="muet">Aucun test enregistré.</p>') +
       (modifiable ? '<form id="fHist" class="champs" style="margin-top:10px"><label>Test<input name="t" placeholder="1/2 COOP"></label><label>Date<input name="d" placeholder="11/24"></label><label>VMA<input name="v" inputmode="decimal"></label><label>&nbsp;<button>Ajouter</button></label></form>' : '') + '</section></div>';
+    // Records personnels (tableau RECORDS PERSONNELS de l'onglet ALLURES) : record et évolution par année
+    var rp = a.recordsPerso;
+    if (rp && (rp.lignes || []).length) {
+      h += '<section class="carte"><h3>Records personnels</h3><div class="tableau"><table><thead><tr><th>Distance</th><th class="num">Record</th>' +
+        (rp.annees || []).map(function (n) { return '<th class="num">' + esc(n) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+        rp.lignes.map(function (l) { return '<tr><td><b>' + esc(l.distance) + '</b></td><td class="num"><b>' + (l.record ? esc(l.record) : '—') + '</b></td>' +
+          (l.annees || []).map(function (v) { return '<td class="num">' + (v ? esc(v) : '') + '</td>'; }).join('') + '</tr>'; }).join('') +
+        '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">Repris du tableau « Records personnels » de l\'onglet ALLURES' + (modifiable ? ' : mis à jour à chaque import du classeur.' : ' de ton entraîneur.') + '</p></section>';
+    } else if (modifiable) h += '<section class="carte"><h3>Records personnels</h3><p class="muet petit" style="margin:0">Remplis le tableau « RECORDS PERSONNELS » de l\'onglet ALLURES du classeur de l\'athlète, puis réimporte-le.</p></section>';
     var pcts = [120, 115, 110, 105, 100, 95], dists = [500, 400, 300, 200, 100];
     h += '<section class="carte"><h3>Valeurs du travail en VMA ou PAL</h3><div class="tableau"><table><thead><tr><th>Distance</th>' + pcts.map(function (p) { return '<th class="num">' + p + ' %<br><span class="muet petit">' + C.nombreFR(C.vitessePct(vma, p), 1) + ' km/h</span></th>'; }).join('') + '</tr></thead><tbody>' +
       dists.map(function (d) { return '<tr><td><b>' + d + ' m</b></td>' + pcts.map(function (p) { return '<td class="num">' + C.formatTemps(C.tempsDistancePct(d, vma, p)) + '</td>'; }).join('') + '</tr>'; }).join('') +
