@@ -374,7 +374,7 @@ var UI = (function () {
       h += '<section class="carte"><h3>Records personnels</h3><div class="tableau"><table><thead><tr><th>Distance</th><th class="num">Record</th>' +
         (rp.annees || []).map(function (n) { return '<th class="num">' + esc(n) + '</th>'; }).join('') + '</tr></thead><tbody>' +
         rp.lignes.map(function (l) { return '<tr><td><b>' + esc(l.distance) + '</b></td><td class="num"><b>' + (l.record ? esc(l.record) : '—') + '</b></td>' +
-          (l.annees || []).map(function (v) { return '<td class="num">' + (v ? esc(v) : '') + '</td>'; }).join('') + '</tr>'; }).join('') +
+          (l.annees || []).map(function (v, i) { var d = /^DATE/i.test((rp.annees || [])[i]) || /^\d{5}$/.test(C.texte(v)) ? C.dateTest(v) : v; return '<td class="num">' + (d ? esc(d) : '') + '</td>'; }).join('') + '</tr>'; }).join('') +
         '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">Repris du tableau « Records personnels » de l\'onglet ALLURES' + (modifiable ? ' : mis à jour à chaque import du classeur.' : ' de ton entraîneur.') + '</p></section>';
     } else if (modifiable) h += '<section class="carte"><h3>Records personnels</h3><p class="muet petit" style="margin:0">Remplis le tableau « RECORDS PERSONNELS » de l\'onglet ALLURES du classeur de l\'athlète, puis réimporte-le.</p></section>';
     var pcts = [120, 115, 110, 105, 100, 95], dists = [500, 400, 300, 200, 100];

@@ -876,7 +876,11 @@ var Core = (function () {
     var lignes = [];
     for (var r = ph.r + 1; r < ph.r + 15; r++) {
       var d = texte(cel(f, r, ph.c)); if (!d) break;
-      lignes.push({ distance: d, record: cRec === null ? '' : texteChrono(cel(f, r, cRec)), annees: cols.map(function (x) { return texteChrono(cel(f, r, x.c)); }) });
+      // Colonne « DATE » (date du record) : date Excel affichée en date ; nombre de jours Excel dans une autre colonne : date aussi
+      lignes.push({ distance: d, record: cRec === null ? '' : texteChrono(cel(f, r, cRec)), annees: cols.map(function (x) {
+        var v = cel(f, r, x.c);
+        return /^DATE/i.test(x.nom) || (isNum(v) && v > 20000 && v < 80000) ? (v === undefined ? '' : dateTest(v)) : texteChrono(v);
+      }) });
     }
     // Colonnes d'années vides retirées ; en-tête « ANNEE » sans année précisée -> « Année 1, 2… »
     var garder = cols.map(function (x, i) { return lignes.some(function (l) { return l.annees[i]; }); });
@@ -888,7 +892,7 @@ var Core = (function () {
   function importerAllures(f, a, rapport) {
     if (!f) return;
     var rp = importerRecordsPerso(f);
-    if (rp) { a.recordsPerso = rp; rapport.push('Records personnels : ' + rp.lignes.filter(function (l) { return l.record; }).length + ' distance(s) renseignée(s)' + (rp.annees.length ? ', ' + rp.annees.length + ' année(s)' : '')); }
+    if (rp) { a.recordsPerso = rp; rapport.push('Records personnels : ' + rp.lignes.filter(function (l) { return l.record; }).length + ' distance(s) renseignée(s)' + (rp.annees.length ? ', colonnes ' + rp.annees.join(', ') : '')); }
     var p = chercher(f, /^TYPE\s*:?$/i);
     if (p) {
       a.test.type = texte(cel(f, p.r, p.c + 1));
@@ -1372,6 +1376,10 @@ var Core = (function () {
         codesAbsents([{ code: 'PC1' }, { code: 'PC 2' }], [{ code: 'PC2' }]).join() === 'PC1' && codesAbsents([{ code: 'PC1' }], []).length === 0;
     }],
     ['ALLURES : dates de test Excel (46235) lues en date ; records personnels lus (RECORD + années) ; chrono de base saisi gardé si la case du classeur est vide', function () {
+      var L2 = [['RECORDS PERSONNELS'], ['Distance', 'RECORD', 'DATE', 'ANNEE 2024'], ['SEMI', '1H34\'45"', 46320, '1H42'], ['5KM']];
+      var a2 = nouvelAthlete({}); importerAllures({ nom: 'ALLURES', lignes: L2 }, a2, []);
+      var r2 = a2.recordsPerso;
+      if (!(r2.annees.join() === 'DATE,ANNEE 2024' && r2.lignes[0].record === '1H34\'45"' && r2.lignes[0].annees.join() === '25/10/2026,1H42')) return false;
       var L = [['TEST VMA', 'TYPE :', '1/2 COOPER', '', '', '', 17], ['', 'DATE :', 46235], [], ['RECORDS PERSONNELS'], ['Distance', 'RECORD', 'ANNEE', 2024, 'ANNEE'],
         ['5KM', 0.0137152777, '0:20:30', '0:19:45'], ['10KM', '39:30', 0.0291666666, ''], ['100KM', '', '', ''], []];
       var a = nouvelAthlete({}), rap = []; importerAllures({ nom: 'ALLURES', lignes: L }, a, rap);
