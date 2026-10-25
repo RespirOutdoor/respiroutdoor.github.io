@@ -338,17 +338,165 @@ var UI = (function () {
     r.oninput = function () { rechercheLegende = r.value; var pos = r.selectionStart; vueLegende(main); var n = $('#rechLeg'); n.focus(); n.setSelectionRange(pos, pos); };
   }
 
+  /* ---------- Records : résultats de course saisis par l'entraîneur, vus par l'athlète ---------- */
+  var distRP = null; // distance affichée dans la courbe
+  var MOIS_COURTS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+  function pctVMA(a, s, km) { return C.isNum(a.vma) && a.vma > 0 ? km / (s / 3600) / a.vma * 100 : null; }
+  function htmlRecords(a, modifiable) {
+    var syn = C.syntheseRP(a), avec = syn.filter(function (x) { return x.n; });
+    if (!avec.some(function (x) { return x.distance.code === distRP; })) distRP = avec.length ? avec.slice().sort(function (x, y) { return x.rp.date < y.rp.date ? 1 : -1; })[0].distance.code : null;
+    var h = '<section class="carte records"><div class="ligne"><h3 class="espace" style="margin:0">' + (modifiable ? 'Records' : 'Mes RP') + '</h3>' +
+      (modifiable ? '<button class="sec" data-rp="ajouter">Ajouter un résultat</button>' : (avec.length ? '<span class="puce">Saisis par ton coach</span>' : '')) + '</div>';
+    if (!avec.length) return h + '<p class="muet petit" style="margin:10px 0 0">' + (modifiable ? 'Saisis les résultats de course de l\'athlète (5 km, 10 km, semi, marathon, 100 km) : les records, la courbe d\'évolution et l\'historique se calculent tout seuls, et l\'athlète les voit après l\'envoi.' : 'Ton coach n\'a pas encore saisi de résultat. Tes records et leur évolution apparaîtront ici.') + '</p></section>';
+    h += '<div class="tableau" style="margin-top:10px"><table><thead><tr><th>Distance</th><th class="num">Record</th><th class="num">Allure<br><span class="muet petit">/km</span></th></tr></thead><tbody>' +
+      syn.map(function (x) {
+        var d = x.distance, r = x.rp, p = r ? pctVMA(a, r.s, d.km) : null;
+        if (!r) return '<tr><td><b>' + esc(d.court) + '</b></td><td class="num muet">—</td><td></td></tr>';
+        return '<tr><td><b>' + esc(d.court) + '</b>' + (x.prec ? '<span class="ecart gain">▼ ' + C.chronoTexte(x.prec.s - r.s) + '</span>' : '') + '</td>' +
+          '<td class="num"><b>' + C.chronoTexte(r.s) + '</b><span class="ecart">' + C.formatDateFR(r.date) + '</span></td>' +
+          '<td class="num">' + C.formatAllure(r.s / d.km).replace(' /km', '') + (p ? '<span class="ecart">' + C.nombreFR(p, 1) + ' % VMA</span>' : '') + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      (avec.some(function (x) { return x.prec; }) ? '<p class="muet petit" style="margin:10px 0 0">▼ : temps gagné sur le record précédent.</p>' : '') + '</section>';
+    // Évolution et indicateurs de la distance choisie
+    var d = C.distanceRP(distRP), l = C.resultatsDistance(a, distRP), x = syn.filter(function (y) { return y.distance.code === distRP; })[0], r = x.rp;
+    h += '<section class="carte records"><h3>Évolution des chronos</h3><div class="seg-rp' + (avec.length === 5 ? ' cinq' : '') + '" role="group" aria-label="Distance">' + avec.map(function (y) {
+      return '<button type="button" class="' + (y.distance.code === distRP ? '' : 'sec') + '" data-rp="dist" data-d="' + y.distance.code + '"' + (y.distance.code === distRP ? ' aria-pressed="true"' : ' aria-pressed="false"') + '>' + esc(y.distance.court) + '</button>';
+    }).join('') + '</div><div class="courbe-rp" data-n="' + l.length + '"></div>' +
+      '<div class="legende-rp petit muet"><span><i class="pt rp"></i>RP actuel</span>' + (x.prec ? '<span><i class="pt rec"></i>Ancien RP</span>' : '') +
+      (l.some(function (y) { return !y.rec; }) ? '<span><i class="pt"></i>Autre course</span>' : '') + (l.length > 1 ? '<span><i class="trait"></i>Record du moment</span>' : '') + '</div>';
+    var p = pctVMA(a, r.s, d.km), kp = [['rouge', 'Record actuel', C.chronoTexte(r.s), C.formatAllure(r.s / d.km) + ' · ' + C.nombreFR(d.km / (r.s / 3600), 2) + ' km/h']];
+    if (x.premier && x.premier.s > r.s && x.premier !== x.prec) kp.push(['', 'Progression totale', '−' + C.chronoTexte(x.premier.s - r.s), '−' + C.nombreFR((x.premier.s - r.s) / x.premier.s * 100, 1) + ' % depuis le ' + C.formatDateFR(x.premier.date)]);
+    if (x.prec) { var m = Math.round(C.daysBetween(x.prec.date, r.date) / 30.44); kp.push(['', 'Dernier gain', '−' + C.chronoTexte(x.prec.s - r.s), m >= 1 ? 'après ' + m + ' mois' : 'après ' + C.daysBetween(x.prec.date, r.date) + ' jours']); }
+    if (p) kp.push(['', '% de VMA tenu', C.nombreFR(p, 1) + ' %', 'VMA ' + C.nombreFR(a.vma) + ' km/h']);
+    h += '<div class="kpis kpis2">' + kp.map(function (k) { return '<div class="kpi' + (k[0] ? ' ' + k[0] : '') + (k[2].charAt(0) === '−' ? ' gain' : '') + '"><span class="etiq">' + k[1] + '</span><b>' + k[2] + '</b><span class="ecart">' + esc(k[3]) + '</span></div>'; }).join('') + '</div></section>';
+    // Historique de la distance (plus récent d'abord)
+    h += '<section class="carte records"><h3>Historique ' + esc(d.court === 'Semi' ? 'semi-marathon' : d.court) + '</h3><div class="tableau"><table><thead><tr><th>Date</th><th class="num">Chrono</th><th class="num">Écart<br><span class="muet petit">au RP</span></th></tr></thead><tbody>' +
+      l.slice().reverse().map(function (y) {
+        var act = y.id === r.id && y.date === r.date && y.s === r.s;
+        return '<tr><td>' + C.formatDateFR(y.date) + (C.texte(y.course) ? '<span class="ecart">' + esc(y.course) + '</span>' : '') + (modifiable ? '<button type="button" class="discret petit" data-rp="modifier" data-id="' + esc(y.id) + '">Modifier</button>' : '') + '</td>' +
+          '<td class="num"><b>' + C.chronoTexte(y.s) + '</b>' + (act ? '<span class="etiquette rp">RP</span>' : '') + (y.rec && !act ? '<span class="ecart">RP à l\'époque</span>' : '') + '<span class="ecart">' + C.formatAllure(y.s / d.km) + '</span></td>' +
+          '<td class="num">' + (act ? '—' : '+' + C.chronoTexte(y.s - r.s)) + '</td></tr>';
+      }).join('') + '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">' + l.length + (l.length > 1 ? ' courses saisies' : ' course saisie') + (modifiable ? '' : ' par ton coach') + ' · ' + l.filter(function (y) { return y.rec; }).length + ' record' + (l.filter(function (y) { return y.rec; }).length > 1 ? 's successifs' : '') + '.</p></section>';
+    return h;
+  }
+  // Courbe : chrono en ordonnée inversée (plus rapide = plus haut), dates réelles en abscisse
+  function svgCourbeRP(l, d, W) {
+    var H = 220, g = 48, dr = 18, ht = 18, bs = 26, aj = auj();
+    var jour = 864e5, tmin = Date.parse(l[0].date), tmax = Math.max(Date.parse(l[l.length - 1].date), Date.parse(aj));
+    var marge = Math.max(45 * jour, (tmax - tmin) * 0.06), t0 = tmin - marge, t1 = tmax + marge;
+    var smin = Math.min.apply(null, l.map(function (r) { return r.s; })), smax = Math.max.apply(null, l.map(function (r) { return r.s; }));
+    var pas = [5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200].filter(function (p) { return Math.max(smax - smin, smin * 0.06, 30) / p <= 4; })[0] || 7200;
+    var lo = Math.floor((smin - pas * 0.35) / pas) * pas, hi = Math.ceil((smax + pas * 0.35) / pas) * pas; if (lo < 0) lo = 0;
+    function X(iso) { return g + (Date.parse(iso) - t0) / (t1 - t0) * (W - g - dr); }
+    function Y(v) { return ht + (v - lo) / (hi - lo) * (H - ht - bs); }
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Évolution des chronos sur ' + esc(d.nom) + ' : ' + l.map(function (r) { return C.formatDateFR(r.date) + ' ' + C.chronoTexte(r.s); }).join(', ') + '">';
+    for (var v = lo; v <= hi + 0.5; v += pas) s += '<line class="grille" x1="' + g + '" x2="' + (W - dr) + '" y1="' + Y(v) + '" y2="' + Y(v) + '"/><text class="axe" x="' + (g - 6) + '" y="' + (Y(v) + 4) + '" text-anchor="end">' + C.chronoTexte(v) + '</text>';
+    // Graduations des dates : début d'année, ou tous les n mois si la période est courte (5 au plus)
+    var a0 = new Date(t0), mois = [];
+    for (var y = a0.getUTCFullYear(), mo = a0.getUTCMonth() + 1; Date.UTC(y, mo, 1) <= t1; mo++) { if (mo > 11) { mo = 0; y++; } if (Date.UTC(y, mo, 1) <= t1) mois.push([y, mo]); }
+    var pm = [1, 2, 3, 6, 12, 24, 60].filter(function (p) { return mois.filter(function (x) { return (x[0] * 12 + x[1]) % p === 0; }).length <= 5; })[0];
+    mois.filter(function (x) { return (x[0] * 12 + x[1]) % pm === 0; }).forEach(function (x) {
+      var px = X(x[0] + '-' + C.pad2(x[1] + 1) + '-01');
+      s += '<line class="grille" x1="' + px + '" x2="' + px + '" y1="' + ht + '" y2="' + (H - bs) + '"/><text class="axe" x="' + (px + 4) + '" y="' + (H - bs + 16) + '">' + (x[1] === 0 ? x[0] : MOIS_COURTS[x[1]]) + '</text>';
+    });
+    if (l.length > 1) {
+      var chemin = ''; l.forEach(function (r, i) { chemin += (i ? 'H' + X(r.date) + 'V' : 'M' + X(r.date) + ',') + Y(r.best); }); chemin += 'H' + X(aj);
+      s += '<path class="record" d="' + chemin + '"/><polyline class="suite" points="' + l.map(function (r) { return X(r.date) + ',' + Y(r.s); }).join(' ') + '"/>';
+    }
+    var dernier = l.filter(function (r) { return r.rec; }).pop(), etiquetes = l.filter(function (r) { return r.rec; }).length <= 6, poses = [];
+    l.forEach(function (r) {
+      var rp = r === dernier;
+      s += '<circle class="' + (rp ? 'rp' : r.rec ? 'rec' : 'autre') + '" cx="' + X(r.date) + '" cy="' + Y(r.s) + '" r="' + (rp ? 6.5 : 5) + '"><title>' + C.formatDateFR(r.date) + ' · ' + C.chronoTexte(r.s) + (C.texte(r.course) ? ' · ' + esc(r.course) : '') + '</title></circle>';
+    });
+    // Étiquettes : le RP d'abord, puis les plus récentes ; une étiquette qui chevaucherait un point ou une autre étiquette n'est pas affichée
+    l.forEach(function (r) { var cx = X(r.date), cy = Y(r.s); poses.push([cx - 7, cy - 7, cx + 7, cy + 7]); });
+    [dernier].concat(l.slice().reverse().filter(function (r) { return r !== dernier && ((r.rec && etiquetes) || l.length <= 4); })).forEach(function (r) {
+      var rp = r === dernier, cx = X(r.date), cy = Y(r.s), t = (rp ? 'RP ' : '') + C.chronoTexte(r.s), larg = t.length * (rp ? 7.4 : 6.6);
+      var droite = cx > W - 80, haut = r.rec && cy > ht + 16, x = cx + (droite ? -9 : 9), y = cy + (haut ? -9 : 17);
+      var boite = [droite ? x - larg : x, y - 11, droite ? x : x + larg, y + 2];
+      if (poses.some(function (q) { return boite[0] < q[2] + 2 && boite[2] > q[0] - 2 && boite[1] < q[3] + 2 && boite[3] > q[1] - 2; })) return;
+      poses.push(boite);
+      s += '<text class="' + (rp ? 'val rp' : 'val') + '" x="' + x + '" y="' + y + '" text-anchor="' + (droite ? 'end' : 'start') + '">' + t + '</text>';
+    });
+    return s + '</svg>';
+  }
+  function brancherRecords(main, a, modifiable, enregistrer) {
+    var c = $('.courbe-rp', main);
+    if (c && distRP) c.innerHTML = svgCourbeRP(C.resultatsDistance(a, distRP), C.distanceRP(distRP), Math.max(260, Math.round(c.clientWidth || 320)));
+    $$('[data-rp]', main).forEach(function (b) {
+      b.onclick = function () {
+        var act = b.dataset.rp;
+        if (act === 'dist') { distRP = b.dataset.d; var y = window.scrollY; vueAllures(main, a, modifiable, enregistrer); window.scrollTo(0, y); }
+        else if (act === 'ajouter') saisirResultat(main, a, null, enregistrer);
+        else if (act === 'modifier') saisirResultat(main, a, b.dataset.id, enregistrer);
+      };
+    });
+  }
+  // Saisie d'un résultat par l'entraîneur : distance, chrono en h/min/s (pas de « : » sur le pavé numérique de l'iPhone), date, course
+  function saisirResultat(main, a, id, enregistrer) {
+    var boite = document.getElementById('boite'), aj = auj();
+    var r0 = id ? (a.resultats || []).filter(function (x) { return x.id === id; })[0] : null, dist = r0 ? r0.dist : distRP || 'd10', s0 = r0 ? r0.s : null;
+    boite.innerHTML = '<form class="boite saisie" novalidate><h2>' + (r0 ? 'Modifier le résultat' : 'Ajouter un résultat') + '</h2><p class="sous-titre">' + esc(nomComplet(a)) + ' · les records et la courbe se mettent à jour chez l\'athlète après l\'envoi.</p>' +
+      '<fieldset class="disciplines"><legend>Distance</legend><div class="raisons">' + C.DISTANCES_RP.map(function (d) {
+        return '<label><input type="radio" name="dist" value="' + d.code + '"' + (d.code === dist ? ' checked' : '') + '><span>' + esc(d.nom) + '</span></label>';
+      }).join('') + '</div></fieldset>' +
+      '<div class="duree-hms"><span class="etiq-champ" id="lblChronoRP">Chrono</span><div class="hms" role="group" aria-labelledby="lblChronoRP">' +
+      [['h', 'h', 'heures', 3600, 1e9], ['m', 'min', 'minutes', 60, 60], ['s', 's', 'secondes', 1, 60]].map(function (x) {
+        return '<label><input name="' + x[0] + '" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="' + (s0 === null ? '' : Math.floor(s0 / x[3]) % x[4]) + '" aria-label="' + x[2] + '"><span>' + x[1] + '</span></label>';
+      }).join('') + '</div></div>' +
+      '<label>Date de la course<input type="date" name="date" value="' + esc(r0 ? r0.date : aj) + '" max="' + aj + '"></label>' +
+      '<label>Course (facultatif)<input name="course" maxlength="80" autocomplete="off" value="' + esc(r0 ? r0.course || '' : '') + '" placeholder="ex. 10 km de ma ville"></label>' +
+      '<p class="nouveau-rp" hidden></p><p class="alerte" id="erreurRes" hidden></p>' +
+      '<div class="pied">' + (r0 ? '<button type="button" class="danger" data-f="suppr">Supprimer</button>' : '') + '<button type="button" class="sec" data-f="annuler">Annuler</button><button>Enregistrer</button></div></form>';
+    if (!boite.open) boite.showModal();
+    var f = $('form', boite), info = $('.nouveau-rp', f);
+    function lire() {
+      var v = ['h', 'm', 's'].map(function (k) { var t = String(f.elements[k].value || '').trim(); return t === '' ? null : (/^\d{1,2}$/.test(t) ? Number(t) : NaN); });
+      if (v.every(function (x) { return x === null; })) return { err: 'Indique le chrono' };
+      if (v.some(function (x) { return x !== x; }) || (v[1] || 0) > 59 || (v[2] || 0) > 59) return { err: 'Chrono invalide : minutes et secondes de 0 à 59' };
+      var s = (v[0] || 0) * 3600 + (v[1] || 0) * 60 + (v[2] || 0);
+      return s > 0 ? { s: s } : { err: 'Chrono invalide' };
+    }
+    // Aperçu : nouveau record ou écart au record actuel (sans compter le résultat en cours de modification)
+    function apercu() {
+      var x = lire(), d = f.elements.dist.value, autres = { resultats: (a.resultats || []).filter(function (y) { return !r0 || y.id !== r0.id; }) };
+      var rp = C.syntheseRP(autres).filter(function (y) { return y.distance.code === d; })[0].rp;
+      info.hidden = !x.s; if (!x.s) return;
+      info.className = 'nouveau-rp' + (!rp || x.s < rp.s ? ' oui' : '');
+      info.textContent = !rp ? 'Premier chrono sur cette distance : ce sera le record.' : x.s < rp.s ? 'Nouveau record : −' + C.chronoTexte(rp.s - x.s) + ' sur le RP actuel (' + C.chronoTexte(rp.s) + ' du ' + C.formatDateFR(rp.date) + ')' : 'Record actuel : ' + C.chronoTexte(rp.s) + ' (+' + C.chronoTexte(x.s - rp.s) + ')';
+    }
+    f.oninput = apercu; f.onchange = apercu; apercu();
+    f.onclick = function (ev) {
+      var b = ev.target.closest('[data-f]'); if (!b) return;
+      if (b.dataset.f === 'annuler') boite.close();
+      else if (b.dataset.f === 'suppr' && confirm('Supprimer ce résultat (' + C.chronoTexte(r0.s) + ' du ' + C.formatDateFR(r0.date) + ') ?')) {
+        a.resultats = (a.resultats || []).filter(function (y) { return y.id !== r0.id; }); boite.close(); enregistrer(a);
+      }
+    };
+    f.onsubmit = function (ev) {
+      ev.preventDefault();
+      var x = lire(), date = String(f.elements.date.value || ''), err = [];
+      if (x.err) err.push(x.err);
+      if (!C.isValidISODate(date) || date > aj) err.push('Date invalide (pas dans le futur)');
+      var r = { id: r0 ? r0.id : 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), dist: f.elements.dist.value, date: date, s: x.s, course: String(f.elements.course.value || '').trim() };
+      if (!err.length && !C.resultatValide(r)) err.push('Chrono trop long (48 h au plus)');
+      if (err.length) { var e = $('#erreurRes', f); e.hidden = false; e.textContent = err.join(' · '); return; }
+      if (!r.course) delete r.course;
+      a.resultats = (a.resultats || []).filter(function (y) { return !r0 || y.id !== r0.id; }).concat([r]);
+      distRP = r.dist; boite.close(); toast(r0 ? 'Résultat modifié' : 'Résultat ajouté'); enregistrer(a);
+    };
+  }
+
   /* ---------- Allures ---------- */
-  // modifiable : formulaire actif (entraîneur) ou lecture seule (athlète) ; enregistrer(a) appelé après modification ;
-  // apres : HTML ajouté sous la carte « Ma VMA » (athlète)
-  function vueAllures(main, a, modifiable, enregistrer, apres) {
+  // modifiable : formulaire actif (entraîneur) ou lecture seule (athlète) ; enregistrer(a) appelé après modification
+  function vueAllures(main, a, modifiable, enregistrer) {
     var vma = a.vma, al = a.allures || {}, dis = modifiable ? '' : ' disabled';
     var h;
     if (!modifiable) {
-      // Lecture seule (athlète) : carte « Ma VMA » (couleur rouge) ; les records sont saisis par l'athlète (apres)
+      // Lecture seule (athlète) : carte « Ma VMA » (couleur rouge), puis les records saisis par l'entraîneur
       var vals = [['VMA', C.isNum(vma) ? C.nombreFR(vma) + ' km/h' : ''], ['Type de test', (a.test || {}).type], ['Date du test', C.dateTest((a.test || {}).date)]];
       h = '<section class="carte ma-vma"><h2>Ma VMA</h2><div class="kpis valeurs">' + vals.map(function (x) { return '<div class="kpi"><span class="etiq">' + x[0] + '</span><b>' + (C.texte(x[1]) ? esc(x[1]) : '—') + '</b></div>'; }).join('') +
-        '</div><p class="muet petit" style="margin:12px 0 0">Valeur fixée par ton entraîneur, d\'après ton dernier test.</p></section>' + (apres || '');
+        '</div><p class="muet petit" style="margin:12px 0 0">Valeur fixée par ton entraîneur, d\'après ton dernier test.</p></section>';
     } else h = '<section class="carte"><h2>VMA &amp; allures</h2><form id="fAll" class="champs">' +
       '<label>VMA (km/h)<input name="vma" inputmode="decimal"' + dis + ' value="' + (C.isNum(vma) ? C.nombreFR(vma) : '') + '"></label>' +
       '<label>Type de test<input name="ttype"' + dis + ' value="' + esc((a.test || {}).type) + '" placeholder="1/2 COOPER"></label>' +
@@ -358,6 +506,7 @@ var UI = (function () {
       '<label>Chrono marathon<input name="cm"' + dis + ' value="' + (C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : '') + '" placeholder="2:59:00"></label>' +
       '<label>Pré-fatigue (% VMA)<input name="pf" inputmode="decimal"' + dis + ' value="' + C.nombreFR(al.preFatPct, 1) + '"></label>' +
       '</form><p class="alerte" id="erreurAll" hidden></p><p class="muet petit">' + (modifiable ? 'Les calculs se mettent à jour à chaque modification.' : 'Valeurs fixées par ton entraîneur.') + ' Formules de l\'onglet ALLURES du tableau de l\'entraîneur.</p></section>';
+    h += htmlRecords(a, modifiable);
     if (!C.isNum(vma)) { main.innerHTML = h + '<p class="alerte">' + (modifiable ? 'Renseigne la VMA pour afficher les allures.' : 'Ton entraîneur n\'a pas encore renseigné ta VMA.') + '</p>'; brancher(); return; }
     h += '<div class="grille2"><section class="carte"><h3>Zones d\'allures</h3><div class="tableau"><table class="compact"><thead><tr><th>Zone</th><th class="num">% VMA</th><th class="num">km/h</th><th class="num">min/km</th><th>Usage</th></tr></thead><tbody>' +
       (a.zones || []).map(function (z) { var v = C.zoneVitesses(vma, z); return '<tr><td><b>' + esc(z.nom) + '</b></td><td class="num">' + C.nombreFR(z.bas, 1) + '–' + C.nombreFR(z.haut, 1) + '</td><td class="num">' + (v ? C.nombreFR(v.bas, 1) + '–' + C.nombreFR(v.haut, 1) : '') + '</td><td class="num">' + (v ? C.formatAllure(v.allureLente).replace(' /km', '') + '–' + C.formatAllure(v.allureRapide).replace(' /km', '') : '') + '</td><td>' + esc(z.usage) + '</td></tr>'; }).join('') +
@@ -367,15 +516,15 @@ var UI = (function () {
       hist.map(function (x, i) { return '<tr><td>' + esc(x.test) + '</td><td>' + esc(C.dateTest(x.date)) + '</td><td class="num">' + C.nombreFR(x.vma, 2) + ' km/h</td>' + (modifiable ? '<td><button class="discret" data-act="supprVma" data-i="' + i + '" aria-label="Supprimer">✕</button></td>' : '') + '</tr>'; }).join('') +
       '</tbody></table></div>' : '<p class="muet">Aucun test enregistré.</p>') +
       (modifiable ? '<form id="fHist" class="champs" style="margin-top:10px"><label>Test<input name="t" placeholder="1/2 COOP"></label><label>Date<input name="d" placeholder="11/24"></label><label>VMA<input name="v" inputmode="decimal"></label><label>&nbsp;<button>Ajouter</button></label></form>' : '') + '</section></div>';
-    // Records personnels (tableau RECORDS PERSONNELS de l'onglet ALLURES) : record et évolution par année
+    // Records personnels importés (tableau RECORDS PERSONNELS de l'onglet ALLURES) : affichés tant qu'aucun résultat n'est saisi dans l'application
     var rp = a.recordsPerso;
-    if (rp && (rp.lignes || []).length) {
+    if (rp && (rp.lignes || []).length && !(a.resultats || []).length) {
       h += '<section class="carte"><h3>' + (modifiable ? 'Records personnels' : 'Records notés par ton entraîneur') + '</h3><div class="tableau"><table><thead><tr><th>Distance</th><th class="num">Record</th>' +
         (rp.annees || []).map(function (n) { return '<th class="num">' + esc(n) + '</th>'; }).join('') + '</tr></thead><tbody>' +
         rp.lignes.map(function (l) { return '<tr><td><b>' + esc(l.distance) + '</b></td><td class="num"><b>' + (l.record ? esc(l.record) : '—') + '</b></td>' +
           (l.annees || []).map(function (v, i) { var d = /^DATE/i.test((rp.annees || [])[i]) || /^\d{5}$/.test(C.texte(v)) ? C.dateTest(v) : v; return '<td class="num">' + (d ? esc(d) : '') + '</td>'; }).join('') + '</tr>'; }).join('') +
         '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">Repris du tableau « Records personnels » de l\'onglet ALLURES' + (modifiable ? ' : mis à jour à chaque import du classeur.' : ' de ton entraîneur.') + '</p></section>';
-    } else if (modifiable) h += '<section class="carte"><h3>Records personnels</h3><p class="muet petit" style="margin:0">Remplis le tableau « RECORDS PERSONNELS » de l\'onglet ALLURES du classeur de l\'athlète, puis réimporte-le.</p></section>';
+    }
     var pcts = [120, 115, 110, 105, 100, 95], dists = [500, 400, 300, 200, 100];
     h += '<section class="carte"><h3>Valeurs du travail en VMA ou PAL</h3><div class="tableau"><table><thead><tr><th>Distance</th>' + pcts.map(function (p) { return '<th class="num">' + p + ' %<br><span class="muet petit">' + C.nombreFR(C.vitessePct(vma, p), 1) + ' km/h</span></th>'; }).join('') + '</tr></thead><tbody>' +
       dists.map(function (d) { return '<tr><td><b>' + d + ' m</b></td>' + pcts.map(function (p) { return '<td class="num">' + C.formatTemps(C.tempsDistancePct(d, vma, p)) + '</td>'; }).join('') + '</tr>'; }).join('') +
@@ -397,6 +546,7 @@ var UI = (function () {
     main.innerHTML = h;
     brancher();
     function brancher() {
+      brancherRecords(main, a, modifiable, enregistrer);
       if (!modifiable) return;
       var f = $('#fAll');
       f.onchange = function () {

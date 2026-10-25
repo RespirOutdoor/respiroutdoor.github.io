@@ -88,7 +88,7 @@
     else main.innerHTML = '';
     var cont = document.createElement('div'); main.appendChild(cont);
     majPastilles();
-    ({ accueil: vueAccueil, plan: vuePlan, messages: vueMessages, allures: function (m) { UI.vueAllures(m, a, false, null, carteRP()); }, legende: function (m) { UI.vueLegende(m); }, protos: function (m) { UI.vueProtos(m, a, false); } }[vue] || vueAccueil)(cont);
+    ({ accueil: vueAccueil, plan: vuePlan, messages: vueMessages, allures: function (m) { UI.vueAllures(m, a, false); }, legende: function (m) { UI.vueLegende(m); }, protos: function (m) { UI.vueProtos(m, a, false); } }[vue] || vueAccueil)(cont);
   }
 
   function vueBienvenue() {
@@ -298,52 +298,6 @@
       if (f.elements.defaut.checked) ch.defaut = c.id; else if (ch.defaut === c.id) ch.defaut = '';
       if (c.retiree && ch.defaut === c.id) ch.defaut = '';
       sauver().then(function () { toast('Paire enregistrée'); gererChaussures(); });
-    };
-  }
-  /* ---------- Mes RP (records saisis par l'athlète, enregistrés sur ce téléphone) ---------- */
-  var DISTANCES_RP = [['d5', '5 km', 5, '5 km'], ['d10', '10 km', 10, '10 km'], ['semi', 'Semi-marathon', 21.0975, 'Semi'], ['marathon', 'Marathon', 42.195, 'Marathon']];
-  function mesRP() { A.rp = A.rp || {}; return A.rp; }
-  function carteRP() {
-    var rp = mesRP(), rempli = DISTANCES_RP.some(function (d) { return rp[d[0]] && C.isNum(rp[d[0]].s); });
-    return '<section class="carte"><div class="ligne"><h3 class="espace" style="margin:0">Mes RP</h3><button class="sec" data-act="rp">' + (rempli ? 'Modifier' : 'Renseigner') + '</button></div>' +
-      '<div class="tableau" style="margin-top:10px"><table><thead><tr><th>Distance</th><th class="num">Chrono</th><th class="num">Allure<br><span class="muet petit">/km</span></th></tr></thead><tbody>' +
-      DISTANCES_RP.map(function (d) {
-        var r = rp[d[0]] || {}, x = C.isNum(r.s) ? C.allureChrono(r.s, d[2]) : null;
-        return '<tr><td><b>' + d[3] + '</b></td><td class="num">' + (x ? '<b>' + C.formatTemps(r.s) + '</b>' + (r.date ? '<span class="ecart">le ' + C.formatDateFR(r.date) + '</span>' : '') : '—') + '</td><td class="num">' + (x ? C.formatAllure(x.allure).replace(' /km', '') : '') + '</td></tr>';
-      }).join('') + '</tbody></table></div>' +
-      '<p class="muet petit" style="margin:10px 0 0">Tes records personnels, à mettre à jour après chaque nouveau record. Enregistré sur ce téléphone uniquement : ton entraîneur ne le voit pas.</p></section>';
-  }
-  // Saisie des RP : chrono en trois cases chiffrées (pas de « : » sur le pavé numérique de l'iPhone) et date facultative
-  function gererRP() {
-    var rp = mesRP(), aj = auj();
-    var h = '<form class="boite saisie" novalidate><h2>Mes RP</h2><p class="sous-titre">Laisse vide une distance sans record.</p>' +
-      DISTANCES_RP.map(function (d) {
-        var r = rp[d[0]] || {}, s = C.isNum(r.s) ? r.s : null;
-        return '<fieldset class="rp"><legend>' + d[1] + '</legend><div class="duree-hms"><div class="hms" role="group" aria-label="Chrono ' + d[1] + '">' +
-          [['h', 'h', s === null ? '' : Math.floor(s / 3600), 'heures'], ['m', 'min', s === null ? '' : Math.floor(s % 3600 / 60), 'minutes'], ['s', 's', s === null ? '' : s % 60, 'secondes']].map(function (x) {
-            return '<label><input name="' + d[0] + x[0] + '" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="' + x[2] + '" aria-label="' + x[3] + '"><span>' + x[1] + '</span></label>';
-          }).join('') + '</div></div><label>Date<input type="date" name="' + d[0] + 'd" value="' + esc(r.date || '') + '" max="' + aj + '"></label></fieldset>';
-      }).join('') +
-      '<p class="alerte" id="erreurRP" hidden></p><div class="pied"><button type="button" class="sec" data-rp="fermer">Annuler</button><button>Enregistrer</button></div></form>';
-    boite.innerHTML = h; if (!boite.open) boite.showModal();
-    var f = $('form', boite);
-    f.onclick = function (ev) { if (ev.target.closest('[data-rp="fermer"]')) boite.close(); };
-    f.onsubmit = function (ev) {
-      ev.preventDefault();
-      var err = [], nouv = {};
-      DISTANCES_RP.forEach(function (d) {
-        var v = ['h', 'm', 's'].map(function (k) { var t = String(f.elements[d[0] + k].value || '').trim(); return t === '' ? null : (/^\d{1,2}$/.test(t) ? Number(t) : NaN); });
-        var date = String(f.elements[d[0] + 'd'].value || '');
-        if (v.every(function (x) { return x === null; })) { if (date) err.push(d[1] + ' : chrono manquant'); return; }
-        if (v.some(function (x) { return x !== x; }) || (v[1] || 0) > 59 || (v[2] || 0) > 59) { err.push(d[1] + ' : chrono invalide'); return; }
-        var sec = (v[0] || 0) * 3600 + (v[1] || 0) * 60 + (v[2] || 0);
-        if (!(sec > 0)) { err.push(d[1] + ' : chrono invalide'); return; }
-        if (date && (!C.isValidISODate(date) || date > aj)) { err.push(d[1] + ' : date invalide'); return; }
-        nouv[d[0]] = { s: sec }; if (date) nouv[d[0]].date = date;
-      });
-      if (err.length) { var e = $('#erreurRP', f); e.hidden = false; e.textContent = err.join(' · '); return; }
-      A.rp = nouv;
-      sauver().then(function () { boite.close(); toast('Records enregistrés'); rendre(); });
     };
   }
   function vueAccueil(m) {
@@ -605,7 +559,6 @@
     else if (act === 'allerSem') { semaineAffichee = +b.dataset.n; rendre(); window.scrollTo(0, 0); }
     else if (act === 'imprimer') window.print();
     else if (act === 'chaussures') gererChaussures();
-    else if (act === 'rp') gererRP();
     else if (act === 'reactionsVues') marquerReactionsVues();
   });
   $('#statutSync').addEventListener('click', function () { synchroniser(true); });

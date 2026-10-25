@@ -35,5 +35,8 @@ Toutes reprennent les formules de l'onglet ALLURES ou PLAN du classeur de l'entr
 | Plan suivi | Séances prévues réalisées / séances prévues jusqu'à aujourd'hui | convention de l'outil |
 | ⚠ sans retour | Au moins 2 séances prévues des 14 derniers jours, après la dernière saisie, sans saisie | convention de l'outil, modifiable |
 | Records | Plus longue sortie, plus longue durée, plus gros D+, plus grosse semaine (lundi → dimanche), meilleure allure moyenne de séance (≥ 10 km, ≥ 5 km), meilleure allure en compétition (type COMP) | définition, calculée sur les seules saisies |
+| Records personnels (RP) | Résultats saisis par l'entraîneur (5 km, 10 km, semi 21,0975 km, marathon 42,195 km, 100 km) ; RP = meilleur chrono de la distance ; « ancien RP » = résultat meilleur que tous les précédents à sa date | définition |
+| Allure, vitesse, % VMA d'un RP | Allure = chrono / distance ; vitesse = distance / chrono ; % VMA = vitesse / VMA × 100 (VMA actuelle de la fiche) | calcul |
+| Progression totale, dernier gain | Premier chrono − RP actuel (et en % du premier chrono) ; RP précédent − RP actuel | calcul |
 | Fusion des données | La partie entraîneur vient de l'entraîneur ; la partie athlète vient de l'athlète ; entre deux saisies, la plus récente (horodatage) gagne | convention de l'outil |
 | Couleur RPE | Niveau n placé à (n − 1) / 9 du dégradé à 7 couleurs, interpolation linéaire en RVB ; texte blanc ou noir selon le meilleur contraste WCAG | convention de l'outil |

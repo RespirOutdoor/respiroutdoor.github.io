@@ -326,7 +326,36 @@ var Core = (function () {
       Object.keys(BORNES).forEach(function (k) { if (j[k] !== undefined && j[k] !== null && j[k] !== '' && !dansBornes(k, j[k])) retirees.push({ date: d, champ: k, valeur: j[k] }); });
       var c = nettoyerJour(j); if (Object.keys(c).length) a.jours[d] = c; else delete a.jours[d];
     });
+    if (Array.isArray(a.resultats)) a.resultats = a.resultats.filter(function (r) { if (resultatValide(r)) return true; retirees.push({ date: r && r.date, champ: 'résultat', valeur: r && r.s }); return false; });
     return retirees;
+  }
+
+  /* ---------- Résultats de course saisis par l'entraîneur (records personnels) ---------- */
+  // a.resultats = [{ id, dist, date (ISO), s (chrono en secondes), course }] ; le record d'une distance est son meilleur chrono
+  var DISTANCES_RP = [{ code: 'd5', nom: '5 km', court: '5 km', km: 5 }, { code: 'd10', nom: '10 km', court: '10 km', km: 10 },
+    { code: 'semi', nom: 'Semi-marathon', court: 'Semi', km: 21.0975 }, { code: 'marathon', nom: 'Marathon', court: 'Marathon', km: 42.195 },
+    { code: 'd100', nom: '100 km', court: '100 km', km: 100 }];
+  function distanceRP(code) { return DISTANCES_RP.filter(function (d) { return d.code === code; })[0] || null; }
+  // Chrono « m:ss » sous une heure, « h:mm:ss » au-delà
+  function chronoTexte(sec) {
+    if (!isNum(sec)) return '';
+    var t = Math.round(Math.abs(sec)), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60);
+    return (h ? h + ':' + pad2(m) : m) + ':' + pad2(t % 60);
+  }
+  function resultatValide(r) { return !!(r && distanceRP(r.dist) && isValidISODate(r.date) && isNum(r.s) && r.s > 0 && r.s <= BORNES.dureeSec[1]); }
+  // Résultats d'une distance par date ; rec : record au moment de la course ; best : record du moment
+  function resultatsDistance(a, code) {
+    var best = Infinity;
+    return ((a && a.resultats) || []).filter(function (r) { return r.dist === code && resultatValide(r); })
+      .sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : y.s - x.s; })
+      .map(function (r) { var rec = r.s < best; if (rec) best = r.s; return Object.assign({}, r, { rec: rec, best: best }); });
+  }
+  // Par distance : record actuel (rp), record précédent (prec) et nombre de résultats
+  function syntheseRP(a) {
+    return DISTANCES_RP.map(function (d) {
+      var l = resultatsDistance(a, d.code), recs = l.filter(function (r) { return r.rec; });
+      return { distance: d, rp: recs[recs.length - 1] || null, prec: recs[recs.length - 2] || null, premier: l[0] || null, n: l.length };
+    });
   }
 
   /* ---------- Fusion : chaque information a un seul propriétaire ---------- */
@@ -1112,6 +1141,17 @@ var Core = (function () {
   /* ---------- Autotests (valeurs de référence calculées à la main) ---------- */
   function near(a, b, eps) { return isNum(a) && Math.abs(a - b) <= (eps || 1e-9); }
   var TESTS = [
+    ['Résultats : record du moment, ancien RP, synthèse par distance', function () {
+      var a = { resultats: [{ dist: 'd10', date: '2025-11-11', s: 2335 }, { dist: 'd10', date: '2024-03-17', s: 2530 }, { dist: 'd10', date: '2025-06-15', s: 2600 }, { dist: 'd10', date: '2026-04-12', s: 2300 }, { dist: 'd10', date: '2026-13-01', s: 2000 }, { dist: 'd100', date: '2026-06-01', s: 35100 }] };
+      var l = resultatsDistance(a, 'd10'), syn = syntheseRP(a), d10 = syn[1];
+      return l.length === 4 && l.map(function (r) { return r.rec ? 1 : 0; }).join('') === '1011' && l[2].best === 2335 &&
+        d10.rp.s === 2300 && d10.prec.s === 2335 && d10.premier.s === 2530 && syn[0].rp === null && syn[4].rp.s === 35100 && syn[4].prec === null;
+    }],
+    ['Chrono : 38:20, 1:26:03, 9:45:00 ; résultats invalides écartés', function () {
+      var a = { jours: {}, resultats: [{ dist: 'd5', date: '2026-05-10', s: 1122 }, { dist: 'd42', date: '2026-05-10', s: 1122 }, { dist: 'd5', date: '2026-05-10', s: 0 }, { dist: 'semi', date: '2026-03-29', s: 200000 }] };
+      var ret = corrigerAthlete(a);
+      return chronoTexte(2300) === '38:20' && chronoTexte(5163) === '1:26:03' && chronoTexte(35100) === '9:45:00' && chronoTexte(35) === '0:35' && a.resultats.length === 1 && ret.length === 3;
+    }],
     ['Semaine du contrat : début 13/01/2025, lundi 03/08/2026 = S82', function () { return numSemaine('2025-01-13', '2026-08-03') === 82; }],
     ['Semaine du contrat : dimanche 02/08/2026 = S81 ; lundi 12/10/2026 = S92', function () { return numSemaine('2025-01-13', '2026-08-02') === 81 && numSemaine('2025-01-13', '2026-10-12') === 92; }],
     ['Lundi de la S156 = 03/01/2028 (dernière semaine du contrat de 156 semaines)', function () { return lundiSemaine('2025-01-13', 156) === '2028-01-03'; }],
@@ -1455,7 +1495,7 @@ var Core = (function () {
     trouverZone: trouverZone, reperesSeance: reperesSeance, normCode: normCode, chercherCode: chercherCode,
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, dateTest: dateTest, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
-    extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete,
+    extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete, DISTANCES_RP: DISTANCES_RP, distanceRP: distanceRP, chronoTexte: chronoTexte, resultatValide: resultatValide, resultatsDistance: resultatsDistance, syntheseRP: syntheseRP,
     lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerLegende: fusionnerLegende, codesAbsents: codesAbsents, absentsLegende: absentsLegende, retirerLegende: retirerLegende, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();

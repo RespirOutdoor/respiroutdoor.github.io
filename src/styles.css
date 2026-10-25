@@ -477,6 +477,37 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
 .ma-vma .kpi { background: var(--rouge-fond); }
 .ma-vma .kpi:first-child { grid-column: 1 / -1; }
 .ma-vma .kpi:first-child b { font-size: 1.6rem; color: var(--rouge); }
-/* Mes RP : une distance par bloc (chrono h/min/s puis date) */
-form.saisie fieldset.rp { border: 1px solid var(--bord); border-radius: var(--rayon); padding: 10px 12px 2px; margin: 0 0 12px; min-width: 0; }
-form.saisie fieldset.rp legend { font-weight: 700; padding: 0 6px; }
+/* Records (résultats saisis par l'entraîneur) : choix de la distance, courbe, indicateurs */
+.seg-rp { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 8px; }
+.seg-rp button { flex: 1 1 auto; min-height: 38px; padding: 4px 10px; font-size: .88rem; }
+/* Cinq distances : trois puis deux boutons de même largeur par ligne */
+.seg-rp.cinq { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.seg-rp.cinq button { grid-column: span 2; }
+.seg-rp.cinq button:nth-child(n+4) { grid-column: span 3; }
+.courbe-rp { margin: 2px -4px 0; }
+.courbe-rp svg { display: block; width: 100%; height: auto; overflow: visible; }
+.courbe-rp .axe { fill: var(--texte-2); font-size: 11px; }
+.courbe-rp .grille { stroke: var(--bord); stroke-width: 1; }
+.courbe-rp path.record { fill: none; stroke: var(--vert); stroke-width: 2.5; stroke-linejoin: round; }
+.courbe-rp polyline.suite { fill: none; stroke: var(--texte-2); stroke-width: 1; stroke-dasharray: 3 3; opacity: .6; }
+.courbe-rp circle { stroke-width: 2; }
+.courbe-rp circle.rp { fill: var(--rouge); stroke: var(--rouge); }
+.courbe-rp circle.rec { fill: var(--vert); stroke: var(--vert); }
+.courbe-rp circle.autre { fill: var(--carte); stroke: var(--texte-2); }
+.courbe-rp text.val { fill: var(--texte); font-size: 11px; font-weight: 600; }
+.courbe-rp text.val.rp { fill: var(--rouge); font-size: 12.5px; font-weight: 800; }
+.legende-rp { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 2px; }
+.legende-rp span { display: inline-flex; align-items: center; gap: 6px; }
+.legende-rp .pt { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--texte-2); background: var(--carte); }
+.legende-rp .pt.rec { background: var(--vert); border-color: var(--vert); }
+.legende-rp .pt.rp { background: var(--rouge); border-color: var(--rouge); }
+.legende-rp .trait { display: inline-block; width: 18px; border-top: 2.5px solid var(--vert); }
+.records .ecart.gain, .kpi.gain b { color: var(--vert-fonce); }
+.records .ecart.gain { font-weight: 700; }
+.kpi.rouge { background: var(--rouge-fond); }
+.kpi.rouge b { color: var(--rouge); }
+.records .etiquette.rp { background: var(--rouge); color: var(--carte); margin-left: 6px; vertical-align: 2px; }
+.records td button.discret { display: block; min-height: 32px; padding: 2px 0; margin-top: 2px; }
+.nouveau-rp { margin: 2px 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--vert-clair); font-size: .9rem; font-weight: 600; }
+.nouveau-rp.oui { background: var(--rouge-fond); color: var(--rouge); font-weight: 700; }
+@media (max-width: 360px) { .records .tableau th, .records .tableau td { padding: 8px 6px; } }
