@@ -2829,7 +2829,7 @@ var UI = (function () {
     h += '<h2 class="titre-section">Tableau de bord</h2>' + tableauBilan(a, aj);
     // Records
     var rec = C.records(a);
-    h += '<section class="carte"><h3>🏅 Mes records</h3>' + (rec.length ? '<div class="tableau"><table><thead><tr><th>Record</th><th class="num">Valeur</th><th class="num">Date</th></tr></thead><tbody>' + rec.map(function (r) {
+    h += '<section class="carte"><h3>Mes Stats</h3>' + (rec.length ? '<div class="tableau"><table><thead><tr><th>Record</th><th class="num">Valeur</th><th class="num">Date</th></tr></thead><tbody>' + rec.map(function (r) {
       return '<tr><td>' + esc(r.libelle) + '</td><td class="num"><b>' + esc(r.texte).replace(' sur ', '</b><span class="ecart">sur ') + (r.texte.indexOf(' sur ') >= 0 ? '</span>' : '</b>') + '</td><td class="num">' + (r.cle === 'semaine' ? '<span class="ecart">sem. du</span>' : '') + C.formatDateFR(r.date).slice(0, 5) + '</td></tr>';
     }).join('') + '</tbody></table></div><p class="muet petit">Calculés uniquement à partir de tes séances saisies. Les allures sont des allures moyennes de séance.</p>' : '<p class="muet">Tes records apparaîtront ici dès tes premières séances saisies.</p>') + '</section>';
     h += carteChaussures(a);
