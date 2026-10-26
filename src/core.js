@@ -747,9 +747,13 @@ var Core = (function () {
   /* ---------- Import du classeur de l'entraîneur (onglets PLAN, LEGENDE, ALLURES, PROTOS) ---------- */
   // Onglet par son nom, sans tenir compte des espaces, majuscules ni accents (« Légende » = « LEGENDE »)
   function nomOnglet(n) { return normCode(n).normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+  // LEGENDE, ALLURES, PROTOS : à défaut du nom exact, un onglet qui commence par ce nom (« ALLURES FLAVIEN »)
   function feuille(classeur, nom) {
-    return (classeur.feuilles || []).filter(function (f) { return nomOnglet(f.nom) === nomOnglet(nom); })[0] || null;
+    var fs = classeur.feuilles || [], n = nomOnglet(nom);
+    return fs.filter(function (f) { return nomOnglet(f.nom) === n; })[0] ||
+      (AUTRES_ONGLETS.indexOf(n) >= 0 ? fs.filter(function (f) { return nomOnglet(f.nom).indexOf(n) === 0; })[0] : null) || null;
   }
+  function estAutreOnglet(nom) { var n = nomOnglet(nom); return AUTRES_ONGLETS.some(function (x) { return n.indexOf(x) === 0; }); }
   function cel(f, r, c) { return f && f.lignes[r] ? f.lignes[r][c] : undefined; }
   // Position de la première cellule dont le texte vérifie « re »
   function chercher(f, re, depuis) {
@@ -834,7 +838,7 @@ var Core = (function () {
       var l = f.lignes[rr] || [];
       ['cycle', 'spe'].forEach(function (k) { if (col[k] !== undefined && l[col[k]] !== undefined) verticales[k].push({ ligne: rr, valeur: l[col[k]] }); });
       var d = isNum(l[pEnt.c]) ? excelSerialToISO(l[pEnt.c]) : null;
-      if (!d) continue;
+      if (!d || d < '2000-01-01') continue; // case à 1 ou 0 : pas une date de séance
       ligneDate[rr] = d;
       var j = {};
       ['eveil', 'educ', 'corps', 'rac', 'profil', 'type', 'consignes', 'notes'].forEach(function (k) {
@@ -1099,7 +1103,7 @@ var Core = (function () {
   var AUTRES_ONGLETS = ['LEGENDE', 'ALLURES', 'PROTOS', 'PROTOCOLES', 'PROTOCOLE'];
   function ongletsPlan(classeur) {
     return (classeur.feuilles || []).map(function (f) {
-      if (AUTRES_ONGLETS.indexOf(normCode(f.nom)) >= 0) return null;
+      if (estAutreOnglet(f.nom)) return null;
       if (!chercher(f, /^DATE$/i)) return null;
       // Même lecture que l'import : période des lignes datées, jours avec une séance ou une saisie
       var a; try { a = importerPlan(f, []); } catch (e) { return null; }
@@ -1112,14 +1116,17 @@ var Core = (function () {
     var plan = onglets.filter(function (o) { return normCode(o.nom) === 'PLAN'; })[0];
     return plan || onglets.slice().sort(function (x, y) { return x.du < y.du ? 1 : -1; })[0] || null;
   }
-  // Renvoie { athlete, legende, protos, rapport: [texte…] } ; nomOnglet : onglet du plan à importer (par défaut « PLAN »)
-  function importerClasseur(classeur, nomOnglet) {
+  // Renvoie { athlete, legende, protos, rapport: [texte…] } ; ongletChoisi : onglet du plan à importer (par défaut « PLAN »)
+  function importerClasseur(classeur, ongletChoisi) {
     var rapport = [];
-    var fPlan = feuille(classeur, nomOnglet || 'PLAN');
-    if (!fPlan && !nomOnglet) { var o = ongletParDefaut(ongletsPlan(classeur)); if (o) fPlan = feuille(classeur, o.nom); }
-    if (!fPlan) throw new Error('onglet ' + (nomOnglet || 'PLAN') + ' introuvable : ce classeur ne suit pas le modèle de l\'entraîneur');
+    var fPlan = feuille(classeur, ongletChoisi || 'PLAN');
+    if (!fPlan && !ongletChoisi) { var o = ongletParDefaut(ongletsPlan(classeur)); if (o) fPlan = feuille(classeur, o.nom); }
+    if (!fPlan) throw new Error('onglet ' + (ongletChoisi || 'PLAN') + ' introuvable : ce classeur ne suit pas le modèle de l\'entraîneur');
     if (normCode(fPlan.nom) !== 'PLAN') rapport.push('Plan lu dans l\'onglet « ' + texte(fPlan.nom) + ' »');
     var a = importerPlan(fPlan, rapport);
+    if (!texte(a.prenom) && !texte(a.nom) && !Object.keys(a.jours).length)
+      throw new Error('l\'onglet « ' + texte(fPlan.nom) + ' » n\'est pas un plan (ni nom d\'athlète ni séance). Onglets du classeur : ' + (classeur.feuilles || []).map(function (f) { return texte(f.nom); }).join(', ') +
+        '. L\'onglet du plan doit contenir le nom de l\'athlète (NOM), la ligne CONTRAT et le tableau des séances (DATE, CORPS DE SÉANCE…)');
     if (a.planDu) rapport.push('Période de l\'onglet : du ' + formatDateFR(a.planDu) + ' au ' + formatDateFR(a.planAu));
     // Ligne CONTRAT pas mise à jour (onglet copié d'un ancien contrat) : la numérotation des semaines serait fausse
     if (a.planDu && ((a.fin && a.planDu > a.fin) || (a.debut && a.planAu < weekStart(a.debut))))
@@ -1129,7 +1136,7 @@ var Core = (function () {
     var fPr = feuilleProtos(classeur), pr = importerProtos(fPr);
     if (lg) rapport.push('Légende : ' + lg.types.length + ' types, ' + lg.profils.length + ' profils');
     if (fPr && !pr.length) rapport.push('⚠ Onglet « ' + texte(fPr.nom) + ' » : aucun protocole reconnu. Chaque protocole doit commencer par son code en colonne A (ex. PC12, PF1C, PV2).');
-    ['LEGENDE', 'ALLURES'].forEach(function (n) { if (!feuille(classeur, n)) rapport.push('Onglet ' + n + ' absent'); });
+    ['LEGENDE', 'ALLURES'].forEach(function (n) { var f = feuille(classeur, n); if (!f) rapport.push('Onglet ' + n + ' absent'); else if (nomOnglet(f.nom) !== n) rapport.push((n === 'ALLURES' ? 'Allures lues' : 'Légende lue') + ' dans l\'onglet « ' + texte(f.nom) + ' »'); });
     if (!fPr) rapport.push('Onglet PROTOS absent : protocoles inchangés');
     return { athlete: a, legende: lg, protos: pr, rapport: rapport };
   }
@@ -1141,6 +1148,14 @@ var Core = (function () {
   /* ---------- Autotests (valeurs de référence calculées à la main) ---------- */
   function near(a, b, eps) { return isNum(a) && Math.abs(a - b) <= (eps || 1e-9); }
   var TESTS = [
+    ['Onglets : « ALLURES FLAVIEN » lu comme ALLURES, jamais comme plan ; « Légende » = LEGENDE', function () {
+      var cl = { feuilles: [{ nom: 'ALLURES FLAVIEN', lignes: [['TEST', 'DATE'], ['1/2 COOP', 1], ['1/2 COOP', 46320]] }, { nom: 'Légende', lignes: [] }, { nom: 'PLANNING', lignes: [] }] };
+      return feuille(cl, 'ALLURES').nom === 'ALLURES FLAVIEN' && feuille(cl, 'LEGENDE').nom === 'Légende' && feuille(cl, 'PLAN') === null && ongletsPlan(cl).length === 0 && estAutreOnglet('Protos 2026') && !estAutreOnglet('PLAN FLAVIEN');
+    }],
+    ['Import : onglet sans nom ni séance refusé (pas d\'« Athlète sans nom »)', function () {
+      var cl = { feuilles: [{ nom: 'DIVERS', lignes: [['DATE', 'CORPS'], [1, ''], [46320, '']] }] };
+      try { importerClasseur(cl, 'DIVERS'); return false; } catch (e) { return /n'est pas un plan/.test(e.message) && /DIVERS/.test(e.message); }
+    }],
     ['Résultats : record du moment, ancien RP, synthèse par distance', function () {
       var a = { resultats: [{ dist: 'd10', date: '2025-11-11', s: 2335 }, { dist: 'd10', date: '2024-03-17', s: 2530 }, { dist: 'd10', date: '2025-06-15', s: 2600 }, { dist: 'd10', date: '2026-04-12', s: 2300 }, { dist: 'd10', date: '2026-13-01', s: 2000 }, { dist: 'd100', date: '2026-06-01', s: 35100 }] };
       var l = resultatsDistance(a, 'd10'), syn = syntheseRP(a), d10 = syn[1];
@@ -1496,6 +1511,6 @@ var Core = (function () {
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, dateTest: dateTest, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
     extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete, DISTANCES_RP: DISTANCES_RP, distanceRP: distanceRP, chronoTexte: chronoTexte, resultatValide: resultatValide, resultatsDistance: resultatsDistance, syntheseRP: syntheseRP,
-    lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerLegende: fusionnerLegende, codesAbsents: codesAbsents, absentsLegende: absentsLegende, retirerLegende: retirerLegende, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
+    lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerLegende: fusionnerLegende, codesAbsents: codesAbsents, absentsLegende: absentsLegende, retirerLegende: retirerLegende, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, estAutreOnglet: estAutreOnglet, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();

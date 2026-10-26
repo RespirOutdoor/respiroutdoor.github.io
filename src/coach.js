@@ -617,7 +617,12 @@
       f.arrayBuffer().then(function (buf) { return C.lireXLSX(new Uint8Array(buf)); }).then(function (cl) {
         var onglets = C.ongletsPlan(cl);
         // Classeur sans plan (ex. PROTOCOLES.xlsx) : bibliothèque de protocoles commune à tous les athlètes
-        if (!onglets.length && !(cl.feuilles || []).some(function (f) { return C.normCode(f.nom) === 'PLAN'; })) return importerBibliotheque(cl);
+        if (!onglets.length && !(cl.feuilles || []).some(function (f) { return C.normCode(f.nom) === 'PLAN'; })) {
+          // Classeur d'athlète (onglet ALLURES…) sans plan reconnu : on le dit, plutôt que de le lire comme une bibliothèque
+          if ((cl.feuilles || []).some(function (f) { return /^ALLURES/.test(C.normCode(f.nom)); }))
+            throw new Error('aucun onglet de plan reconnu dans ce classeur (onglets : ' + cl.feuilles.map(function (f) { return f.nom; }).join(', ') + '). L\'onglet du plan doit contenir le nom de l\'athlète (NOM), la ligne CONTRAT et le tableau des séances avec l\'en-tête DATE et des dates');
+          return importerBibliotheque(cl);
+        }
         if (onglets.length < 2) return importerClasseur(cl, onglets[0] && onglets[0].nom);
         // Un onglet par contrat ou par objectif : Manu choisit celui à importer
         var defaut = C.ongletParDefaut(onglets);
@@ -631,10 +636,15 @@
         $('[data-x="annuler"]', boite).onclick = function () { boite.close(); };
         $('form', boite).onsubmit = function (e) {
           e.preventDefault(); var c = $('input[name="onglet"]:checked', boite);
-          boite.close(); importerClasseur(cl, onglets[c ? +c.value : 0].nom).catch(function (ex) { toast('Import impossible : ' + ex.message); });
+          boite.close(); importerClasseur(cl, onglets[c ? +c.value : 0].nom).catch(erreurImport);
         };
-      }).catch(function (e) { toast('Import impossible : ' + e.message); });
+      }).catch(erreurImport);
     });
+  }
+  // Erreur d'import : fenêtre à fermer soi-même (le message explique quoi corriger dans le classeur)
+  function erreurImport(e) {
+    boite.innerHTML = '<form class="boite" method="dialog"><h2>Import impossible</h2><p class="alerte">' + esc(e.message.charAt(0).toUpperCase() + e.message.slice(1)) + '.</p><div class="pied"><button>OK</button></div></form>';
+    if (!boite.open) boite.showModal();
   }
   function importerBibliotheque(cl) {
     var r = C.importerBibliotheque(cl, E.legende);
