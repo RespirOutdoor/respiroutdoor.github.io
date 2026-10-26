@@ -342,7 +342,13 @@ var Core = (function () {
     var t = Math.round(Math.abs(sec)), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60);
     return (h ? h + ':' + pad2(m) : m) + ':' + pad2(t % 60);
   }
-  function resultatValide(r) { return !!(r && distanceRP(r.dist) && isValidISODate(r.date) && isNum(r.s) && r.s > 0 && r.s <= BORNES.dureeSec[1]); }
+  // Résultat d'une colonne « ANNEE 2024 » du classeur : jour inconnu, annee = 2024 et date conventionnelle au 1er juillet (milieu de l'année) pour l'ordre et la courbe
+  function resultatValide(r) {
+    return !!(r && distanceRP(r.dist) && isValidISODate(r.date) && isNum(r.s) && r.s > 0 && r.s <= BORNES.dureeSec[1] &&
+      (r.annee === undefined || (isNum(r.annee) && r.date === r.annee + '-07-01')));
+  }
+  function dateResultat(r) { return r.annee ? String(r.annee) : formatDateFR(r.date); }      // « 25/10/2026 » ou « 2024 »
+  function quandResultat(r) { return r.annee ? 'en ' + r.annee : 'le ' + formatDateFR(r.date); } // « le 25/10/2026 » ou « en 2024 »
   // Résultats d'une distance par date ; rec : record au moment de la course ; best : record du moment
   function resultatsDistance(a, code) {
     var best = Infinity;
@@ -391,8 +397,9 @@ var Core = (function () {
         if (k === 'jours' || k === 'id') return;
         if (mode === 'excel' && CLES_LOCALES.indexOf(k) >= 0 && !recu[k]) return;
         if (mode === 'excel' && k === 'resultats') {
+          // Résultats repris du classeur (id « x… ») remplacés à chaque import ; ceux saisis dans l'application gardés, sans doublon
           var cle = function (r) { return r.dist + '|' + r.date + '|' + r.s; }, deja = {};
-          res.resultats = clone(local.resultats || []); res.resultats.forEach(function (r) { deja[cle(r)] = 1; });
+          res.resultats = clone((local.resultats || []).filter(function (r) { return !/^x/.test(r.id || ''); })); res.resultats.forEach(function (r) { deja[cle(r)] = 1; });
           (recu.resultats || []).forEach(function (r) { if (!deja[cle(r)]) { res.resultats.push(clone(r)); deja[cle(r)] = 1; } });
           return;
         }
@@ -941,8 +948,13 @@ var Core = (function () {
       var cDate = cols.filter(function (x) { return /^DATE/i.test(x.nom); })[0], vd = cDate ? cel(f, r, cDate.c) : undefined;
       var iso = isNum(vd) ? (vd > 20000 && vd < 80000 ? excelSerialToISO(vd) : null) : parseDateFR(texte(vd));
       var dist = distanceLigne(d), sec = cRec === null ? null : chronoCellule(cel(f, r, cRec));
-      var res = dist && sec && iso ? { id: 'x' + dist + iso.replace(/-/g, '') + sec, dist: dist, date: iso, s: sec, course: 'Classeur Excel' } : null;
-      lignes.push({ distance: d, res: res, record: cRec === null ? '' : texteChrono(cel(f, r, cRec)), annees: cols.map(function (x) {
+      var res = dist && sec && iso ? { id: 'x' + dist + iso.replace(/-/g, '') + sec, dist: dist, date: iso, s: sec, course: 'Record du classeur' } : null;
+      // Colonnes « ANNEE 2024 » / « 2024 » : meilleur chrono de l'année, jour inconnu
+      var parAn = dist ? cols.map(function (x) {
+        var an = (texte(x.nom).match(/(?:^|\D)((?:19|20)\d\d)(?:\D|$)/) || [])[1], v = an && !/^DATE/i.test(x.nom) ? chronoCellule(cel(f, r, x.c)) : null;
+        return v ? { id: 'x' + dist + 'a' + an + v, dist: dist, date: an + '-07-01', annee: +an, s: v, course: 'Meilleur chrono de ' + an + ' (classeur)' } : null;
+      }).filter(Boolean) : [];
+      lignes.push({ distance: d, res: res, parAn: parAn, record: cRec === null ? '' : texteChrono(cel(f, r, cRec)), annees: cols.map(function (x) {
         var v = cel(f, r, x.c);
         return /^DATE/i.test(x.nom) || (isNum(v) && v > 20000 && v < 80000) ? (v === undefined ? '' : dateTest(v)) : texteChrono(v);
       }) });
@@ -960,11 +972,16 @@ var Core = (function () {
     if (rp) {
       rapport.push('Records personnels : ' + rp.lignes.filter(function (l) { return l.record; }).length + ' distance(s) renseignée(s)' + (rp.annees.length ? ', colonnes ' + rp.annees.join(', ') : ''));
       // Records datés repris dans la carte Records (ajoutés aux résultats saisis dans l'application, sans doublon)
-      a.resultats = rp.lignes.map(function (l) { return l.res; }).filter(function (x) { return x && resultatValide(x); });
-      if (a.resultats.length) rapport.push('Repris dans la carte Records : ' + a.resultats.map(function (x) { return distanceRP(x.dist).court + ' ' + chronoTexte(x.s) + ' du ' + formatDateFR(x.date); }).join(', '));
+      a.resultats = [];
+      rp.lignes.forEach(function (l) {
+        if (l.res && resultatValide(l.res)) a.resultats.push(l.res);
+        // Chrono de l'année identique au record daté de la même année : déjà compté
+        (l.parAn || []).forEach(function (x) { if (resultatValide(x) && !(l.res && l.res.s === x.s && l.res.date.slice(0, 4) === String(x.annee))) a.resultats.push(x); });
+      });
+      if (a.resultats.length) rapport.push('Repris dans la carte Records : ' + a.resultats.map(function (x) { return distanceRP(x.dist).court + ' ' + chronoTexte(x.s) + ' ' + quandResultat(x); }).join(', '));
       var sansDate = rp.lignes.filter(function (l) { return l.record && !l.res && distanceLigne(l.distance); }).map(function (l) { return l.distance; });
       if (sansDate.length) rapport.push('⚠ Non repris dans la carte Records (il faut un chrono et une date complète, ex. 12/04/2026) : ' + sansDate.join(', '));
-      rp.lignes.forEach(function (l) { delete l.res; });
+      rp.lignes.forEach(function (l) { delete l.res; delete l.parAn; });
       a.recordsPerso = rp;
     }
     var p = chercher(f, /^TYPE\s*:?$/i);
@@ -1189,12 +1206,20 @@ var Core = (function () {
   /* ---------- Autotests (valeurs de référence calculées à la main) ---------- */
   function near(a, b, eps) { return isNum(a) && Math.abs(a - b) <= (eps || 1e-9); }
   var TESTS = [
+    ['Records du classeur : record daté + colonne ANNEE 2024 (1H42) -> 2 résultats ; « 2024 » affiché, jamais une date inventée', function () {
+      var f = { nom: 'ALLURES', lignes: [['RECORDS PERSONNELS'], ['Distance', 'RECORD', 'DATE', 'ANNEE 2024', 'ANNEE 2026'], ['5KM'], ['SEMI', '1H34\'45"', 46320, '1H42', '1H34\'45"']] };
+      var a = { test: {}, allures: {} }, rap = []; importerAllures(f, a, rap);
+      var an = a.resultats.filter(function (x) { return x.annee; })[0], l = resultatsDistance(a, 'semi');
+      return a.resultats.length === 2 && an.annee === 2024 && an.s === 6120 && an.date === '2024-07-01' && dateResultat(an) === '2024' && quandResultat(an) === 'en 2024' &&
+        quandResultat(l[1]) === 'le 25/10/2026' && l[0].rec && l[1].rec && !a.recordsPerso.lignes[1].parAn && resultatValide(an) && !resultatValide({ dist: 'semi', date: '2024-05-01', annee: 2024, s: 6120 });
+    }],
     ['Chrono de cellule : 1H34\'45" = 5685 s ; 1H42 = 6120 s ; 18\'42 = 1122 s ; 0:45:45 = 2745 s ; 0,0266 j = 2298 s', function () {
       return chronoCellule('1H34\'45"') === 5685 && chronoCellule('1H42') === 6120 && chronoCellule('18\'42') === 1122 && chronoCellule('0:45:45') === 2745 && chronoCellule(0.0266) === 2298 && chronoCellule('abc') === null && chronoCellule('1H75') === null;
     }],
     ['Import Excel des records : ajoutés aux résultats saisis, sans doublon', function () {
       var local = { id: 'X', jours: {}, resultats: [{ id: 'r1', dist: 'd10', date: '2026-04-12', s: 2300 }] };
       var recu = { id: 'X', jours: {}, resultats: [{ id: 'x1', dist: 'd10', date: '2026-04-12', s: 2300 }, { id: 'x2', dist: 'semi', date: '2026-10-25', s: 5685 }] };
+      local.resultats.push({ id: 'xd5a20241200', dist: 'd5', date: '2024-07-01', annee: 2024, s: 1200 }); // ancien chrono du classeur, retiré depuis du fichier
       var r = fusionner(local, recu, 'excel');
       return r.resultats.length === 2 && r.resultats[0].id === 'r1' && r.resultats[1].dist === 'semi' && distanceLigne('1/2 MARATHON') === 'semi' && distanceLigne('100 KM') === 'd100' && distanceLigne('10KM') === 'd10';
     }],
@@ -1560,7 +1585,7 @@ var Core = (function () {
     trouverZone: trouverZone, reperesSeance: reperesSeance, normCode: normCode, chercherCode: chercherCode,
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, dateTest: dateTest, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
-    extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete, DISTANCES_RP: DISTANCES_RP, distanceRP: distanceRP, chronoTexte: chronoTexte, resultatValide: resultatValide, resultatsDistance: resultatsDistance, syntheseRP: syntheseRP,
+    extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete, DISTANCES_RP: DISTANCES_RP, distanceRP: distanceRP, chronoTexte: chronoTexte, resultatValide: resultatValide, dateResultat: dateResultat, quandResultat: quandResultat, resultatsDistance: resultatsDistance, syntheseRP: syntheseRP,
     lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerLegende: fusionnerLegende, codesAbsents: codesAbsents, absentsLegende: absentsLegende, retirerLegende: retirerLegende, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, estAutreOnglet: estAutreOnglet, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();

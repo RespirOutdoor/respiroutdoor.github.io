@@ -353,7 +353,7 @@ var UI = (function () {
         var d = x.distance, r = x.rp, p = r ? pctVMA(a, r.s, d.km) : null;
         if (!r) return '<tr><td><b>' + esc(d.court) + '</b></td><td class="num muet">—</td><td></td></tr>';
         return '<tr><td><b>' + esc(d.court) + '</b>' + (x.prec ? '<span class="ecart gain">▼ ' + C.chronoTexte(x.prec.s - r.s) + '</span>' : '') + '</td>' +
-          '<td class="num"><b>' + C.chronoTexte(r.s) + '</b><span class="ecart">' + C.formatDateFR(r.date) + '</span></td>' +
+          '<td class="num"><b>' + C.chronoTexte(r.s) + '</b><span class="ecart">' + C.dateResultat(r) + '</span></td>' +
           '<td class="num">' + C.formatAllure(r.s / d.km).replace(' /km', '') + (p ? '<span class="ecart">' + C.nombreFR(p, 1) + ' % VMA</span>' : '') + '</td></tr>';
       }).join('') + '</tbody></table></div>' +
       (avec.some(function (x) { return x.prec; }) ? '<p class="muet petit" style="margin:10px 0 0">▼ : temps gagné sur le record précédent.</p>' : '') + '</section>';
@@ -365,15 +365,16 @@ var UI = (function () {
       '<div class="legende-rp petit muet"><span><i class="pt rp"></i>RP actuel</span>' + (x.prec ? '<span><i class="pt rec"></i>Ancien RP</span>' : '') +
       (l.some(function (y) { return !y.rec; }) ? '<span><i class="pt"></i>Autre course</span>' : '') + (l.length > 1 ? '<span><i class="trait"></i>Record du moment</span>' : '') + '</div>';
     var p = pctVMA(a, r.s, d.km), kp = [['rouge', 'Record actuel', C.chronoTexte(r.s), C.formatAllure(r.s / d.km) + ' · ' + C.nombreFR(d.km / (r.s / 3600), 2) + ' km/h']];
-    if (x.premier && x.premier.s > r.s && x.premier !== x.prec) kp.push(['', 'Progression totale', '−' + C.chronoTexte(x.premier.s - r.s), '−' + C.nombreFR((x.premier.s - r.s) / x.premier.s * 100, 1) + ' % depuis le ' + C.formatDateFR(x.premier.date)]);
-    if (x.prec) { var m = Math.round(C.daysBetween(x.prec.date, r.date) / 30.44); kp.push(['', 'Dernier gain', '−' + C.chronoTexte(x.prec.s - r.s), m >= 1 ? 'après ' + m + ' mois' : 'après ' + C.daysBetween(x.prec.date, r.date) + ' jours']); }
+    if (x.premier && x.premier.s > r.s && x.premier !== x.prec) kp.push(['', 'Progression totale', '−' + C.chronoTexte(x.premier.s - r.s), '−' + C.nombreFR((x.premier.s - r.s) / x.premier.s * 100, 1) + ' % depuis ' + (x.premier.annee ? x.premier.annee : 'le ' + C.formatDateFR(x.premier.date))]);
+    // Dernier gain : durée écoulée si les deux dates sont connues au jour près, sinon le record d'avant (« record de 2024 »)
+    if (x.prec) { var m = Math.round(C.daysBetween(x.prec.date, r.date) / 30.44); kp.push(['', 'Dernier gain', '−' + C.chronoTexte(x.prec.s - r.s), x.prec.annee || r.annee ? 'sur le record ' + (x.prec.annee ? 'de ' + x.prec.annee : 'du ' + C.formatDateFR(x.prec.date)) : m >= 1 ? 'après ' + m + ' mois' : 'après ' + C.daysBetween(x.prec.date, r.date) + ' jours']); }
     if (p) kp.push(['', '% de VMA tenu', C.nombreFR(p, 1) + ' %', 'VMA ' + C.nombreFR(a.vma) + ' km/h']);
     h += '<div class="kpis kpis2">' + kp.map(function (k) { return '<div class="kpi' + (k[0] ? ' ' + k[0] : '') + (k[2].charAt(0) === '−' ? ' gain' : '') + '"><span class="etiq">' + k[1] + '</span><b>' + k[2] + '</b><span class="ecart">' + esc(k[3]) + '</span></div>'; }).join('') + '</div></section>';
     // Historique de la distance (plus récent d'abord)
     h += '<section class="carte records"><h3>Historique ' + esc(d.court === 'Semi' ? 'semi-marathon' : d.court) + '</h3><div class="tableau"><table><thead><tr><th>Date</th><th class="num">Chrono</th><th class="num">Écart<br><span class="muet petit">au RP</span></th></tr></thead><tbody>' +
       l.slice().reverse().map(function (y) {
         var act = y.id === r.id && y.date === r.date && y.s === r.s;
-        return '<tr><td>' + C.formatDateFR(y.date) + (C.texte(y.course) ? '<span class="ecart">' + esc(y.course) + '</span>' : '') + (modifiable ? '<button type="button" class="discret petit" data-rp="modifier" data-id="' + esc(y.id) + '">Modifier</button>' : '') + '</td>' +
+        return '<tr><td>' + C.dateResultat(y) + (C.texte(y.course) ? '<span class="ecart">' + esc(y.course) + '</span>' : '') + (modifiable ? '<button type="button" class="discret petit" data-rp="modifier" data-id="' + esc(y.id) + '">Modifier</button>' : '') + '</td>' +
           '<td class="num"><b>' + C.chronoTexte(y.s) + '</b>' + (act ? '<span class="etiquette rp">RP</span>' : '') + (y.rec && !act ? '<span class="ecart">RP à l\'époque</span>' : '') + '<span class="ecart">' + C.formatAllure(y.s / d.km) + '</span></td>' +
           '<td class="num">' + (act ? '—' : '+' + C.chronoTexte(y.s - r.s)) + '</td></tr>';
       }).join('') + '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">' + l.length + (l.length > 1 ? ' courses saisies' : ' course saisie') + (modifiable ? '' : ' par ton coach') + ' · ' + l.filter(function (y) { return y.rec; }).length + ' record' + (l.filter(function (y) { return y.rec; }).length > 1 ? 's successifs' : '') + '.</p></section>';
@@ -389,7 +390,7 @@ var UI = (function () {
     var lo = Math.floor((smin - pas * 0.35) / pas) * pas, hi = Math.ceil((smax + pas * 0.35) / pas) * pas; if (lo < 0) lo = 0;
     function X(iso) { return g + (Date.parse(iso) - t0) / (t1 - t0) * (W - g - dr); }
     function Y(v) { return ht + (v - lo) / (hi - lo) * (H - ht - bs); }
-    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Évolution des chronos sur ' + esc(d.nom) + ' : ' + l.map(function (r) { return C.formatDateFR(r.date) + ' ' + C.chronoTexte(r.s); }).join(', ') + '">';
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Évolution des chronos sur ' + esc(d.nom) + ' : ' + l.map(function (r) { return C.dateResultat(r) + ' ' + C.chronoTexte(r.s); }).join(', ') + '">';
     for (var v = lo; v <= hi + 0.5; v += pas) s += '<line class="grille" x1="' + g + '" x2="' + (W - dr) + '" y1="' + Y(v) + '" y2="' + Y(v) + '"/><text class="axe" x="' + (g - 6) + '" y="' + (Y(v) + 4) + '" text-anchor="end">' + C.chronoTexte(v) + '</text>';
     // Graduations des dates : début d'année, ou tous les n mois si la période est courte (5 au plus)
     var a0 = new Date(t0), mois = [];
@@ -406,7 +407,7 @@ var UI = (function () {
     var dernier = l.filter(function (r) { return r.rec; }).pop(), etiquetes = l.filter(function (r) { return r.rec; }).length <= 6, poses = [];
     l.forEach(function (r) {
       var rp = r === dernier;
-      s += '<circle class="' + (rp ? 'rp' : r.rec ? 'rec' : 'autre') + '" cx="' + X(r.date) + '" cy="' + Y(r.s) + '" r="' + (rp ? 6.5 : 5) + '"><title>' + C.formatDateFR(r.date) + ' · ' + C.chronoTexte(r.s) + (C.texte(r.course) ? ' · ' + esc(r.course) : '') + '</title></circle>';
+      s += '<circle class="' + (rp ? 'rp' : r.rec ? 'rec' : 'autre') + '" cx="' + X(r.date) + '" cy="' + Y(r.s) + '" r="' + (rp ? 6.5 : 5) + '"><title>' + C.dateResultat(r) + ' · ' + C.chronoTexte(r.s) + (C.texte(r.course) ? ' · ' + esc(r.course) : '') + '</title></circle>';
     });
     // Étiquettes : le RP d'abord, puis les plus récentes ; une étiquette qui chevaucherait un point ou une autre étiquette n'est pas affichée
     l.forEach(function (r) { var cx = X(r.date), cy = Y(r.s); poses.push([cx - 7, cy - 7, cx + 7, cy + 7]); });
@@ -444,8 +445,10 @@ var UI = (function () {
       [['h', 'h', 'heures', 3600, 1e9], ['m', 'min', 'minutes', 60, 60], ['s', 's', 'secondes', 1, 60]].map(function (x) {
         return '<label><input name="' + x[0] + '" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="' + (s0 === null ? '' : Math.floor(s0 / x[3]) % x[4]) + '" aria-label="' + x[2] + '"><span>' + x[1] + '</span></label>';
       }).join('') + '</div></div>' +
-      '<label>Date de la course<input type="date" name="date" value="' + esc(r0 ? r0.date : aj) + '" max="' + aj + '"></label>' +
+      (r0 && r0.annee ? '<p class="muet petit" style="margin:0 0 12px">Meilleur chrono de ' + r0.annee + ' (jour inconnu, repris du classeur).<input type="hidden" name="date" value="' + esc(r0.date) + '"></p>'
+        : '<label>Date de la course<input type="date" name="date" value="' + esc(r0 ? r0.date : aj) + '" max="' + aj + '"></label>') +
       '<label>Course (facultatif)<input name="course" maxlength="80" autocomplete="off" value="' + esc(r0 ? r0.course || '' : '') + '" placeholder="ex. 10 km de ma ville"></label>' +
+      (r0 && /^x/.test(r0.id || '') ? '<p class="muet petit">Repris du tableau « Records personnels » du classeur : il sera remplacé au prochain import. Corrige-le aussi dans le classeur.</p>' : '') +
       '<p class="nouveau-rp" hidden></p><p class="alerte" id="erreurRes" hidden></p>' +
       '<div class="pied">' + (r0 ? '<button type="button" class="danger" data-f="suppr">Supprimer</button>' : '') + '<button type="button" class="sec" data-f="annuler">Annuler</button><button>Enregistrer</button></div></form>';
     if (!boite.open) boite.showModal();
@@ -463,13 +466,13 @@ var UI = (function () {
       var rp = C.syntheseRP(autres).filter(function (y) { return y.distance.code === d; })[0].rp;
       info.hidden = !x.s; if (!x.s) return;
       info.className = 'nouveau-rp' + (!rp || x.s < rp.s ? ' oui' : '');
-      info.textContent = !rp ? 'Premier chrono sur cette distance : ce sera le record.' : x.s < rp.s ? 'Nouveau record : −' + C.chronoTexte(rp.s - x.s) + ' sur le RP actuel (' + C.chronoTexte(rp.s) + ' du ' + C.formatDateFR(rp.date) + ')' : 'Record actuel : ' + C.chronoTexte(rp.s) + ' (+' + C.chronoTexte(x.s - rp.s) + ')';
+      info.textContent = !rp ? 'Premier chrono sur cette distance : ce sera le record.' : x.s < rp.s ? 'Nouveau record : −' + C.chronoTexte(rp.s - x.s) + ' sur le RP actuel (' + C.chronoTexte(rp.s) + ' ' + C.quandResultat(rp) + ')' : 'Record actuel : ' + C.chronoTexte(rp.s) + ' (+' + C.chronoTexte(x.s - rp.s) + ')';
     }
     f.oninput = apercu; f.onchange = apercu; apercu();
     f.onclick = function (ev) {
       var b = ev.target.closest('[data-f]'); if (!b) return;
       if (b.dataset.f === 'annuler') boite.close();
-      else if (b.dataset.f === 'suppr' && confirm('Supprimer ce résultat (' + C.chronoTexte(r0.s) + ' du ' + C.formatDateFR(r0.date) + ') ?')) {
+      else if (b.dataset.f === 'suppr' && confirm('Supprimer ce résultat (' + C.chronoTexte(r0.s) + ' ' + C.quandResultat(r0) + ') ?' + (/^x/.test(r0.id || '') ? ' Il reviendra au prochain import du classeur s\'il y figure encore.' : ''))) {
         a.resultats = (a.resultats || []).filter(function (y) { return y.id !== r0.id; }); boite.close(); enregistrer(a);
       }
     };
@@ -477,8 +480,9 @@ var UI = (function () {
       ev.preventDefault();
       var x = lire(), date = String(f.elements.date.value || ''), err = [];
       if (x.err) err.push(x.err);
-      if (!C.isValidISODate(date) || date > aj) err.push('Date invalide (pas dans le futur)');
+      if (!C.isValidISODate(date) || (date > aj && !(r0 && r0.annee))) err.push('Date invalide (pas dans le futur)');
       var r = { id: r0 ? r0.id : 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), dist: f.elements.dist.value, date: date, s: x.s, course: String(f.elements.course.value || '').trim() };
+      if (r0 && r0.annee) r.annee = r0.annee;
       if (!err.length && !C.resultatValide(r)) err.push('Chrono trop long (48 h au plus)');
       if (err.length) { var e = $('#erreurRes', f); e.hidden = false; e.textContent = err.join(' · '); return; }
       if (!r.course) delete r.course;
@@ -516,9 +520,9 @@ var UI = (function () {
       hist.map(function (x, i) { return '<tr><td>' + esc(x.test) + '</td><td>' + esc(C.dateTest(x.date)) + '</td><td class="num">' + C.nombreFR(x.vma, 2) + ' km/h</td>' + (modifiable ? '<td><button class="discret" data-act="supprVma" data-i="' + i + '" aria-label="Supprimer">✕</button></td>' : '') + '</tr>'; }).join('') +
       '</tbody></table></div>' : '<p class="muet">Aucun test enregistré.</p>') +
       (modifiable ? '<form id="fHist" class="champs" style="margin-top:10px"><label>Test<input name="t" placeholder="1/2 COOP"></label><label>Date<input name="d" placeholder="11/24"></label><label>VMA<input name="v" inputmode="decimal"></label><label>&nbsp;<button>Ajouter</button></label></form>' : '') + '</section></div>';
-    // Records personnels importés (tableau RECORDS PERSONNELS de l'onglet ALLURES) : affichés s'ils ont des colonnes par année, ou tant qu'aucun résultat n'est saisi
+    // Records personnels importés avant leur reprise dans la carte Records : affichés tant qu'il n'y a aucun résultat (sinon le même tableau apparaîtrait deux fois)
     var rp = a.recordsPerso;
-    if (rp && (rp.lignes || []).length && (!(a.resultats || []).length || (rp.annees || []).some(function (n) { return !/^DATE/i.test(n); }))) {
+    if (rp && (rp.lignes || []).length && !(a.resultats || []).length) {
       h += '<section class="carte"><h3>' + (modifiable ? 'Records personnels' : 'Records notés par ton entraîneur') + '</h3><div class="tableau"><table><thead><tr><th>Distance</th><th class="num">Record</th>' +
         (rp.annees || []).map(function (n) { return '<th class="num">' + esc(n) + '</th>'; }).join('') + '</tr></thead><tbody>' +
         rp.lignes.map(function (l) { return '<tr><td><b>' + esc(l.distance) + '</b></td><td class="num"><b>' + (l.record ? esc(l.record) : '—') + '</b></td>' +
