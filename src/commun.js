@@ -516,9 +516,9 @@ var UI = (function () {
       hist.map(function (x, i) { return '<tr><td>' + esc(x.test) + '</td><td>' + esc(C.dateTest(x.date)) + '</td><td class="num">' + C.nombreFR(x.vma, 2) + ' km/h</td>' + (modifiable ? '<td><button class="discret" data-act="supprVma" data-i="' + i + '" aria-label="Supprimer">✕</button></td>' : '') + '</tr>'; }).join('') +
       '</tbody></table></div>' : '<p class="muet">Aucun test enregistré.</p>') +
       (modifiable ? '<form id="fHist" class="champs" style="margin-top:10px"><label>Test<input name="t" placeholder="1/2 COOP"></label><label>Date<input name="d" placeholder="11/24"></label><label>VMA<input name="v" inputmode="decimal"></label><label>&nbsp;<button>Ajouter</button></label></form>' : '') + '</section></div>';
-    // Records personnels importés (tableau RECORDS PERSONNELS de l'onglet ALLURES) : affichés tant qu'aucun résultat n'est saisi dans l'application
+    // Records personnels importés (tableau RECORDS PERSONNELS de l'onglet ALLURES) : affichés s'ils ont des colonnes par année, ou tant qu'aucun résultat n'est saisi
     var rp = a.recordsPerso;
-    if (rp && (rp.lignes || []).length && !(a.resultats || []).length) {
+    if (rp && (rp.lignes || []).length && (!(a.resultats || []).length || (rp.annees || []).some(function (n) { return !/^DATE/i.test(n); }))) {
       h += '<section class="carte"><h3>' + (modifiable ? 'Records personnels' : 'Records notés par ton entraîneur') + '</h3><div class="tableau"><table><thead><tr><th>Distance</th><th class="num">Record</th>' +
         (rp.annees || []).map(function (n) { return '<th class="num">' + esc(n) + '</th>'; }).join('') + '</tr></thead><tbody>' +
         rp.lignes.map(function (l) { return '<tr><td><b>' + esc(l.distance) + '</b></td><td class="num"><b>' + (l.record ? esc(l.record) : '—') + '</b></td>' +
@@ -527,8 +527,8 @@ var UI = (function () {
     }
     var pcts = [120, 115, 110, 105, 100, 95], dists = [500, 400, 300, 200, 100];
     h += '<section class="carte"><h3>Valeurs du travail en VMA ou PAL</h3><div class="tableau"><table><thead><tr><th>Distance</th>' + pcts.map(function (p) { return '<th class="num">' + p + ' %<br><span class="muet petit">' + C.nombreFR(C.vitessePct(vma, p), 1) + ' km/h</span></th>'; }).join('') + '</tr></thead><tbody>' +
-      dists.map(function (d) { return '<tr><td><b>' + d + ' m</b></td>' + pcts.map(function (p) { return '<td class="num">' + C.formatTemps(C.tempsDistancePct(d, vma, p)) + '</td>'; }).join('') + '</tr>'; }).join('') +
-      '</tbody></table></div><p class="muet petit">PAL : puissance anaérobie lactique (résistance-intensité) ; effort proche du maximum d\'une durée de 20 s à 1 min. Récupération incomplète et passive ; 3 à 6 répétitions. 100 % = VMA courte, 95 % = VMA longue.</p></section>';
+      dists.map(function (d) { return '<tr><td><b>' + d + ' m</b></td>' + pcts.map(function (p) { return '<td class="num">' + C.chronoTexte(C.tempsDistancePct(d, vma, p)) + '</td>'; }).join('') + '</tr>'; }).join('') +
+      '</tbody></table></div><p class="muet petit">Temps en minutes:secondes, arrondis à la seconde. PAL : puissance anaérobie lactique (résistance-intensité) ; effort proche du maximum d\'une durée de 20 s à 1 min. Récupération incomplète et passive ; 3 à 6 répétitions. 100 % = VMA courte, 95 % = VMA longue.</p></section>';
     var specs = [['10 km', al.chrono10, 10, 90], ['semi-marathon (21,1 km)', al.chronoSemi, 21.1, 85], ['marathon (42,195 km)', al.chronoMarathon, 42.195, 80]];
     h += '<div class="grille2">' + specs.map(function (s) {
       var x = C.allureChrono(s[1], s[2]), rep = C.vitessePct(vma, s[3]);

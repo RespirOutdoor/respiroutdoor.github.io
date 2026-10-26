@@ -390,6 +390,12 @@ var Core = (function () {
       Object.keys(recu).forEach(function (k) {
         if (k === 'jours' || k === 'id') return;
         if (mode === 'excel' && CLES_LOCALES.indexOf(k) >= 0 && !recu[k]) return;
+        if (mode === 'excel' && k === 'resultats') {
+          var cle = function (r) { return r.dist + '|' + r.date + '|' + r.s; }, deja = {};
+          res.resultats = clone(local.resultats || []); res.resultats.forEach(function (r) { deja[cle(r)] = 1; });
+          (recu.resultats || []).forEach(function (r) { if (!deja[cle(r)]) { res.resultats.push(clone(r)); deja[cle(r)] = 1; } });
+          return;
+        }
         // Chronos de base : une case vide du classeur ne remplace pas une valeur saisie dans l'application
         if (mode === 'excel' && k === 'allures' && local.allures) {
           res.allures = clone(local.allures);
@@ -897,6 +903,27 @@ var Core = (function () {
     if (isNum(v)) return v >= 0 && v < 2 ? formatDuree(Math.round(v * 86400)) : texte(v);
     var d = parseDuree(v); return isNum(d) && /:/.test(texte(v)) ? formatDuree(d) : texte(v);
   }
+  // Chrono d'une cellule : durée Excel (fraction de jour), « 1H34'45" », « 1H42 », « 18'42 », « 0:45:45 », « 45:45 » -> secondes
+  function chronoCellule(v) {
+    if (isNum(v)) return v > 0 && v < 2 ? Math.round(v * 86400) : null;
+    var t = texte(v).toUpperCase().replace(/[″”"]/g, '').replace(/[’′‘]/g, "'").replace(/\s+/g, '');
+    if (!t) return null;
+    var m = t.match(/^(?:(\d+)H)?(?:(\d+)(?:'|MIN|MN))?(?:(\d+)S?)?$/);
+    if (m && (m[1] || m[2])) {
+      var h = +m[1] || 0, mi = +m[2] || 0, se = +m[3] || 0;
+      if (m[1] && !m[2] && m[3] && !/S$/.test(t)) { mi = se; se = 0; } // « 1H42 » = 1 h 42 min
+      return mi < 60 && se < 60 && h * 3600 + mi * 60 + se > 0 ? h * 3600 + mi * 60 + se : null;
+    }
+    if (/:/.test(t)) { var d = parseDuree(t); return isNum(d) && d > 0 ? d : null; }
+    return null;
+  }
+  // Distance d'une ligne du tableau des records : « 5KM », « 10 km », « SEMI », « 1/2 MARATHON », « MARATHON », « 100KM »
+  function distanceLigne(t) {
+    var n = normCode(t).replace(/-/g, '');
+    if (/^5KMS?$/.test(n)) return 'd5'; if (/^10KMS?$/.test(n)) return 'd10';
+    if (/^SEMI|^1\/2/.test(n)) return 'semi'; if (/^MARATHON$/.test(n)) return 'marathon'; if (/^100KMS?$/.test(n)) return 'd100';
+    return null;
+  }
   // Tableau « RECORDS PERSONNELS » de l'onglet ALLURES : une ligne par distance (5KM… 100KM), colonne RECORD puis une colonne par année
   function importerRecordsPerso(f) {
     var p = chercher(f, /^RECORDS PERSONNELS/i); if (!p) return null;
@@ -910,7 +937,12 @@ var Core = (function () {
     for (var r = ph.r + 1; r < ph.r + 15; r++) {
       var d = texte(cel(f, r, ph.c)); if (!d) break;
       // Colonne « DATE » (date du record) : date Excel affichée en date ; nombre de jours Excel dans une autre colonne : date aussi
-      lignes.push({ distance: d, record: cRec === null ? '' : texteChrono(cel(f, r, cRec)), annees: cols.map(function (x) {
+      // Record daté -> résultat de la carte Records (date complète obligatoire : « 09/25 » ne suffit pas)
+      var cDate = cols.filter(function (x) { return /^DATE/i.test(x.nom); })[0], vd = cDate ? cel(f, r, cDate.c) : undefined;
+      var iso = isNum(vd) ? (vd > 20000 && vd < 80000 ? excelSerialToISO(vd) : null) : parseDateFR(texte(vd));
+      var dist = distanceLigne(d), sec = cRec === null ? null : chronoCellule(cel(f, r, cRec));
+      var res = dist && sec && iso ? { id: 'x' + dist + iso.replace(/-/g, '') + sec, dist: dist, date: iso, s: sec, course: 'Classeur Excel' } : null;
+      lignes.push({ distance: d, res: res, record: cRec === null ? '' : texteChrono(cel(f, r, cRec)), annees: cols.map(function (x) {
         var v = cel(f, r, x.c);
         return /^DATE/i.test(x.nom) || (isNum(v) && v > 20000 && v < 80000) ? (v === undefined ? '' : dateTest(v)) : texteChrono(v);
       }) });
@@ -925,7 +957,16 @@ var Core = (function () {
   function importerAllures(f, a, rapport) {
     if (!f) return;
     var rp = importerRecordsPerso(f);
-    if (rp) { a.recordsPerso = rp; rapport.push('Records personnels : ' + rp.lignes.filter(function (l) { return l.record; }).length + ' distance(s) renseignée(s)' + (rp.annees.length ? ', colonnes ' + rp.annees.join(', ') : '')); }
+    if (rp) {
+      rapport.push('Records personnels : ' + rp.lignes.filter(function (l) { return l.record; }).length + ' distance(s) renseignée(s)' + (rp.annees.length ? ', colonnes ' + rp.annees.join(', ') : ''));
+      // Records datés repris dans la carte Records (ajoutés aux résultats saisis dans l'application, sans doublon)
+      a.resultats = rp.lignes.map(function (l) { return l.res; }).filter(function (x) { return x && resultatValide(x); });
+      if (a.resultats.length) rapport.push('Repris dans la carte Records : ' + a.resultats.map(function (x) { return distanceRP(x.dist).court + ' ' + chronoTexte(x.s) + ' du ' + formatDateFR(x.date); }).join(', '));
+      var sansDate = rp.lignes.filter(function (l) { return l.record && !l.res && distanceLigne(l.distance); }).map(function (l) { return l.distance; });
+      if (sansDate.length) rapport.push('⚠ Non repris dans la carte Records (il faut un chrono et une date complète, ex. 12/04/2026) : ' + sansDate.join(', '));
+      rp.lignes.forEach(function (l) { delete l.res; });
+      a.recordsPerso = rp;
+    }
     var p = chercher(f, /^TYPE\s*:?$/i);
     if (p) {
       a.test.type = texte(cel(f, p.r, p.c + 1));
@@ -1148,6 +1189,15 @@ var Core = (function () {
   /* ---------- Autotests (valeurs de référence calculées à la main) ---------- */
   function near(a, b, eps) { return isNum(a) && Math.abs(a - b) <= (eps || 1e-9); }
   var TESTS = [
+    ['Chrono de cellule : 1H34\'45" = 5685 s ; 1H42 = 6120 s ; 18\'42 = 1122 s ; 0:45:45 = 2745 s ; 0,0266 j = 2298 s', function () {
+      return chronoCellule('1H34\'45"') === 5685 && chronoCellule('1H42') === 6120 && chronoCellule('18\'42') === 1122 && chronoCellule('0:45:45') === 2745 && chronoCellule(0.0266) === 2298 && chronoCellule('abc') === null && chronoCellule('1H75') === null;
+    }],
+    ['Import Excel des records : ajoutés aux résultats saisis, sans doublon', function () {
+      var local = { id: 'X', jours: {}, resultats: [{ id: 'r1', dist: 'd10', date: '2026-04-12', s: 2300 }] };
+      var recu = { id: 'X', jours: {}, resultats: [{ id: 'x1', dist: 'd10', date: '2026-04-12', s: 2300 }, { id: 'x2', dist: 'semi', date: '2026-10-25', s: 5685 }] };
+      var r = fusionner(local, recu, 'excel');
+      return r.resultats.length === 2 && r.resultats[0].id === 'r1' && r.resultats[1].dist === 'semi' && distanceLigne('1/2 MARATHON') === 'semi' && distanceLigne('100 KM') === 'd100' && distanceLigne('10KM') === 'd10';
+    }],
     ['Onglets : « ALLURES FLAVIEN » lu comme ALLURES, jamais comme plan ; « Légende » = LEGENDE', function () {
       var cl = { feuilles: [{ nom: 'ALLURES FLAVIEN', lignes: [['TEST', 'DATE'], ['1/2 COOP', 1], ['1/2 COOP', 46320]] }, { nom: 'Légende', lignes: [] }, { nom: 'PLANNING', lignes: [] }] };
       return feuille(cl, 'ALLURES').nom === 'ALLURES FLAVIEN' && feuille(cl, 'LEGENDE').nom === 'Légende' && feuille(cl, 'PLAN') === null && ongletsPlan(cl).length === 0 && estAutreOnglet('Protos 2026') && !estAutreOnglet('PLAN FLAVIEN');

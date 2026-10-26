@@ -37,6 +37,8 @@ Toutes reprennent les formules de l'onglet ALLURES ou PLAN du classeur de l'entr
 | Records | Plus longue sortie, plus longue durée, plus gros D+, plus grosse semaine (lundi → dimanche), meilleure allure moyenne de séance (≥ 10 km, ≥ 5 km), meilleure allure en compétition (type COMP) | définition, calculée sur les seules saisies |
 | Records personnels (RP) | Résultats saisis par l'entraîneur (5 km, 10 km, semi 21,0975 km, marathon 42,195 km, 100 km) ; RP = meilleur chrono de la distance ; « ancien RP » = résultat meilleur que tous les précédents à sa date | définition |
 | Allure, vitesse, % VMA d'un RP | Allure = chrono / distance ; vitesse = distance / chrono ; % VMA = vitesse / VMA × 100 (VMA actuelle de la fiche) | calcul |
+| Records repris du classeur | Ligne du tableau « RECORDS PERSONNELS » (onglet ALLURES) avec une distance reconnue, un chrono (RECORD) et une date complète (colonne DATE) → résultat de la carte Records ; ajouté sans doublon (même distance, date et chrono) | convention de l'outil |
+| Tableau VMA/PAL | Temps affichés en minutes:secondes, arrondis à la seconde | convention de l'outil |
 | Progression totale, dernier gain | Premier chrono − RP actuel (et en % du premier chrono) ; RP précédent − RP actuel | calcul |
 | Fusion des données | La partie entraîneur vient de l'entraîneur ; la partie athlète vient de l'athlète ; entre deux saisies, la plus récente (horodatage) gagne | convention de l'outil |
 | Couleur RPE | Niveau n placé à (n − 1) / 9 du dégradé à 7 couleurs, interpolation linéaire en RVB ; texte blanc ou noir selon le meilleur contraste WCAG | convention de l'outil |
