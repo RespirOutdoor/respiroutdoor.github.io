@@ -503,11 +503,12 @@ var UI = (function () {
         '</div><p class="muet petit" style="margin:12px 0 0">Valeur fixée par ton entraîneur, d\'après ton dernier test.</p></section>';
     } else h = '<section class="carte"><h2>VMA &amp; allures</h2><form id="fAll" class="champs">' +
       '<label>VMA (km/h)<input name="vma" inputmode="decimal"' + dis + ' value="' + (C.isNum(vma) ? C.nombreFR(vma) : '') + '"></label>' +
-      '<label>Type de test<input name="ttype"' + dis + ' value="' + esc((a.test || {}).type) + '" placeholder="1/2 COOPER"></label>' +
-      '<label>Date du test<input name="tdate"' + dis + ' value="' + esc(C.dateTest((a.test || {}).date)) + '" placeholder="11/24"></label>' +
-      '<label>Chrono 10 km<input name="c10"' + dis + ' value="' + (C.isNum(al.chrono10) ? C.formatDuree(al.chrono10) : '') + '" placeholder="0:37:00"></label>' +
-      '<label>Chrono semi<input name="cs"' + dis + ' value="' + (C.isNum(al.chronoSemi) ? C.formatDuree(al.chronoSemi) : '') + '" placeholder="1:22:45"></label>' +
-      '<label>Chrono marathon<input name="cm"' + dis + ' value="' + (C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : '') + '" placeholder="2:59:00"></label>' +
+      '<label>Type de test<input name="ttype"' + dis + ' value="' + esc((a.test || {}).type) + '"></label>' +
+      '<label>Date du test<input name="tdate"' + dis + ' value="' + esc(C.dateTest((a.test || {}).date)) + '" placeholder="mm/aa"></label>' +
+      '<label>Chrono 10 km<input name="c10"' + dis + ' value="' + (C.isNum(al.chrono10) ? C.formatDuree(al.chrono10) : '') + '" placeholder="h:mm:ss"></label>' +
+      '<label>Chrono semi<input name="cs"' + dis + ' value="' + (C.isNum(al.chronoSemi) ? C.formatDuree(al.chronoSemi) : '') + '" placeholder="h:mm:ss"></label>' +
+      '<label>Chrono marathon<input name="cm"' + dis + ' value="' + (C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : '') + '" placeholder="h:mm:ss"></label>' +
+      '<label>Chrono 100 km<input name="c100"' + dis + ' value="' + (C.isNum(al.chrono100) ? C.formatDuree(al.chrono100) : '') + '" placeholder="h:mm:ss"></label>' +
       '<label>Pré-fatigue (% VMA)<input name="pf" inputmode="decimal"' + dis + ' value="' + C.nombreFR(al.preFatPct, 1) + '"></label>' +
       '</form><p class="alerte" id="erreurAll" hidden></p><p class="muet petit">' + (modifiable ? 'Les calculs se mettent à jour à chaque modification.' : 'Valeurs fixées par ton entraîneur.') + ' Formules de l\'onglet ALLURES du tableau de l\'entraîneur.</p></section>';
     h += htmlRecords(a, modifiable);
@@ -519,7 +520,7 @@ var UI = (function () {
     h += '<section class="carte"><h3>Évolution de la VMA</h3>' + (hist.length ? '<div class="tableau"><table><thead><tr><th>Test</th><th>Date</th><th class="num">VMA</th>' + (modifiable ? '<th></th>' : '') + '</tr></thead><tbody>' +
       hist.map(function (x, i) { return '<tr><td>' + esc(x.test) + '</td><td>' + esc(C.dateTest(x.date)) + '</td><td class="num">' + C.nombreFR(x.vma, 2) + ' km/h</td>' + (modifiable ? '<td><button class="discret" data-act="supprVma" data-i="' + i + '" aria-label="Supprimer">✕</button></td>' : '') + '</tr>'; }).join('') +
       '</tbody></table></div>' : '<p class="muet">Aucun test enregistré.</p>') +
-      (modifiable ? '<form id="fHist" class="champs" style="margin-top:10px"><label>Test<input name="t" placeholder="1/2 COOP"></label><label>Date<input name="d" placeholder="11/24"></label><label>VMA<input name="v" inputmode="decimal"></label><label>&nbsp;<button>Ajouter</button></label></form>' : '') + '</section></div>';
+      (modifiable ? '<form id="fHist" class="champs" style="margin-top:10px"><label>Test<input name="t"></label><label>Date<input name="d" placeholder="mm/aa"></label><label>VMA<input name="v" inputmode="decimal"></label><label>&nbsp;<button>Ajouter</button></label></form>' : '') + '</section></div>';
     // Records personnels importés avant leur reprise dans la carte Records : affichés tant qu'il n'y a aucun résultat (sinon le même tableau apparaîtrait deux fois)
     var rp = a.recordsPerso;
     if (rp && (rp.lignes || []).length && !(a.resultats || []).length) {
@@ -533,14 +534,17 @@ var UI = (function () {
     h += '<section class="carte"><h3>Valeurs du travail en VMA ou PAL</h3><div class="tableau"><table><thead><tr><th>Distance</th>' + pcts.map(function (p) { return '<th class="num">' + p + ' %<br><span class="muet petit">' + C.nombreFR(C.vitessePct(vma, p), 1) + ' km/h</span></th>'; }).join('') + '</tr></thead><tbody>' +
       dists.map(function (d) { return '<tr><td><b>' + d + ' m</b></td>' + pcts.map(function (p) { return '<td class="num">' + C.chronoTexte(C.tempsDistancePct(d, vma, p)) + '</td>'; }).join('') + '</tr>'; }).join('') +
       '</tbody></table></div><p class="muet petit">Temps en minutes:secondes, arrondis à la seconde. PAL : puissance anaérobie lactique (résistance-intensité) ; effort proche du maximum d\'une durée de 20 s à 1 min. Récupération incomplète et passive ; 3 à 6 répétitions. 100 % = VMA courte, 95 % = VMA longue.</p></section>';
-    var specs = [['10 km', al.chrono10, 10, 90], ['semi-marathon (21,1 km)', al.chronoSemi, 21.1, 85], ['marathon (42,195 km)', al.chronoMarathon, 42.195, 80]];
+    // [titre, chrono de base, distance (km), repère % VMA, distances du tableau (m)] ; 100 km : seulement s'il a un chrono de base, sans repère % VMA (pas de valeur dans le classeur)
+    var D5 = [1000, 2000, 3000, 4000, 5000];
+    var specs = [['10 km', al.chrono10, 10, 90, D5], ['semi-marathon (21,1 km)', al.chronoSemi, 21.1, 85, D5], ['marathon (42,195 km)', al.chronoMarathon, 42.195, 80, D5]];
+    if (C.isNum(al.chrono100)) specs.push(['100 km', al.chrono100, 100, null, [1000, 2000, 3000, 4000, 5000, 10000, 21100, 42195, 50000, 75000]]);
     h += '<div class="grille2">' + specs.map(function (s) {
       var x = C.allureChrono(s[1], s[2]), rep = C.vitessePct(vma, s[3]);
       var t = '<section class="carte"><h3>Allure spécifique ' + s[0] + '</h3>';
       if (!x) t += '<p class="muet">Pas de chrono de référence.</p>';
       else t += '<p><b>' + C.formatAllure(x.allure) + '</b> · ' + C.nombreFR(x.vitesse, 2) + ' km/h <span class="muet petit">(chrono ' + C.formatDuree(s[1]) + ')</span></p>' +
-        '<div class="tableau"><table><thead><tr><th>Distance</th><th class="num">Temps</th></tr></thead><tbody>' + [1000, 2000, 3000, 4000, 5000].map(function (d) { return '<tr><td>' + d + ' m</td><td class="num">' + C.formatTemps(x.allure * d / 1000) + '</td></tr>'; }).join('') + '</tbody></table></div>';
-      return t + '<p class="muet petit">Repère : ' + s[3] + ' % de VMA = ' + C.nombreFR(rep, 2) + ' km/h (' + C.formatAllure(C.paceFromSpeed(rep)) + ')</p></section>';
+        '<div class="tableau"><table><thead><tr><th>Distance</th><th class="num">Temps</th></tr></thead><tbody>' + s[4].map(function (d) { return '<tr><td>' + d + ' m</td><td class="num">' + C.formatTemps(x.allure * d / 1000) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+      return t + (s[3] ? '<p class="muet petit">Repère : ' + s[3] + ' % de VMA = ' + C.nombreFR(rep, 2) + ' km/h (' + C.formatAllure(C.paceFromSpeed(rep)) + ')</p>' : '') + '</section>';
     }).join('');
     var vpf = C.vitessePct(vma, al.preFatPct);
     h += '<section class="carte"><h3>Travail en pré-fatigue</h3><p><b>' + C.nombreFR(al.preFatPct, 1) + ' %</b> de VMA = ' + C.nombreFR(vpf, 2) + ' km/h · ' + C.formatAllure(C.paceFromSpeed(vpf)) + '</p>' +
@@ -557,7 +561,7 @@ var UI = (function () {
         var d = new FormData(f), err = [];
         var v = C.parseNumberFR(d.get('vma'));
         if (v !== null && !(v > 5 && v < 30)) err.push('VMA entre 5 et 30 km/h');
-        var ch = {}; [['c10', 'chrono10'], ['cs', 'chronoSemi'], ['cm', 'chronoMarathon']].forEach(function (k) {
+        var ch = {}; [['c10', 'chrono10'], ['cs', 'chronoSemi'], ['cm', 'chronoMarathon'], ['c100', 'chrono100']].forEach(function (k) {
           var x = C.parseDuree(d.get(k[0])); if (x !== null && !(x > 0)) err.push('Chrono invalide (format h:mm:ss)'); else ch[k[1]] = x;
         });
         var pf = C.parseNumberFR(d.get('pf'));
