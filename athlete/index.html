@@ -2678,24 +2678,21 @@ var UI = (function () {
 
   /* ---------- Allures ---------- */
   // modifiable : formulaire actif (entraîneur) ou lecture seule (athlète) ; enregistrer(a) appelé après modification
+  var ctxAllures = {};
   function vueAllures(main, a, modifiable, enregistrer) {
-    var vma = a.vma, al = a.allures || {}, dis = modifiable ? '' : ' disabled';
-    var h;
-    if (!modifiable) {
-      // Lecture seule (athlète) : carte « Ma VMA » (couleur rouge), puis les records saisis par l'entraîneur
-      var vals = [['VMA', C.isNum(vma) ? C.nombreFR(vma) + ' km/h' : ''], ['Type de test', (a.test || {}).type], ['Date du test', C.dateTest((a.test || {}).date)]];
-      h = '<section class="carte ma-vma"><h2>Ma VMA</h2><div class="kpis valeurs">' + vals.map(function (x) { return '<div class="kpi"><span class="etiq">' + x[0] + '</span><b>' + (C.texte(x[1]) ? esc(x[1]) : '—') + '</b></div>'; }).join('') +
-        '</div><p class="muet petit" style="margin:12px 0 0">Valeur fixée par ton entraîneur, d\'après ton dernier test.</p></section>';
-    } else h = '<section class="carte"><h2>VMA &amp; allures</h2><form id="fAll" class="champs">' +
-      '<label>VMA (km/h)<input name="vma" inputmode="decimal"' + dis + ' value="' + (C.isNum(vma) ? C.nombreFR(vma) : '') + '"></label>' +
-      '<label>Type de test<input name="ttype"' + dis + ' value="' + esc((a.test || {}).type) + '"></label>' +
-      '<label>Date du test<input name="tdate"' + dis + ' value="' + esc(C.dateTest((a.test || {}).date)) + '" placeholder="mm/aa"></label>' +
-      '<label>Chrono 10 km<input name="c10"' + dis + ' value="' + (C.isNum(al.chrono10) ? C.formatDuree(al.chrono10) : '') + '" placeholder="h:mm:ss"></label>' +
-      '<label>Chrono semi<input name="cs"' + dis + ' value="' + (C.isNum(al.chronoSemi) ? C.formatDuree(al.chronoSemi) : '') + '" placeholder="h:mm:ss"></label>' +
-      '<label>Chrono marathon<input name="cm"' + dis + ' value="' + (C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : '') + '" placeholder="h:mm:ss"></label>' +
-      '<label>Chrono 100 km<input name="c100"' + dis + ' value="' + (C.isNum(al.chrono100) ? C.formatDuree(al.chrono100) : '') + '" placeholder="h:mm:ss"></label>' +
-      '<label>Pré-fatigue (% VMA)<input name="pf" inputmode="decimal"' + dis + ' value="' + C.nombreFR(al.preFatPct, 1) + '"></label>' +
-      '</form><p class="alerte" id="erreurAll" hidden></p><p class="muet petit">' + (modifiable ? 'Les calculs se mettent à jour à chaque modification.' : 'Valeurs fixées par ton entraîneur.') + ' Formules de l\'onglet ALLURES du tableau de l\'entraîneur.</p></section>';
+    ctxAllures = { a: a, enregistrer: enregistrer };
+    var vma = a.vma, al = a.allures || {};
+    // Carte « VMA » rouge, identique pour l'athlète (« Ma VMA ») et l'entraîneur (« VMA de Hervé », bouton Modifier)
+    var vals = [['VMA', C.isNum(vma) ? C.nombreFR(vma) + ' km/h' : ''], ['Type de test', (a.test || {}).type], ['Date du test', C.dateTest((a.test || {}).date)]];
+    function cases(l) { return l.map(function (x) { return '<div class="kpi"><span class="etiq">' + x[0] + '</span><b>' + (C.texte(x[1]) ? esc(x[1]) : '—') + '</b></div>'; }).join(''); }
+    var h = '<section class="carte ma-vma"><div class="ligne"><h2 class="espace" style="margin:0">' + (modifiable ? 'VMA' + (prenom(a) ? ' de ' + esc(prenom(a)) : '') : 'Ma VMA') + '</h2>' +
+      (modifiable ? '<button class="sec" data-all="modifier">Modifier</button>' : '') + '</div><div class="kpis valeurs">' + cases(vals) + '</div>' +
+      '<p class="muet petit" style="margin:12px 0 0">' + (modifiable ? 'Ton athlète voit la même carte dans son application (« Ma VMA »).' : 'Valeur fixée par ton entraîneur, d\'après ton dernier test.') + '</p></section>';
+    // Entraîneur : chronos de base et pré-fatigue (servent aux allures spécifiques), modifiables dans la même fenêtre
+    if (modifiable) h += '<section class="carte"><div class="ligne"><h3 class="espace" style="margin:0">Chronos de base</h3><button class="sec" data-all="modifier">Modifier</button></div><div class="kpis kpis2 valeurs">' +
+      cases([['Chrono 10 km', C.isNum(al.chrono10) ? C.formatDuree(al.chrono10) : ''], ['Chrono semi', C.isNum(al.chronoSemi) ? C.formatDuree(al.chronoSemi) : ''], ['Chrono marathon', C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : ''],
+        ['Chrono 100 km', C.isNum(al.chrono100) ? C.formatDuree(al.chrono100) : ''], ['Pré-fatigue', C.isNum(al.preFatPct) ? C.nombreFR(al.preFatPct, 1) + ' % VMA' : '']]) +
+      '</div><p class="muet petit" style="margin:12px 0 0">Servent aux allures spécifiques. Formules de l\'onglet ALLURES du tableau de l\'entraîneur.</p></section>';
     h += htmlRecords(a, modifiable);
     if (!C.isNum(vma)) { main.innerHTML = h + '<p class="alerte">' + (modifiable ? 'Renseigne la VMA pour afficher les allures.' : 'Ton entraîneur n\'a pas encore renseigné ta VMA.') + '</p>'; brancher(); return; }
     h += '<div class="grille2"><section class="carte"><h3>Zones d\'allures</h3><div class="tableau"><table class="compact"><thead><tr><th>Zone</th><th class="num">% VMA</th><th class="num">km/h</th><th class="num">min/km</th><th>Usage</th></tr></thead><tbody>' +
@@ -2741,21 +2738,7 @@ var UI = (function () {
     function brancher() {
       brancherRecords(main, a, modifiable, enregistrer);
       if (!modifiable) return;
-      var f = $('#fAll');
-      f.onchange = function () {
-        var d = new FormData(f), err = [];
-        var v = C.parseNumberFR(d.get('vma'));
-        if (v !== null && !(v > 5 && v < 30)) err.push('VMA entre 5 et 30 km/h');
-        var ch = {}; [['c10', 'chrono10'], ['cs', 'chronoSemi'], ['cm', 'chronoMarathon'], ['c100', 'chrono100']].forEach(function (k) {
-          var x = C.parseDuree(d.get(k[0])); if (x !== null && !(x > 0)) err.push('Chrono invalide (format h:mm:ss)'); else ch[k[1]] = x;
-        });
-        var pf = C.parseNumberFR(d.get('pf'));
-        if (!(pf > 0 && pf <= 120)) err.push('Pré-fatigue : % entre 1 et 120');
-        if (err.length) { var e = $('#erreurAll'); e.hidden = false; e.textContent = err.join(' · '); return; }
-        a.vma = v; a.allures = Object.assign({}, a.allures, ch, { preFatPct: pf });
-        a.test = Object.assign({}, a.test, { type: C.texte(d.get('ttype')), date: C.texte(d.get('tdate')) });
-        enregistrer(a);
-      };
+      $$('[data-all="modifier"]', main).forEach(function (b) { b.onclick = modifierVMA; });
       var fh = $('#fHist');
       if (fh) fh.onsubmit = function (ev) {
         ev.preventDefault();
@@ -2765,6 +2748,37 @@ var UI = (function () {
         enregistrer(a);
       };
     }
+  }
+
+  // Fenêtre de modification (entraîneur) : VMA, test, chronos de base, pré-fatigue ; les calculs se mettent à jour à l'enregistrement
+  function modifierVMA() {
+    var boite = document.getElementById('boite'), a = ctxAllures.a, al = a.allures || {};
+    function duree(n, lib, v) { return '<label>' + lib + '<input name="' + n + '" inputmode="numeric" autocomplete="off" value="' + (C.isNum(v) ? C.formatDuree(v) : '') + '" placeholder="h:mm:ss"></label>'; }
+    boite.innerHTML = '<form class="boite saisie" novalidate><h2>VMA' + (prenom(a) ? ' de ' + esc(prenom(a)) : '') + '</h2><div class="champs">' +
+      '<label>VMA (km/h)<input name="vma" inputmode="decimal" autocomplete="off" value="' + (C.isNum(a.vma) ? C.nombreFR(a.vma) : '') + '"></label>' +
+      '<label>Type de test<input name="ttype" autocomplete="off" value="' + esc((a.test || {}).type) + '"></label>' +
+      '<label>Date du test<input name="tdate" autocomplete="off" value="' + esc(C.dateTest((a.test || {}).date)) + '" placeholder="mm/aa"></label>' +
+      '<label>Pré-fatigue (% VMA)<input name="pf" inputmode="decimal" autocomplete="off" value="' + C.nombreFR(al.preFatPct, 1) + '"></label>' +
+      duree('c10', 'Chrono 10 km', al.chrono10) + duree('cs', 'Chrono semi', al.chronoSemi) + duree('cm', 'Chrono marathon', al.chronoMarathon) + duree('c100', 'Chrono 100 km', al.chrono100) +
+      '</div><p class="alerte" id="erreurAll" hidden></p><div class="pied"><button type="button" class="sec" data-f="annuler">Annuler</button><button>Enregistrer</button></div></form>';
+    if (!boite.open) boite.showModal();
+    var f = $('form', boite);
+    $('[data-f="annuler"]', f).onclick = function () { boite.close(); };
+    f.onsubmit = function (ev) {
+      ev.preventDefault();
+      var d = new FormData(f), err = [];
+      var v = C.parseNumberFR(d.get('vma'));
+      if (v !== null && !(v > 5 && v < 30)) err.push('VMA entre 5 et 30 km/h');
+      var ch = {}; [['c10', 'chrono10'], ['cs', 'chronoSemi'], ['cm', 'chronoMarathon'], ['c100', 'chrono100']].forEach(function (k) {
+        var x = C.parseDuree(d.get(k[0])); if (x !== null && !(x > 0)) err.push('Chrono invalide (format h:mm:ss)'); else ch[k[1]] = x;
+      });
+      var pf = C.parseNumberFR(d.get('pf'));
+      if (!(pf > 0 && pf <= 120)) err.push('Pré-fatigue : % entre 1 et 120');
+      if (err.length) { var e = $('#erreurAll', f); e.hidden = false; e.textContent = err.filter(function (x, i) { return err.indexOf(x) === i; }).join(' · '); return; }
+      a.vma = v; a.allures = Object.assign({}, a.allures, ch, { preFatPct: pf });
+      a.test = Object.assign({}, a.test, { type: C.texte(d.get('ttype')), date: C.texte(d.get('tdate')) });
+      boite.close(); ctxAllures.enregistrer(a);
+    };
   }
 
   /* ---------- Protos ---------- */
