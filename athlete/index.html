@@ -1588,7 +1588,7 @@ var Core = (function () {
       if (cle) { a.allures[cle] = ch; if (ch) lus.push({ chrono10: '10 km', chronoSemi: 'semi', chronoMarathon: 'marathon', chrono100: '100 km' }[cle] + ' ' + formatDuree(ch)); }
       from = pc.r + 1;
     }
-    if (lus.length) rapport.push('Chronos de base : ' + lus.join(', '));
+    if (lus.length) rapport.push('Base de travail à allure spécifique : ' + lus.join(', '));
     var pf = chercher(f, /^ESTIMATION PRE-FAT/i);
     if (pf) { var pct = aDroite(f, pf, 3); if (isNum(pct)) a.allures.preFatPct = pct; }
   }
@@ -2687,9 +2687,9 @@ var UI = (function () {
     function cases(l) { return l.map(function (x) { return '<div class="kpi"><span class="etiq">' + x[0] + '</span><b>' + (C.texte(x[1]) ? esc(x[1]) : '—') + '</b></div>'; }).join(''); }
     var h = '<section class="carte ma-vma"><div class="ligne"><h2 class="espace" style="margin:0">' + (modifiable ? 'VMA' + (prenom(a) ? ' de ' + esc(prenom(a)) : '') : 'Ma VMA') + '</h2>' +
       (modifiable ? '<button class="sec" data-all="modifier">Modifier</button>' : '') + '</div><div class="kpis valeurs">' + cases(vals) + '</div>' +
-      '<p class="muet petit" style="margin:12px 0 0">' + (modifiable ? 'Ton athlète voit la même carte dans son application (« Ma VMA »).' : 'Valeur fixée par ton entraîneur, d\'après ton dernier test.') + '</p></section>';
-    // Entraîneur : chronos de base et pré-fatigue (servent aux allures spécifiques), modifiables dans la même fenêtre
-    if (modifiable) h += '<section class="carte"><div class="ligne"><h3 class="espace" style="margin:0">Chronos de base</h3><button class="sec" data-all="modifier">Modifier</button></div><div class="kpis kpis2 valeurs">' +
+      '<p class="muet petit" style="margin:12px 0 0">' + (modifiable ? 'Ton athlète voit la même carte dans son application (« Ma VMA »).' : 'Valeur fixée par ton entraîneur, d\'après ton dernier test.') + '</p></section>';
+    // Entraîneur : base de travail à allure spécifique (chronos de base) et pré-fatigue (servent aux allures spécifiques), modifiables dans la même fenêtre
+    if (modifiable) h += '<section class="carte"><div class="ligne"><h3 class="espace" style="margin:0">Base de travail à allure spécifique</h3><button class="sec" data-all="modifier">Modifier</button></div><div class="kpis kpis2 valeurs">' +
       cases([['Chrono 10 km', C.isNum(al.chrono10) ? C.formatDuree(al.chrono10) : ''], ['Chrono semi', C.isNum(al.chronoSemi) ? C.formatDuree(al.chronoSemi) : ''], ['Chrono marathon', C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : ''],
         ['Chrono 100 km', C.isNum(al.chrono100) ? C.formatDuree(al.chrono100) : ''], ['Pré-fatigue', C.isNum(al.preFatPct) ? C.nombreFR(al.preFatPct, 1) + ' % VMA' : '']]) +
       '</div><p class="muet petit" style="margin:12px 0 0">Servent aux allures spécifiques. Formules de l\'onglet ALLURES du tableau de l\'entraîneur.</p></section>';

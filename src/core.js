@@ -1027,7 +1027,7 @@ var Core = (function () {
       if (cle) { a.allures[cle] = ch; if (ch) lus.push({ chrono10: '10 km', chronoSemi: 'semi', chronoMarathon: 'marathon', chrono100: '100 km' }[cle] + ' ' + formatDuree(ch)); }
       from = pc.r + 1;
     }
-    if (lus.length) rapport.push('Chronos de base : ' + lus.join(', '));
+    if (lus.length) rapport.push('Base de travail à allure spécifique : ' + lus.join(', '));
     var pf = chercher(f, /^ESTIMATION PRE-FAT/i);
     if (pf) { var pct = aDroite(f, pf, 3); if (isNum(pct)) a.allures.preFatPct = pct; }
   }
