@@ -352,7 +352,7 @@ var Core = (function () {
   // Résultats d'une distance par date ; rec : record au moment de la course ; best : record du moment
   function resultatsDistance(a, code) {
     var best = Infinity;
-    return ((a && a.resultats) || []).filter(function (r) { return r.dist === code && resultatValide(r); })
+    return tousResultats(a).filter(function (r) { return r.dist === code && resultatValide(r); })
       .sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : y.s - x.s; })
       .map(function (r) { var rec = r.s < best; if (rec) best = r.s; return Object.assign({}, r, { rec: rec, best: best }); });
   }
@@ -547,10 +547,32 @@ var Core = (function () {
     var l = texte(j && j.notes).split('\n').map(function (x) { return RE_TERRAIN.exec(x.trim()); }).filter(Boolean)[0];
     return l ? texte(l[1]) : '';
   }
-  function notesPrincipales(notes) { return texte(String(notes == null ? '' : notes).split('\n').filter(function (l) { return !RE_EXTRA.test(l.trim()) && !RE_TERRAIN.test(l.trim()); }).join('\n')); }
-  // Note complète : texte de l'athlète, puis terrain, puis activités en plus
-  function avecExtras(notes, liste, ter) {
-    var lignes = (texte(ter) ? ['[TERRAIN · ' + texte(ter).replace(/[\[\]\n]/g, '').slice(0, 60) + ']'] : []).concat((liste || []).map(ligneExtra)), n = notesPrincipales(notes);
+  function notesPrincipales(notes) { return texte(String(notes == null ? '' : notes).split('\n').filter(function (l) { return !RE_EXTRA.test(l.trim()) && !RE_TERRAIN.test(l.trim()) && !RE_RP.test(l.trim()); }).join('\n')); }
+  // RP saisi par l'athlète : ligne « [RP · 10 km · 38:20 · course] » dans les notes du jour de la course (sans changement du script Google)
+  var RE_RP = /^\[RP · ([^·\]]+) · (\d{1,2}(?::\d{2}){1,2})(?: · ([^\]]*))?\]$/;
+  function ligneRP(r) { var c = texte(r.course).replace(/[\[\]\n·]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60); return '[RP · ' + distanceRP(r.dist).nom + ' · ' + chronoTexte(r.s) + (c ? ' · ' + c : '') + ']'; }
+  function lignesRP(j) { return texte(j && j.notes).split('\n').map(function (l) { return l.trim(); }).filter(function (l) { return RE_RP.test(l); }); }
+  // RP de l'athlète lus dans ses notes : { id: « a<date>-<n> », par: 'athlete', dist, date, s, course }
+  function resultatsAthlete(a) {
+    var out = [];
+    Object.keys((a && a.jours) || {}).sort().forEach(function (d) {
+      lignesRP(a.jours[d]).forEach(function (l, i) {
+        var m = RE_RP.exec(l), dist = DISTANCES_RP.filter(function (x) { return x.nom === texte(m[1]); })[0], sec = parseDuree(m[2]);
+        var r = { id: 'a' + d + '-' + i, par: 'athlete', dist: dist ? dist.code : '', date: d, s: sec, course: texte(m[3]) };
+        if (resultatValide(r)) out.push(r);
+      });
+    });
+    return out;
+  }
+  // Tous les résultats : saisis par l'entraîneur (ou repris du classeur) puis par l'athlète, sans doublon (même distance, date et chrono)
+  function tousResultats(a) {
+    var vus = {}, out = [];
+    ((a && a.resultats) || []).concat(resultatsAthlete(a)).forEach(function (r) { var k = r.dist + '|' + r.date + '|' + r.s; if (!vus[k]) { vus[k] = 1; out.push(r); } });
+    return out;
+  }
+  // Note complète : texte de l'athlète, puis terrain, puis activités en plus, puis RP de l'athlète
+  function avecExtras(notes, liste, ter, rp) {
+    var lignes = (texte(ter) ? ['[TERRAIN · ' + texte(ter).replace(/[\[\]\n]/g, '').slice(0, 60) + ']'] : []).concat((liste || []).map(ligneExtra), rp || []), n = notesPrincipales(notes);
     return lignes.length ? (n ? n + '\n' : '') + lignes.join('\n') : n;
   }
   // Toutes les séances d'un jour : la saisie principale puis les activités en plus { code, nom, km, dureeSec, dplus, rpe, principale }
@@ -1221,6 +1243,13 @@ var Core = (function () {
   /* ---------- Autotests (valeurs de référence calculées à la main) ---------- */
   function near(a, b, eps) { return isNum(a) && Math.abs(a - b) <= (eps || 1e-9); }
   var TESTS = [
+    ['RP de l\'athlète : ligne « [RP · 10 km · 38:20 · …] » lue, gardée par avecExtras, invisible dans les notes et les retours', function () {
+      var l = ligneRP({ dist: 'd10', s: 2300, course: 'Foulées [x] · test' }), n = avecExtras('Bonnes jambes', [], 'Piste', [l]);
+      var a = { resultats: [{ id: 'r1', dist: 'd10', date: '2026-04-12', s: 2300 }], jours: { '2026-04-12': { notes: l }, '2025-11-11': { notes: 'ok\n' + ligneRP({ dist: 'semi', s: 5163 }) }, '2026-05-01': { notes: '[RP · 42 km · 3:00:00]' } } };
+      var t = tousResultats(a), ath = resultatsAthlete(a);
+      return l === '[RP · 10 km · 38:20 · Foulées x test]' && notesPrincipales(n) === 'Bonnes jambes' && lignesRP({ notes: n }).length === 1 && terrain({ notes: n }) === 'Piste' &&
+        aRetour({ notes: l }) === false && ath.length === 2 && ath[1].par === 'athlete' && ath[0].dist === 'semi' && ath[0].s === 5163 && t.length === 2 && t[0].id === 'r1' && syntheseRP(a)[1].rp.s === 2300;
+    }],
     ['Records du classeur : colonnes datées (1/11/2025, « 1/4/25 », 1/11/18) reprises à leur date', function () {
       var f = { nom: 'ALLURES', lignes: [['RECORDS PERSONNELS'], ['Distance', 'RECORD', 'DATE', 45962, '1/4/25', 'ANNEE'], ['10KM', '31\'59"', '1/11/25', '32\'12"', '32\'00"', ''], ['MARATHON', '2H31\'50"', '1/10/2026', '', '', '']] };
       var a = { test: {}, allures: {} }; importerAllures(f, a, []);
@@ -1613,7 +1642,7 @@ var Core = (function () {
     trouverZone: trouverZone, reperesSeance: reperesSeance, normCode: normCode, chercherCode: chercherCode,
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, dateTest: dateTest, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
-    extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete, DISTANCES_RP: DISTANCES_RP, distanceRP: distanceRP, chronoTexte: chronoTexte, resultatValide: resultatValide, dateResultat: dateResultat, quandResultat: quandResultat, resultatsDistance: resultatsDistance, syntheseRP: syntheseRP,
+    extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete, DISTANCES_RP: DISTANCES_RP, distanceRP: distanceRP, chronoTexte: chronoTexte, resultatValide: resultatValide, dateResultat: dateResultat, quandResultat: quandResultat, resultatsDistance: resultatsDistance, syntheseRP: syntheseRP, ligneRP: ligneRP, lignesRP: lignesRP, resultatsAthlete: resultatsAthlete, tousResultats: tousResultats,
     lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerLegende: fusionnerLegende, codesAbsents: codesAbsents, absentsLegende: absentsLegende, retirerLegende: retirerLegende, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, estAutreOnglet: estAutreOnglet, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();

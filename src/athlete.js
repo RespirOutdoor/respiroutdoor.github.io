@@ -88,7 +88,7 @@
     else main.innerHTML = '';
     var cont = document.createElement('div'); main.appendChild(cont);
     majPastilles();
-    ({ accueil: vueAccueil, plan: vuePlan, messages: vueMessages, allures: function (m) { UI.vueAllures(m, a, false); }, legende: function (m) { UI.vueLegende(m); }, protos: function (m) { UI.vueProtos(m, a, false); } }[vue] || vueAccueil)(cont);
+    ({ accueil: vueAccueil, plan: vuePlan, messages: vueMessages, allures: function (m) { UI.vueAllures(m, a, false, null, { rp: enregistrerRP }); }, legende: function (m) { UI.vueLegende(m); }, protos: function (m) { UI.vueProtos(m, a, false); } }[vue] || vueAccueil)(cont);
   }
 
   function vueBienvenue() {
@@ -535,12 +535,26 @@
   // ter : terrain de la séance (sans lui, celui déjà enregistré est gardé)
   function enregistrer(date, j, message, extras, ter) {
     var a = A.athlete;
-    j.notes = C.avecExtras(j.notes, extras || C.extras(a.jours[date]), ter !== undefined ? ter : C.terrain(a.jours[date]));
+    j.notes = C.avecExtras(j.notes, extras || C.extras(a.jours[date]), ter !== undefined ? ter : C.terrain(a.jours[date]), C.lignesRP(a.jours[date]));
     j.majA = UI.maintenant();
     var n = C.nettoyerJour(j);
     a.jours[date] = n;
     A.enAttente[date] = true;
     sauver().then(function () { toast(message || 'Séance enregistrée 👏'); rendre(); synchroniser(false); });
+  }
+
+  // RP de l'athlète : ligne « [RP · …] » dans les notes du jour de la course, envoyée comme une saisie (le coach la voit)
+  function enregistrerRP(r0, r) {
+    var a = A.athlete;
+    function ecrire(d, f) {
+      var j = Object.assign({}, a.jours[d] || {});
+      j.notes = C.avecExtras(j.notes, C.extras(j), C.terrain(j), f(C.lignesRP(j)));
+      j.majA = UI.maintenant();
+      a.jours[d] = C.nettoyerJour(j); A.enAttente[d] = true;
+    }
+    if (r0) { var i = Number(String(r0.id).split('-').pop()); ecrire(r0.date, function (l) { return l.filter(function (x, k) { return k !== i; }); }); }
+    if (r) ecrire(r.date, function (l) { return l.concat([C.ligneRP(r)]); });
+    sauver().then(function () { toast(r ? 'RP enregistré' : 'RP supprimé'); rendre(); synchroniser(false); });
   }
 
   /* ---------- Actions ---------- */

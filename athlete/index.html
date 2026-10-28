@@ -913,7 +913,7 @@ var Core = (function () {
   // Résultats d'une distance par date ; rec : record au moment de la course ; best : record du moment
   function resultatsDistance(a, code) {
     var best = Infinity;
-    return ((a && a.resultats) || []).filter(function (r) { return r.dist === code && resultatValide(r); })
+    return tousResultats(a).filter(function (r) { return r.dist === code && resultatValide(r); })
       .sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : y.s - x.s; })
       .map(function (r) { var rec = r.s < best; if (rec) best = r.s; return Object.assign({}, r, { rec: rec, best: best }); });
   }
@@ -1108,10 +1108,32 @@ var Core = (function () {
     var l = texte(j && j.notes).split('\n').map(function (x) { return RE_TERRAIN.exec(x.trim()); }).filter(Boolean)[0];
     return l ? texte(l[1]) : '';
   }
-  function notesPrincipales(notes) { return texte(String(notes == null ? '' : notes).split('\n').filter(function (l) { return !RE_EXTRA.test(l.trim()) && !RE_TERRAIN.test(l.trim()); }).join('\n')); }
-  // Note complète : texte de l'athlète, puis terrain, puis activités en plus
-  function avecExtras(notes, liste, ter) {
-    var lignes = (texte(ter) ? ['[TERRAIN · ' + texte(ter).replace(/[\[\]\n]/g, '').slice(0, 60) + ']'] : []).concat((liste || []).map(ligneExtra)), n = notesPrincipales(notes);
+  function notesPrincipales(notes) { return texte(String(notes == null ? '' : notes).split('\n').filter(function (l) { return !RE_EXTRA.test(l.trim()) && !RE_TERRAIN.test(l.trim()) && !RE_RP.test(l.trim()); }).join('\n')); }
+  // RP saisi par l'athlète : ligne « [RP · 10 km · 38:20 · course] » dans les notes du jour de la course (sans changement du script Google)
+  var RE_RP = /^\[RP · ([^·\]]+) · (\d{1,2}(?::\d{2}){1,2})(?: · ([^\]]*))?\]$/;
+  function ligneRP(r) { var c = texte(r.course).replace(/[\[\]\n·]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60); return '[RP · ' + distanceRP(r.dist).nom + ' · ' + chronoTexte(r.s) + (c ? ' · ' + c : '') + ']'; }
+  function lignesRP(j) { return texte(j && j.notes).split('\n').map(function (l) { return l.trim(); }).filter(function (l) { return RE_RP.test(l); }); }
+  // RP de l'athlète lus dans ses notes : { id: « a<date>-<n> », par: 'athlete', dist, date, s, course }
+  function resultatsAthlete(a) {
+    var out = [];
+    Object.keys((a && a.jours) || {}).sort().forEach(function (d) {
+      lignesRP(a.jours[d]).forEach(function (l, i) {
+        var m = RE_RP.exec(l), dist = DISTANCES_RP.filter(function (x) { return x.nom === texte(m[1]); })[0], sec = parseDuree(m[2]);
+        var r = { id: 'a' + d + '-' + i, par: 'athlete', dist: dist ? dist.code : '', date: d, s: sec, course: texte(m[3]) };
+        if (resultatValide(r)) out.push(r);
+      });
+    });
+    return out;
+  }
+  // Tous les résultats : saisis par l'entraîneur (ou repris du classeur) puis par l'athlète, sans doublon (même distance, date et chrono)
+  function tousResultats(a) {
+    var vus = {}, out = [];
+    ((a && a.resultats) || []).concat(resultatsAthlete(a)).forEach(function (r) { var k = r.dist + '|' + r.date + '|' + r.s; if (!vus[k]) { vus[k] = 1; out.push(r); } });
+    return out;
+  }
+  // Note complète : texte de l'athlète, puis terrain, puis activités en plus, puis RP de l'athlète
+  function avecExtras(notes, liste, ter, rp) {
+    var lignes = (texte(ter) ? ['[TERRAIN · ' + texte(ter).replace(/[\[\]\n]/g, '').slice(0, 60) + ']'] : []).concat((liste || []).map(ligneExtra), rp || []), n = notesPrincipales(notes);
     return lignes.length ? (n ? n + '\n' : '') + lignes.join('\n') : n;
   }
   // Toutes les séances d'un jour : la saisie principale puis les activités en plus { code, nom, km, dureeSec, dplus, rpe, principale }
@@ -1782,6 +1804,13 @@ var Core = (function () {
   /* ---------- Autotests (valeurs de référence calculées à la main) ---------- */
   function near(a, b, eps) { return isNum(a) && Math.abs(a - b) <= (eps || 1e-9); }
   var TESTS = [
+    ['RP de l\'athlète : ligne « [RP · 10 km · 38:20 · …] » lue, gardée par avecExtras, invisible dans les notes et les retours', function () {
+      var l = ligneRP({ dist: 'd10', s: 2300, course: 'Foulées [x] · test' }), n = avecExtras('Bonnes jambes', [], 'Piste', [l]);
+      var a = { resultats: [{ id: 'r1', dist: 'd10', date: '2026-04-12', s: 2300 }], jours: { '2026-04-12': { notes: l }, '2025-11-11': { notes: 'ok\n' + ligneRP({ dist: 'semi', s: 5163 }) }, '2026-05-01': { notes: '[RP · 42 km · 3:00:00]' } } };
+      var t = tousResultats(a), ath = resultatsAthlete(a);
+      return l === '[RP · 10 km · 38:20 · Foulées x test]' && notesPrincipales(n) === 'Bonnes jambes' && lignesRP({ notes: n }).length === 1 && terrain({ notes: n }) === 'Piste' &&
+        aRetour({ notes: l }) === false && ath.length === 2 && ath[1].par === 'athlete' && ath[0].dist === 'semi' && ath[0].s === 5163 && t.length === 2 && t[0].id === 'r1' && syntheseRP(a)[1].rp.s === 2300;
+    }],
     ['Records du classeur : colonnes datées (1/11/2025, « 1/4/25 », 1/11/18) reprises à leur date', function () {
       var f = { nom: 'ALLURES', lignes: [['RECORDS PERSONNELS'], ['Distance', 'RECORD', 'DATE', 45962, '1/4/25', 'ANNEE'], ['10KM', '31\'59"', '1/11/25', '32\'12"', '32\'00"', ''], ['MARATHON', '2H31\'50"', '1/10/2026', '', '', '']] };
       var a = { test: {}, allures: {} }; importerAllures(f, a, []);
@@ -2174,7 +2203,7 @@ var Core = (function () {
     trouverZone: trouverZone, reperesSeance: reperesSeance, normCode: normCode, chercherCode: chercherCode,
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, dateTest: dateTest, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
-    extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete, DISTANCES_RP: DISTANCES_RP, distanceRP: distanceRP, chronoTexte: chronoTexte, resultatValide: resultatValide, dateResultat: dateResultat, quandResultat: quandResultat, resultatsDistance: resultatsDistance, syntheseRP: syntheseRP,
+    extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete, DISTANCES_RP: DISTANCES_RP, distanceRP: distanceRP, chronoTexte: chronoTexte, resultatValide: resultatValide, dateResultat: dateResultat, quandResultat: quandResultat, resultatsDistance: resultatsDistance, syntheseRP: syntheseRP, ligneRP: ligneRP, lignesRP: lignesRP, resultatsAthlete: resultatsAthlete, tousResultats: tousResultats,
     lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerLegende: fusionnerLegende, codesAbsents: codesAbsents, absentsLegende: absentsLegende, retirerLegende: retirerLegende, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, estAutreOnglet: estAutreOnglet, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();
@@ -2233,7 +2262,7 @@ var UI = (function () {
   }
   // Première semaine consultable : S1, ou plus tôt s'il reste des séances d'un contrat précédent
   function semaineMin(a) {
-    var dates = Object.keys(a.jours || {}).sort(), s = dates.length ? semaineDe(a, dates[0]) : null;
+    var dates = Object.keys(a.jours || {}).filter(function (d) { return C.aContenuCoach(a.jours[d]) || C.aRetour(a.jours[d]); }).sort(), s = dates.length ? semaineDe(a, dates[0]) : null;
     return C.isNum(s) && s < 1 ? s : 1;
   }
   function ilYa(iso) {
@@ -2527,12 +2556,13 @@ var UI = (function () {
   var distRP = null; // distance affichée dans la courbe
   var MOIS_COURTS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
   function pctVMA(a, s, km) { return C.isNum(a.vma) && a.vma > 0 ? km / (s / 3600) / a.vma * 100 : null; }
-  function htmlRecords(a, modifiable) {
+  // rpAthlete : l'athlète peut ajouter et modifier ses propres RP
+  function htmlRecords(a, modifiable, rpAthlete) {
     var syn = C.syntheseRP(a), avec = syn.filter(function (x) { return x.n; });
     if (!avec.some(function (x) { return x.distance.code === distRP; })) distRP = avec.length ? avec.slice().sort(function (x, y) { return x.rp.date < y.rp.date ? 1 : -1; })[0].distance.code : null;
     var h = '<section class="carte records"><div class="ligne"><h3 class="espace" style="margin:0">' + (modifiable ? 'Records' : 'Mes RP') + '</h3>' +
-      (modifiable ? '<button class="sec" data-rp="ajouter">Ajouter un résultat</button>' : (avec.length ? '<span class="puce">Saisis par ton coach</span>' : '')) + '</div>';
-    if (!avec.length) return h + '<p class="muet petit" style="margin:10px 0 0">' + (modifiable ? 'Saisis les résultats de course de l\'athlète (5 km, 10 km, semi, marathon, 100 km) : les records, la courbe d\'évolution et l\'historique se calculent tout seuls, et l\'athlète les voit après l\'envoi.' : 'Ton coach n\'a pas encore saisi de résultat. Tes records et leur évolution apparaîtront ici.') + '</p></section>';
+      (modifiable ? '<button class="sec" data-rp="ajouter">Ajouter un résultat</button>' : rpAthlete ? '<button class="sec" data-rp="ajouter">Ajouter un RP</button>' : '') + '</div>';
+    if (!avec.length) return h + '<p class="muet petit" style="margin:10px 0 0">' + (modifiable ? 'Saisis les résultats de course de l\'athlète (5 km, 10 km, semi, marathon, 100 km) : les records, la courbe d\'évolution et l\'historique se calculent tout seuls, et l\'athlète les voit après l\'envoi. L\'athlète peut aussi ajouter ses RP depuis son application.' : 'Ajoute tes records (5 km, 10 km, semi, marathon, 100 km) : ton coach les voit aussi. Ceux qu\'il saisit apparaissent ici, avec la courbe de ton évolution.') + '</p></section>';
     h += '<div class="tableau" style="margin-top:10px"><table><thead><tr><th>Distance</th><th class="num">Record</th><th class="num">Allure<br><span class="muet petit">/km</span></th></tr></thead><tbody>' +
       syn.map(function (x) {
         var d = x.distance, r = x.rp, p = r ? pctVMA(a, r.s, d.km) : null;
@@ -2559,10 +2589,13 @@ var UI = (function () {
     h += '<section class="carte records"><h3>Historique ' + esc(d.court === 'Semi' ? 'semi-marathon' : d.court) + '</h3><div class="tableau"><table><thead><tr><th>Date</th><th class="num">Chrono</th><th class="num">Écart<br><span class="muet petit">au RP</span></th></tr></thead><tbody>' +
       l.slice().reverse().map(function (y) {
         var act = y.id === r.id && y.date === r.date && y.s === r.s;
-        return '<tr><td>' + C.dateResultat(y) + (C.texte(y.course) ? '<span class="ecart">' + esc(y.course) + '</span>' : '') + (modifiable ? '<button type="button" class="discret petit" data-rp="modifier" data-id="' + esc(y.id) + '">Modifier</button>' : '') + '</td>' +
+        // Qui l'a saisi ; chacun ne modifie que ses propres saisies (l'entraîneur ne peut pas changer les notes de l'athlète)
+        var parAth = y.par === 'athlete', qui = parAth ? (modifiable ? 'Saisi par l\'athlète' : 'Saisi par toi') : (modifiable ? '' : 'Saisi par ton coach');
+        var modif = (modifiable && !parAth) || (!modifiable && rpAthlete && parAth);
+        return '<tr><td>' + C.dateResultat(y) + (C.texte(y.course) ? '<span class="ecart">' + esc(y.course) + '</span>' : '') + (qui ? '<span class="ecart">' + qui + '</span>' : '') + (modif ? '<button type="button" class="discret petit" data-rp="modifier" data-id="' + esc(y.id) + '">Modifier</button>' : '') + '</td>' +
           '<td class="num"><b>' + C.chronoTexte(y.s) + '</b>' + (act ? '<span class="etiquette rp">RP</span>' : '') + (y.rec && !act ? '<span class="ecart">RP à l\'époque</span>' : '') + '<span class="ecart">' + C.formatAllure(y.s / d.km) + '</span></td>' +
           '<td class="num">' + (act ? '—' : '+' + C.chronoTexte(y.s - r.s)) + '</td></tr>';
-      }).join('') + '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">' + l.length + (l.length > 1 ? ' courses saisies' : ' course saisie') + (modifiable ? '' : ' par ton coach') + ' · ' + l.filter(function (y) { return y.rec; }).length + ' record' + (l.filter(function (y) { return y.rec; }).length > 1 ? 's successifs' : '') + '.</p></section>';
+      }).join('') + '</tbody></table></div><p class="muet petit" style="margin:10px 0 0">' + l.length + (l.length > 1 ? ' courses saisies' : ' course saisie') + ' · ' + l.filter(function (y) { return y.rec; }).length + ' record' + (l.filter(function (y) { return y.rec; }).length > 1 ? 's successifs' : '') + '.</p></section>';
     return h;
   }
   // Courbe : chrono en ordonnée inversée (plus rapide = plus haut), dates réelles en abscisse
@@ -2612,17 +2645,19 @@ var UI = (function () {
     $$('[data-rp]', main).forEach(function (b) {
       b.onclick = function () {
         var act = b.dataset.rp;
-        if (act === 'dist') { distRP = b.dataset.d; var y = window.scrollY; vueAllures(main, a, modifiable, enregistrer); window.scrollTo(0, y); }
+        if (act === 'dist') { distRP = b.dataset.d; var y = window.scrollY; vueAllures(main, a, modifiable, enregistrer, ctxAllures.opts); window.scrollTo(0, y); }
         else if (act === 'ajouter') saisirResultat(main, a, null, enregistrer);
         else if (act === 'modifier') saisirResultat(main, a, b.dataset.id, enregistrer);
       };
     });
   }
-  // Saisie d'un résultat par l'entraîneur : distance, chrono en h/min/s (pas de « : » sur le pavé numérique de l'iPhone), date, course
+  // Saisie d'un résultat par l'entraîneur ou d'un RP par l'athlète : distance, chrono en h/min/s (pas de « : » sur le pavé numérique de l'iPhone), date, course
   function saisirResultat(main, a, id, enregistrer) {
     var boite = document.getElementById('boite'), aj = auj();
-    var r0 = id ? (a.resultats || []).filter(function (x) { return x.id === id; })[0] : null, dist = r0 ? r0.dist : distRP || 'd10', s0 = r0 ? r0.s : null;
-    boite.innerHTML = '<form class="boite saisie" novalidate><h2>' + (r0 ? 'Modifier le résultat' : 'Ajouter un résultat') + '</h2><p class="sous-titre">' + esc(nomComplet(a)) + ' · les records et la courbe se mettent à jour chez l\'athlète après l\'envoi.</p>' +
+    var ath = !ctxAllures.modifiable && !!ctxAllures.opts.rp;
+    var r0 = id ? C.tousResultats(a).filter(function (x) { return x.id === id; })[0] : null, dist = r0 ? r0.dist : distRP || 'd10', s0 = r0 ? r0.s : null;
+    boite.innerHTML = '<form class="boite saisie" novalidate><h2>' + (ath ? (r0 ? 'Modifier mon RP' : 'Ajouter un RP') : (r0 ? 'Modifier le résultat' : 'Ajouter un résultat')) + '</h2><p class="sous-titre">' +
+      (ath ? 'Ton coach le voit après la synchronisation.' : esc(nomComplet(a)) + ' · les records et la courbe se mettent à jour chez l\'athlète après l\'envoi.') + '</p>' +
       '<fieldset class="disciplines"><legend>Distance</legend><div class="raisons">' + C.DISTANCES_RP.map(function (d) {
         return '<label><input type="radio" name="dist" value="' + d.code + '"' + (d.code === dist ? ' checked' : '') + '><span>' + esc(d.nom) + '</span></label>';
       }).join('') + '</div></fieldset>' +
@@ -2647,7 +2682,7 @@ var UI = (function () {
     }
     // Aperçu : nouveau record ou écart au record actuel (sans compter le résultat en cours de modification)
     function apercu() {
-      var x = lire(), d = f.elements.dist.value, autres = { resultats: (a.resultats || []).filter(function (y) { return !r0 || y.id !== r0.id; }) };
+      var x = lire(), d = f.elements.dist.value, autres = { resultats: C.tousResultats(a).filter(function (y) { return !r0 || y.id !== r0.id; }) };
       var rp = C.syntheseRP(autres).filter(function (y) { return y.distance.code === d; })[0].rp;
       info.hidden = !x.s; if (!x.s) return;
       info.className = 'nouveau-rp' + (!rp || x.s < rp.s ? ' oui' : '');
@@ -2658,7 +2693,9 @@ var UI = (function () {
       var b = ev.target.closest('[data-f]'); if (!b) return;
       if (b.dataset.f === 'annuler') boite.close();
       else if (b.dataset.f === 'suppr' && confirm('Supprimer ce résultat (' + C.chronoTexte(r0.s) + ' ' + C.quandResultat(r0) + ') ?' + (/^x/.test(r0.id || '') ? ' Il reviendra au prochain import du classeur s\'il y figure encore.' : ''))) {
-        a.resultats = (a.resultats || []).filter(function (y) { return y.id !== r0.id; }); boite.close(); enregistrer(a);
+        boite.close();
+        if (ath) ctxAllures.opts.rp(r0, null);
+        else { a.resultats = (a.resultats || []).filter(function (y) { return y.id !== r0.id; }); enregistrer(a); }
       }
     };
     f.onsubmit = function (ev) {
@@ -2671,16 +2708,19 @@ var UI = (function () {
       if (!err.length && !C.resultatValide(r)) err.push('Chrono trop long (48 h au plus)');
       if (err.length) { var e = $('#erreurRes', f); e.hidden = false; e.textContent = err.join(' · '); return; }
       if (!r.course) delete r.course;
+      distRP = r.dist; boite.close();
+      if (ath) { ctxAllures.opts.rp(r0, r); return; }
       a.resultats = (a.resultats || []).filter(function (y) { return !r0 || y.id !== r0.id; }).concat([r]);
-      distRP = r.dist; boite.close(); toast(r0 ? 'Résultat modifié' : 'Résultat ajouté'); enregistrer(a);
+      toast(r0 ? 'Résultat modifié' : 'Résultat ajouté'); enregistrer(a);
     };
   }
 
   /* ---------- Allures ---------- */
   // modifiable : formulaire actif (entraîneur) ou lecture seule (athlète) ; enregistrer(a) appelé après modification
   var ctxAllures = {};
-  function vueAllures(main, a, modifiable, enregistrer) {
-    ctxAllures = { a: a, enregistrer: enregistrer };
+  // opts.rp(ancien, nouveau) : l'athlète ajoute, modifie (ancien et nouveau) ou supprime (nouveau = null) un de ses RP
+  function vueAllures(main, a, modifiable, enregistrer, opts) {
+    ctxAllures = { a: a, enregistrer: enregistrer, modifiable: modifiable, opts: opts || {} };
     var vma = a.vma, al = a.allures || {};
     // Carte « VMA » rouge, identique pour l'athlète (« Ma VMA ») et l'entraîneur (« VMA de Hervé », bouton Modifier)
     var vals = [['VMA', C.isNum(vma) ? C.nombreFR(vma) + ' km/h' : ''], ['Type de test', (a.test || {}).type], ['Date du test', C.dateTest((a.test || {}).date)]];
@@ -2693,7 +2733,7 @@ var UI = (function () {
       cases([['Chrono 10 km', C.isNum(al.chrono10) ? C.formatDuree(al.chrono10) : ''], ['Chrono semi', C.isNum(al.chronoSemi) ? C.formatDuree(al.chronoSemi) : ''], ['Chrono marathon', C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : ''],
         ['Chrono 100 km', C.isNum(al.chrono100) ? C.formatDuree(al.chrono100) : ''], ['Pré-fatigue', C.isNum(al.preFatPct) ? C.nombreFR(al.preFatPct, 1) + ' % VMA' : '']]) +
       '</div><p class="muet petit" style="margin:12px 0 0">Servent aux allures spécifiques. Formules de l\'onglet ALLURES du tableau de l\'entraîneur.</p></section>';
-    h += htmlRecords(a, modifiable);
+    h += htmlRecords(a, modifiable, !!ctxAllures.opts.rp);
     if (!C.isNum(vma)) { main.innerHTML = h + '<p class="alerte">' + (modifiable ? 'Renseigne la VMA pour afficher les allures.' : 'Ton entraîneur n\'a pas encore renseigné ta VMA.') + '</p>'; brancher(); return; }
     h += '<div class="grille2"><section class="carte"><h3>Zones d\'allures</h3><div class="tableau"><table class="compact"><thead><tr><th>Zone</th><th class="num">% VMA</th><th class="num">km/h</th><th class="num">min/km</th><th>Usage</th></tr></thead><tbody>' +
       (a.zones || []).map(function (z) { var v = C.zoneVitesses(vma, z); return '<tr><td><b>' + esc(z.nom) + '</b></td><td class="num">' + C.nombreFR(z.bas, 1) + '–' + C.nombreFR(z.haut, 1) + '</td><td class="num">' + (v ? C.nombreFR(v.bas, 1) + '–' + C.nombreFR(v.haut, 1) : '') + '</td><td class="num">' + (v ? C.formatAllure(v.allureLente).replace(' /km', '') + '–' + C.formatAllure(v.allureRapide).replace(' /km', '') : '') + '</td><td>' + esc(z.usage) + '</td></tr>'; }).join('') +
@@ -2705,7 +2745,7 @@ var UI = (function () {
       (modifiable ? '<form id="fHist" class="champs" style="margin-top:10px"><label>Test<input name="t"></label><label>Date<input name="d" placeholder="mm/aa"></label><label>VMA<input name="v" inputmode="decimal"></label><label>&nbsp;<button>Ajouter</button></label></form>' : '') + '</section></div>';
     // Records personnels importés avant leur reprise dans la carte Records : affichés tant qu'il n'y a aucun résultat (sinon le même tableau apparaîtrait deux fois)
     var rp = a.recordsPerso;
-    if (rp && (rp.lignes || []).length && !(a.resultats || []).length) {
+    if (rp && (rp.lignes || []).length && !C.tousResultats(a).length) {
       h += '<section class="carte"><h3>' + (modifiable ? 'Records personnels' : 'Records notés par ton entraîneur') + '</h3><div class="tableau"><table><thead><tr><th>Distance</th><th class="num">Record</th>' +
         (rp.annees || []).map(function (n) { return '<th class="num">' + esc(n) + '</th>'; }).join('') + '</tr></thead><tbody>' +
         rp.lignes.map(function (l) { return '<tr><td><b>' + esc(l.distance) + '</b></td><td class="num"><b>' + (l.record ? esc(l.record) : '—') + '</b></td>' +
@@ -2967,7 +3007,7 @@ var UI = (function () {
     else main.innerHTML = '';
     var cont = document.createElement('div'); main.appendChild(cont);
     majPastilles();
-    ({ accueil: vueAccueil, plan: vuePlan, messages: vueMessages, allures: function (m) { UI.vueAllures(m, a, false); }, legende: function (m) { UI.vueLegende(m); }, protos: function (m) { UI.vueProtos(m, a, false); } }[vue] || vueAccueil)(cont);
+    ({ accueil: vueAccueil, plan: vuePlan, messages: vueMessages, allures: function (m) { UI.vueAllures(m, a, false, null, { rp: enregistrerRP }); }, legende: function (m) { UI.vueLegende(m); }, protos: function (m) { UI.vueProtos(m, a, false); } }[vue] || vueAccueil)(cont);
   }
 
   function vueBienvenue() {
@@ -3414,12 +3454,26 @@ var UI = (function () {
   // ter : terrain de la séance (sans lui, celui déjà enregistré est gardé)
   function enregistrer(date, j, message, extras, ter) {
     var a = A.athlete;
-    j.notes = C.avecExtras(j.notes, extras || C.extras(a.jours[date]), ter !== undefined ? ter : C.terrain(a.jours[date]));
+    j.notes = C.avecExtras(j.notes, extras || C.extras(a.jours[date]), ter !== undefined ? ter : C.terrain(a.jours[date]), C.lignesRP(a.jours[date]));
     j.majA = UI.maintenant();
     var n = C.nettoyerJour(j);
     a.jours[date] = n;
     A.enAttente[date] = true;
     sauver().then(function () { toast(message || 'Séance enregistrée 👏'); rendre(); synchroniser(false); });
+  }
+
+  // RP de l'athlète : ligne « [RP · …] » dans les notes du jour de la course, envoyée comme une saisie (le coach la voit)
+  function enregistrerRP(r0, r) {
+    var a = A.athlete;
+    function ecrire(d, f) {
+      var j = Object.assign({}, a.jours[d] || {});
+      j.notes = C.avecExtras(j.notes, C.extras(j), C.terrain(j), f(C.lignesRP(j)));
+      j.majA = UI.maintenant();
+      a.jours[d] = C.nettoyerJour(j); A.enAttente[d] = true;
+    }
+    if (r0) { var i = Number(String(r0.id).split('-').pop()); ecrire(r0.date, function (l) { return l.filter(function (x, k) { return k !== i; }); }); }
+    if (r) ecrire(r.date, function (l) { return l.concat([C.ligneRP(r)]); });
+    sauver().then(function () { toast(r ? 'RP enregistré' : 'RP supprimé'); rendre(); synchroniser(false); });
   }
 
   /* ---------- Actions ---------- */
