@@ -275,6 +275,19 @@ ul.liste { margin: 0; padding-left: 18px; }
   #ouverture .ouv-logo { animation-duration: .01s !important; animation-delay: 0s !important; }
   #ouverture { animation: ouv-sortie .2s ease-in .4s forwards !important; }
 }
+/* Athlète : variante « Souffle » (2,4 s) : apparition, inspiration (agrandissement), expiration, deux ondes vertes, puis fondu vers l'application */
+#ouverture.souffle { animation: ouv-sortie .4s ease-in 2s forwards; }
+#ouverture.souffle .ouv-logo { position: relative; opacity: 1; transform: none; animation: ouv-souffle 1.9s cubic-bezier(.45,0,.35,1) .1s both; }
+#ouverture.souffle .ouv-logo img { position: relative; width: min(240px, 62vw); }
+#ouverture .ouv-onde { position: absolute; left: 50%; top: 50%; width: 70%; aspect-ratio: 1; border-radius: 50%; border: 2px solid #3A8376; opacity: 0; transform: translate(-50%, -50%) scale(.3); animation: ouv-onde 1.6s ease-out .35s both; pointer-events: none; }
+#ouverture .ouv-onde.o2 { animation-delay: .95s; }
+@keyframes ouv-souffle { 0% { opacity: 0; transform: scale(.86); } 30% { opacity: 1; transform: scale(1.05); } 58% { transform: scale(.985); } 80% { transform: scale(1.01); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes ouv-onde { 0% { opacity: .55; transform: translate(-50%, -50%) scale(.3); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.9); } }
+@media (prefers-reduced-motion: reduce) {
+  #ouverture.souffle .ouv-logo { animation: none !important; opacity: 1; transform: none; }
+  #ouverture .ouv-onde { display: none; }
+  #ouverture.souffle { animation: ouv-sortie .2s ease-in .4s forwards !important; }
+}
 @media print { #ouverture { display: none; } }
 
 /* ---------- Harmonisation des cartes et tableaux ---------- */
@@ -3500,7 +3513,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v52</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v53</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
