@@ -4,7 +4,7 @@
 //  - que toutes les cartes de premier niveau ont les mêmes bords gauche et droit, contours et ombres compris ;
 //  - qu'aucune carte n'en touche ou n'en chevauche une autre (au moins 8 px d'écart) ;
 //  - qu'aucune vue ne déborde en largeur, même avec une note longue sans espace (temps séparés par « / », lien).
-// Option : CAPTURES=dossier enregistre une capture de chaque vue (mode sombre) pour un contrôle à l'œil.
+// Option : CAPTURES=dossier enregistre une capture de chaque vue (mode sombre, ou THEME=light) pour un contrôle à l'œil.
 // Demande Playwright (Chromium). Les données passent par le service Google simulé de tests/gas-simule.mjs.
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -50,7 +50,7 @@ const SERVICE = 'https://script.google.com/macros/s/TEST/exec';
 const nav = await chromium.launch();
 const problemes = [];
 async function contexte(largeur) {
-  const ctx = await nav.newContext({ viewport: { width: largeur, height: 844 }, deviceScaleFactor: process.env.CAPTURES ? 2 : 1, isMobile: true, hasTouch: true, timezoneId: 'Europe/Paris', colorScheme: process.env.CAPTURES ? 'dark' : 'light' });
+  const ctx = await nav.newContext({ viewport: { width: largeur, height: 844 }, deviceScaleFactor: process.env.CAPTURES ? 2 : 1, isMobile: true, hasTouch: true, timezoneId: 'Europe/Paris', colorScheme: process.env.CAPTURES ? (process.env.THEME || 'dark') : 'light' });
   await ctx.route('**/config.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ service: SERVICE }) }));
   await ctx.route(SERVICE, async r => r.fulfill({ contentType: 'application/json', body: JSON.stringify(srv.appel(JSON.parse(r.request().postData() || '{}'))) }));
   return ctx;
