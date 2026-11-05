@@ -211,7 +211,7 @@
     var corps = !c ? '<p class="muet petit" style="margin:8px 0 0">Ouverture…</p>'
       : c.erreur ? '<p class="alerte" style="margin:8px 0 0">Pense-bête illisible : il a été écrit avec une autre clé coach.</p>'
       : c.texte ? '<p class="pense-bete">' + esc(c.texte) + '</p>' : '<p class="muet petit" style="margin:8px 0 0">Note ici ce que tu veux garder en tête pour cet athlète.</p>';
-    return '<section class="carte noprint"><div class="ligne"><h3 class="espace" style="margin:0">Pense-bête</h3><button class="sec" data-act="penseBete">' + (c && c.texte ? 'Modifier' : 'Écrire') + '</button></div>' + corps +
+    return '<section class="carte noprint carte-pense-bete"><div class="ligne"><h3 class="espace" style="margin:0">Pense-bête</h3><button class="sec" data-act="penseBete">' + (c && c.texte ? 'Modifier' : 'Écrire') + '</button></div>' + corps +
       '<p class="muet petit" style="margin:8px 0 0">Visible seulement par toi : il est chiffré avec ta clé coach, l\'athlète ne peut pas le lire.</p></section>';
   }
   function modifierPenseBete() {
