@@ -171,9 +171,69 @@
           rendreStatut();
           if (!E.sync.erreur) chargerMessages(vue === 'messages');
           if (nouveaux && !boite.open && (vue === 'athletes' || vue === 'plan')) rendre();
+          lirePenseBetes();
         });
       });
     return enCours;
+  }
+  /* ---------- Pense-bête de l'entraîneur (un par athlète) ----------
+     Rangé chiffré dans la fiche (AES-GCM 256 bits, clé tirée de la clé coach par PBKDF2) : il se synchronise entre les appareils
+     de l'entraîneur sans changement du script Google, et l'athlète, qui reçoit sa fiche, ne peut pas le lire. */
+  var clairs = {}; // id -> { ct, texte } ou { ct, erreur } : texte déchiffré, gardé en mémoire seulement
+  function b64(buf) { var s = '', o = new Uint8Array(buf); for (var i = 0; i < o.length; i++) s += String.fromCharCode(o[i]); return btoa(s); }
+  function deB64(t) { var s = atob(t), o = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) o[i] = s.charCodeAt(i); return o; }
+  function clePenseBete(id) {
+    var enc = new TextEncoder();
+    return crypto.subtle.importKey('raw', enc.encode(E.reglages.cle), 'PBKDF2', false, ['deriveKey']).then(function (k) {
+      return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: enc.encode('respiroutdoor-pense-bete:' + id), iterations: 150000, hash: 'SHA-256' }, k, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    });
+  }
+  function chiffrerPenseBete(a, texte) {
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    return clePenseBete(a.id).then(function (k) { return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, k, new TextEncoder().encode(texte)); })
+      .then(function (ct) { return { v: 1, iv: b64(iv), ct: b64(ct) }; });
+  }
+  // Déchiffre les pense-bêtes nouveaux ou modifiés (au démarrage et après chaque synchronisation)
+  function lirePenseBetes() {
+    if (!window.crypto || !crypto.subtle || !E.reglages.cle) return;
+    var changes = 0;
+    Promise.all(E.athletes.map(function (a) {
+      var pb = a.penseBete;
+      if (!pb || !pb.ct) { if (clairs[a.id]) { delete clairs[a.id]; changes++; } return null; }
+      if (clairs[a.id] && clairs[a.id].ct === pb.ct) return null;
+      return clePenseBete(a.id).then(function (k) { return crypto.subtle.decrypt({ name: 'AES-GCM', iv: deB64(pb.iv) }, k, deB64(pb.ct)); })
+        .then(function (t) { clairs[a.id] = { ct: pb.ct, texte: new TextDecoder().decode(t) }; changes++; },
+          function () { clairs[a.id] = { ct: pb.ct, erreur: true }; changes++; });
+    })).then(function () { if (changes && vue === 'plan' && !boite.open) rendre(); });
+  }
+  function cartePenseBete(a) {
+    var c = a.penseBete && a.penseBete.ct ? clairs[a.id] : { texte: '' };
+    var corps = !c ? '<p class="muet petit" style="margin:8px 0 0">Ouverture…</p>'
+      : c.erreur ? '<p class="alerte" style="margin:8px 0 0">Pense-bête illisible : il a été écrit avec une autre clé coach.</p>'
+      : c.texte ? '<p class="pense-bete">' + esc(c.texte) + '</p>' : '<p class="muet petit" style="margin:8px 0 0">Note ici ce que tu veux garder en tête pour cet athlète.</p>';
+    return '<section class="carte noprint"><div class="ligne"><h3 class="espace" style="margin:0">Pense-bête</h3><button class="sec" data-act="penseBete">' + (c && c.texte ? 'Modifier' : 'Écrire') + '</button></div>' + corps +
+      '<p class="muet petit" style="margin:8px 0 0">Visible seulement par toi : il est chiffré avec ta clé coach, l\'athlète ne peut pas le lire.</p></section>';
+  }
+  function modifierPenseBete() {
+    var a = athlete(); if (!a) return;
+    if (!window.crypto || !crypto.subtle) { toast('Ce navigateur ne permet pas de chiffrer le pense-bête'); return; }
+    if (!E.reglages.cle) { toast('Renseigne d\'abord ta clé coach dans Réglages'); return; }
+    var c = clairs[a.id] || {};
+    if (c.erreur && !confirm('Ce pense-bête a été écrit avec une autre clé coach et ne peut pas être lu. Le remplacer ?')) return;
+    boite.innerHTML = '<form class="boite saisie" novalidate><h2>Pense-bête · ' + esc(nomComplet(a)) + '</h2><p class="sous-titre">Visible seulement par toi, sur tous tes appareils.</p>' +
+      '<label>Note<textarea name="t" rows="8" maxlength="5000">' + esc(c.texte || '') + '</textarea></label>' +
+      '<div class="pied"><button type="button" class="sec" data-x="annuler">Annuler</button><button>Enregistrer</button></div></form>';
+    boite.showModal();
+    var f = $('form', boite);
+    $('[data-x="annuler"]', f).onclick = function () { boite.close(); };
+    f.onsubmit = function (ev) {
+      ev.preventDefault();
+      var t = String(f.elements.t.value || '').trim();
+      var fait = t ? chiffrerPenseBete(a, t).then(function (pb) { a.penseBete = pb; clairs[a.id] = { ct: pb.ct, texte: t }; })
+        : Promise.resolve().then(function () { a.penseBete = null; delete clairs[a.id]; }); // null (et non un champ retiré) : la fusion l'efface aussi sur les autres appareils
+      fait.then(function () { marquer(a); return sauver(); }).then(function () { boite.close(); toast('Pense-bête enregistré'); rendre(); })
+        .catch(function (e) { toast('Enregistrement impossible : ' + e.message); });
+    };
   }
   function rendreStatut(etat) {
     var el = $('#statutSync');
@@ -342,6 +402,7 @@
     h += '<section class="carte petit"><div class="ligne"><span>Lien : ' + (s.lienOuvert ? 'ouvert ' + esc(UI.ilYa(s.lienOuvert)) + (s.derniereSync ? ' · dernière visite ' + esc(UI.ilYa(s.derniereSync)) : '') : 'pas encore ouvert') + '</span>' +
       '<span class="espace"></span><span class="muet">' + (E.aPublier[a.id] ? 'Modifications en attente d\'envoi' : (s.majPlan ? 'Plan publié ' + esc(UI.ilYa(s.majPlan)) : '')) + '</span></div>' +
       (a.motCoach ? '<p style="margin:8px 0 0"><b>Mot du coach :</b> ' + esc(a.motCoach) + '</p>' : '') + '</section>';
+    h += cartePenseBete(a);
     h += UI.htmlSemaine(a, semaineAffichee, aj, { role: 'coach', boutonsSemaine: semaineAffichee < 1 ? '' : '<button class="discret" data-act="semInfo">Cycle / phase</button><button class="discret" data-act="semCopier">Copier vers…</button>' });
     h += UI.htmlEnsemble(a, semaineAffichee);
     main.innerHTML = h;
@@ -755,6 +816,7 @@
     else if (act === 'editJour') editJour(b.dataset.date);
     else if (act === 'reagir') reagir(b.dataset.date);
     else if (act === 'ficheAthlete') ficheAthlete(false);
+    else if (act === 'penseBete') modifierPenseBete();
     else if (act === 'nouvelAthlete') ficheAthlete(true);
     else if (act === 'envoyerLien') envoyerLien();
     else if (act === 'msgAthlete') { E.courant = b.dataset.id; sauver(); rendre(); var f = $('#fil'); if (f) f.scrollIntoView({ block: 'nearest' }); }
@@ -807,6 +869,7 @@
     }
     UI.appliquerTheme(E.reglages.theme);
     route();
+    lirePenseBetes();
     synchroniser(false);
   });
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});

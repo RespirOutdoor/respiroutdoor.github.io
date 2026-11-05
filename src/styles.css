@@ -524,3 +524,6 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
 .nouveau-rp { margin: 2px 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--vert-clair); font-size: .9rem; font-weight: 600; }
 .nouveau-rp.oui { background: var(--rouge-fond); color: var(--rouge); font-weight: 700; }
 @media (max-width: 360px) { .records .tableau th, .records .tableau td { padding: 8px 6px; } }
+
+/* Pense-bête de l'entraîneur */
+.pense-bete { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }

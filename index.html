@@ -536,6 +536,9 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
 .nouveau-rp { margin: 2px 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--vert-clair); font-size: .9rem; font-weight: 600; }
 .nouveau-rp.oui { background: var(--rouge-fond); color: var(--rouge); font-weight: 700; }
 @media (max-width: 360px) { .records .tableau th, .records .tableau td { padding: 8px 6px; } }
+
+/* Pense-bête de l'entraîneur */
+.pense-bete { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 </style>
 </head>
 <body class="coach">
@@ -1432,8 +1435,19 @@ var Core = (function () {
       for (var k = 0; k < 7; k++) a.dispos[cles[k]] = cel(f, pDispo.r + 1 + k, pDispo.c + 1) === true;
     }
     var pCont = chercher(f, /^CONTRAINTES$/i), pTer = chercher(f, /^TERRAINS$/i);
-    if (pCont) a.contraintes = texte(cel(f, pCont.r + 1, pCont.c));
-    if (pTer) a.terrains = texte(cel(f, pTer.r + 1, pTer.c));
+    // CONTRAINTES et TERRAINS : tout le bloc sous le titre (7 lignes, comme les DISPOS), sur les colonnes jusqu'au titre suivant de la ligne
+    function bloc(p) {
+      var ent = f.lignes[p.r] || [], fin = p.c + 1;
+      while (fin < p.c + 8 && (ent[fin] === undefined || texte(ent[fin]) === '')) fin++;
+      var vus = [];
+      for (var r = p.r + 1; r <= p.r + 7; r++) for (var c = p.c; c < fin; c++) {
+        var v = cel(f, r, c); if (v === true || v === false) continue;
+        var t = texte(v); if (t.length > 1 && vus.indexOf(t) < 0) vus.push(t); // une lettre seule : libellé vertical (« A », « ► »)
+      }
+      return vus.join(' · ');
+    }
+    if (pCont) a.contraintes = bloc(pCont);
+    if (pTer) a.terrains = bloc(pTer);
 
     // Tableau des séances
     var pEnt = chercher(f, /^DATE$/i);
@@ -1820,6 +1834,12 @@ var Core = (function () {
   /* ---------- Autotests (valeurs de référence calculées à la main) ---------- */
   function near(a, b, eps) { return isNum(a) && Math.abs(a - b) <= (eps || 1e-9); }
   var TESTS = [
+    ['Fiche : CONTRAINTES et TERRAINS lus sur tout le bloc (7 lignes, colonnes jusqu\'au titre DISPOS)', function () {
+      var L = [['CONTRAINTES', '', 'DISPOS', '', 'TERRAINS', '', ''], ['ENTR CROISE', 'VELO+CAP', 'L', true, '', '', ''], ['', 'HT+TAPIS', 'M', true, 'REPOS MAR AM = NATATION', '', ''],
+        ['', '', 'M', true], ['', '', 'J', true], ['', '', 'V', true], ['PISTE', 'SPE 10-1/2', 'S', true, 'NAT 7H30-9H - CAP DERRIERE'], ['VMA C (200/300)', 'VMA L NON', 'D', true], ['PLAISIR 2026 ORIENTE SPE100']];
+      var a = importerPlan({ nom: 'PLAN', lignes: L.concat([[], ['DATE', 'CORPS DE SEANCE'], [46300, 'FOOTING']]) }, []);
+      return a.contraintes === 'ENTR CROISE · VELO+CAP · HT+TAPIS · PISTE · SPE 10-1/2 · VMA C (200/300) · VMA L NON' && a.terrains === 'REPOS MAR AM = NATATION · NAT 7H30-9H - CAP DERRIERE' && a.dispos.L === true;
+    }],
     ['RP de l\'athlète : ligne « [RP · 10 km · 38:20 · …] » lue, gardée par avecExtras, invisible dans les notes et les retours', function () {
       var l = ligneRP({ dist: 'd10', s: 2300, course: 'Foulées [x] · test' }), n = avecExtras('Bonnes jambes', [], 'Piste', [l]);
       var a = { resultats: [{ id: 'r1', dist: 'd10', date: '2026-04-12', s: 2300 }], jours: { '2026-04-12': { notes: l }, '2025-11-11': { notes: 'ok\n' + ligneRP({ dist: 'semi', s: 5163 }) }, '2026-05-01': { notes: '[RP · 42 km · 3:00:00]' } } };
@@ -3106,9 +3126,69 @@ var UI = (function () {
           rendreStatut();
           if (!E.sync.erreur) chargerMessages(vue === 'messages');
           if (nouveaux && !boite.open && (vue === 'athletes' || vue === 'plan')) rendre();
+          lirePenseBetes();
         });
       });
     return enCours;
+  }
+  /* ---------- Pense-bête de l'entraîneur (un par athlète) ----------
+     Rangé chiffré dans la fiche (AES-GCM 256 bits, clé tirée de la clé coach par PBKDF2) : il se synchronise entre les appareils
+     de l'entraîneur sans changement du script Google, et l'athlète, qui reçoit sa fiche, ne peut pas le lire. */
+  var clairs = {}; // id -> { ct, texte } ou { ct, erreur } : texte déchiffré, gardé en mémoire seulement
+  function b64(buf) { var s = '', o = new Uint8Array(buf); for (var i = 0; i < o.length; i++) s += String.fromCharCode(o[i]); return btoa(s); }
+  function deB64(t) { var s = atob(t), o = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) o[i] = s.charCodeAt(i); return o; }
+  function clePenseBete(id) {
+    var enc = new TextEncoder();
+    return crypto.subtle.importKey('raw', enc.encode(E.reglages.cle), 'PBKDF2', false, ['deriveKey']).then(function (k) {
+      return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: enc.encode('respiroutdoor-pense-bete:' + id), iterations: 150000, hash: 'SHA-256' }, k, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    });
+  }
+  function chiffrerPenseBete(a, texte) {
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    return clePenseBete(a.id).then(function (k) { return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, k, new TextEncoder().encode(texte)); })
+      .then(function (ct) { return { v: 1, iv: b64(iv), ct: b64(ct) }; });
+  }
+  // Déchiffre les pense-bêtes nouveaux ou modifiés (au démarrage et après chaque synchronisation)
+  function lirePenseBetes() {
+    if (!window.crypto || !crypto.subtle || !E.reglages.cle) return;
+    var changes = 0;
+    Promise.all(E.athletes.map(function (a) {
+      var pb = a.penseBete;
+      if (!pb || !pb.ct) { if (clairs[a.id]) { delete clairs[a.id]; changes++; } return null; }
+      if (clairs[a.id] && clairs[a.id].ct === pb.ct) return null;
+      return clePenseBete(a.id).then(function (k) { return crypto.subtle.decrypt({ name: 'AES-GCM', iv: deB64(pb.iv) }, k, deB64(pb.ct)); })
+        .then(function (t) { clairs[a.id] = { ct: pb.ct, texte: new TextDecoder().decode(t) }; changes++; },
+          function () { clairs[a.id] = { ct: pb.ct, erreur: true }; changes++; });
+    })).then(function () { if (changes && vue === 'plan' && !boite.open) rendre(); });
+  }
+  function cartePenseBete(a) {
+    var c = a.penseBete && a.penseBete.ct ? clairs[a.id] : { texte: '' };
+    var corps = !c ? '<p class="muet petit" style="margin:8px 0 0">Ouverture…</p>'
+      : c.erreur ? '<p class="alerte" style="margin:8px 0 0">Pense-bête illisible : il a été écrit avec une autre clé coach.</p>'
+      : c.texte ? '<p class="pense-bete">' + esc(c.texte) + '</p>' : '<p class="muet petit" style="margin:8px 0 0">Note ici ce que tu veux garder en tête pour cet athlète.</p>';
+    return '<section class="carte noprint"><div class="ligne"><h3 class="espace" style="margin:0">Pense-bête</h3><button class="sec" data-act="penseBete">' + (c && c.texte ? 'Modifier' : 'Écrire') + '</button></div>' + corps +
+      '<p class="muet petit" style="margin:8px 0 0">Visible seulement par toi : il est chiffré avec ta clé coach, l\'athlète ne peut pas le lire.</p></section>';
+  }
+  function modifierPenseBete() {
+    var a = athlete(); if (!a) return;
+    if (!window.crypto || !crypto.subtle) { toast('Ce navigateur ne permet pas de chiffrer le pense-bête'); return; }
+    if (!E.reglages.cle) { toast('Renseigne d\'abord ta clé coach dans Réglages'); return; }
+    var c = clairs[a.id] || {};
+    if (c.erreur && !confirm('Ce pense-bête a été écrit avec une autre clé coach et ne peut pas être lu. Le remplacer ?')) return;
+    boite.innerHTML = '<form class="boite saisie" novalidate><h2>Pense-bête · ' + esc(nomComplet(a)) + '</h2><p class="sous-titre">Visible seulement par toi, sur tous tes appareils.</p>' +
+      '<label>Note<textarea name="t" rows="8" maxlength="5000">' + esc(c.texte || '') + '</textarea></label>' +
+      '<div class="pied"><button type="button" class="sec" data-x="annuler">Annuler</button><button>Enregistrer</button></div></form>';
+    boite.showModal();
+    var f = $('form', boite);
+    $('[data-x="annuler"]', f).onclick = function () { boite.close(); };
+    f.onsubmit = function (ev) {
+      ev.preventDefault();
+      var t = String(f.elements.t.value || '').trim();
+      var fait = t ? chiffrerPenseBete(a, t).then(function (pb) { a.penseBete = pb; clairs[a.id] = { ct: pb.ct, texte: t }; })
+        : Promise.resolve().then(function () { a.penseBete = null; delete clairs[a.id]; }); // null (et non un champ retiré) : la fusion l'efface aussi sur les autres appareils
+      fait.then(function () { marquer(a); return sauver(); }).then(function () { boite.close(); toast('Pense-bête enregistré'); rendre(); })
+        .catch(function (e) { toast('Enregistrement impossible : ' + e.message); });
+    };
   }
   function rendreStatut(etat) {
     var el = $('#statutSync');
@@ -3277,6 +3357,7 @@ var UI = (function () {
     h += '<section class="carte petit"><div class="ligne"><span>Lien : ' + (s.lienOuvert ? 'ouvert ' + esc(UI.ilYa(s.lienOuvert)) + (s.derniereSync ? ' · dernière visite ' + esc(UI.ilYa(s.derniereSync)) : '') : 'pas encore ouvert') + '</span>' +
       '<span class="espace"></span><span class="muet">' + (E.aPublier[a.id] ? 'Modifications en attente d\'envoi' : (s.majPlan ? 'Plan publié ' + esc(UI.ilYa(s.majPlan)) : '')) + '</span></div>' +
       (a.motCoach ? '<p style="margin:8px 0 0"><b>Mot du coach :</b> ' + esc(a.motCoach) + '</p>' : '') + '</section>';
+    h += cartePenseBete(a);
     h += UI.htmlSemaine(a, semaineAffichee, aj, { role: 'coach', boutonsSemaine: semaineAffichee < 1 ? '' : '<button class="discret" data-act="semInfo">Cycle / phase</button><button class="discret" data-act="semCopier">Copier vers…</button>' });
     h += UI.htmlEnsemble(a, semaineAffichee);
     main.innerHTML = h;
@@ -3513,7 +3594,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v53</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v54</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
@@ -3690,6 +3771,7 @@ var UI = (function () {
     else if (act === 'editJour') editJour(b.dataset.date);
     else if (act === 'reagir') reagir(b.dataset.date);
     else if (act === 'ficheAthlete') ficheAthlete(false);
+    else if (act === 'penseBete') modifierPenseBete();
     else if (act === 'nouvelAthlete') ficheAthlete(true);
     else if (act === 'envoyerLien') envoyerLien();
     else if (act === 'msgAthlete') { E.courant = b.dataset.id; sauver(); rendre(); var f = $('#fil'); if (f) f.scrollIntoView({ block: 'nearest' }); }
@@ -3742,6 +3824,7 @@ var UI = (function () {
     }
     UI.appliquerTheme(E.reglages.theme);
     route();
+    lirePenseBetes();
     synchroniser(false);
   });
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
@@ -3808,6 +3891,8 @@ var Aide = (function () {
       '<p>Choisis l\'athlète dans la liste en haut, puis onglet <b>Réglages</b> → section Athlètes → <b>Supprimer …</b>. Il est aussi retiré du tableur Google à la synchronisation et son lien ne fonctionne plus.</p>', a: ['Ouvrir les réglages', '#/reglages'] },
     { id: 'compet', q: 'Les compétitions', m: 'competition competitions course comp jour j prochaine dossard', r:
       '<p>Les séances de type <b>COMP</b> sont des compétitions. Celles des 7 prochains jours sont listées dans l\'onglet Athlètes, et l\'athlète voit le compte à rebours (J-…) sur son accueil.</p>', a: ['Ouvrir les athlètes', '#/athletes'] },
+    { id: 'pense-bete', q: 'Pense-bête sur un athlète', m: 'pense bete note notes memo privé prive secret rappel', r:
+      '<p>Onglet <b>Plan</b>, carte <b>Pense-bête</b> sous la fiche : bouton <b>Écrire</b> ou <b>Modifier</b>. La note est chiffrée avec ta clé coach avant d\'être envoyée : tu la retrouves sur tous tes appareils, l\'athlète ne peut pas la lire. Si ta clé coach change, les anciens pense-bêtes deviennent illisibles.</p>' },
     { id: 'allures', q: 'VMA et allures', m: 'allure allures vma zone zones vitesse test chrono demi cooper calcul rp record records', r:
       '<p>Onglet <b>Allures</b> : carte rouge « VMA » (la même que chez l\'athlète) et carte « Base de travail à allure spécifique » ; bouton <b>Modifier</b> pour changer la VMA, le test, les chronos de base (10 km, semi, marathon, 100 km) et la pré-fatigue. Les calculs se mettent à jour à l\'enregistrement. Les chronos de base sont repris des lignes « base chrono » de l\'onglet ALLURES à chaque import ; une case vide garde la valeur de l\'application. Les zones (% de VMA) se règlent dans <b>Modifier la fiche</b>. L\'athlète voit sa VMA (carte « Ma VMA »), les zones et les allures calculées, sans pouvoir les changer. </p><p>Carte <b>Records</b> : <b>Ajouter un résultat</b> (5 km, 10 km, semi, marathon, 100 km : chrono, date, course). Les records, la courbe d\'évolution, les gains et le % de VMA se calculent tout seuls ; l\'athlète les voit dans « Mes RP » après l\'envoi. L\'athlète peut aussi ajouter ses propres RP depuis son application : tu les vois après la synchronisation, marqués « Saisi par l\'athlète » (lui seul peut les modifier). Note aussi les courses qui ne battent pas le record : elles apparaissent sur la courbe. Bouton <b>Modifier</b> dans l\'historique pour corriger ou supprimer. Le tableau « RECORDS PERSONNELS » de l\'onglet ALLURES est repris à chaque import : record daté (colonne DATE) et meilleurs chronos par année (colonnes ANNEE 2024…).</p>', a: ['Ouvrir les allures', '#/allures'] },
     { id: 'semaine', q: 'Copier une semaine, cycle et phase', m: 'copier semaine cycle phase dupliquer reproduire planif', r:

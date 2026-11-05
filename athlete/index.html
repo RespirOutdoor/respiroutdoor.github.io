@@ -536,6 +536,9 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
 .nouveau-rp { margin: 2px 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--vert-clair); font-size: .9rem; font-weight: 600; }
 .nouveau-rp.oui { background: var(--rouge-fond); color: var(--rouge); font-weight: 700; }
 @media (max-width: 360px) { .records .tableau th, .records .tableau td { padding: 8px 6px; } }
+
+/* Pense-bête de l'entraîneur */
+.pense-bete { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 </style>
 </head>
 <body class="athlete">
@@ -1428,8 +1431,19 @@ var Core = (function () {
       for (var k = 0; k < 7; k++) a.dispos[cles[k]] = cel(f, pDispo.r + 1 + k, pDispo.c + 1) === true;
     }
     var pCont = chercher(f, /^CONTRAINTES$/i), pTer = chercher(f, /^TERRAINS$/i);
-    if (pCont) a.contraintes = texte(cel(f, pCont.r + 1, pCont.c));
-    if (pTer) a.terrains = texte(cel(f, pTer.r + 1, pTer.c));
+    // CONTRAINTES et TERRAINS : tout le bloc sous le titre (7 lignes, comme les DISPOS), sur les colonnes jusqu'au titre suivant de la ligne
+    function bloc(p) {
+      var ent = f.lignes[p.r] || [], fin = p.c + 1;
+      while (fin < p.c + 8 && (ent[fin] === undefined || texte(ent[fin]) === '')) fin++;
+      var vus = [];
+      for (var r = p.r + 1; r <= p.r + 7; r++) for (var c = p.c; c < fin; c++) {
+        var v = cel(f, r, c); if (v === true || v === false) continue;
+        var t = texte(v); if (t.length > 1 && vus.indexOf(t) < 0) vus.push(t); // une lettre seule : libellé vertical (« A », « ► »)
+      }
+      return vus.join(' · ');
+    }
+    if (pCont) a.contraintes = bloc(pCont);
+    if (pTer) a.terrains = bloc(pTer);
 
     // Tableau des séances
     var pEnt = chercher(f, /^DATE$/i);
@@ -1816,6 +1830,12 @@ var Core = (function () {
   /* ---------- Autotests (valeurs de référence calculées à la main) ---------- */
   function near(a, b, eps) { return isNum(a) && Math.abs(a - b) <= (eps || 1e-9); }
   var TESTS = [
+    ['Fiche : CONTRAINTES et TERRAINS lus sur tout le bloc (7 lignes, colonnes jusqu\'au titre DISPOS)', function () {
+      var L = [['CONTRAINTES', '', 'DISPOS', '', 'TERRAINS', '', ''], ['ENTR CROISE', 'VELO+CAP', 'L', true, '', '', ''], ['', 'HT+TAPIS', 'M', true, 'REPOS MAR AM = NATATION', '', ''],
+        ['', '', 'M', true], ['', '', 'J', true], ['', '', 'V', true], ['PISTE', 'SPE 10-1/2', 'S', true, 'NAT 7H30-9H - CAP DERRIERE'], ['VMA C (200/300)', 'VMA L NON', 'D', true], ['PLAISIR 2026 ORIENTE SPE100']];
+      var a = importerPlan({ nom: 'PLAN', lignes: L.concat([[], ['DATE', 'CORPS DE SEANCE'], [46300, 'FOOTING']]) }, []);
+      return a.contraintes === 'ENTR CROISE · VELO+CAP · HT+TAPIS · PISTE · SPE 10-1/2 · VMA C (200/300) · VMA L NON' && a.terrains === 'REPOS MAR AM = NATATION · NAT 7H30-9H - CAP DERRIERE' && a.dispos.L === true;
+    }],
     ['RP de l\'athlète : ligne « [RP · 10 km · 38:20 · …] » lue, gardée par avecExtras, invisible dans les notes et les retours', function () {
       var l = ligneRP({ dist: 'd10', s: 2300, course: 'Foulées [x] · test' }), n = avecExtras('Bonnes jambes', [], 'Piste', [l]);
       var a = { resultats: [{ id: 'r1', dist: 'd10', date: '2026-04-12', s: 2300 }], jours: { '2026-04-12': { notes: l }, '2025-11-11': { notes: 'ok\n' + ligneRP({ dist: 'semi', s: 5163 }) }, '2026-05-01': { notes: '[RP · 42 km · 3:00:00]' } } };
