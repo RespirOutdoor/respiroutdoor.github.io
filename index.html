@@ -542,7 +542,7 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
 
 /* ======================================================================
    Esthétique « glossy dashboard » : fond dégradé aux verts du logo, cartes de verre (translucides, reflet en haut),
-   tuiles de chiffres à grands nombres, barre d'onglets flottante, boutons brillants. Couleurs du logo : vert #3A8376, sapin #0A322A.
+   tuiles de chiffres à grands nombres (même police que le reste), barre d'onglets flottante, boutons brillants. Couleurs du logo : vert #3A8376, sapin #0A322A.
    Le flou (backdrop-filter) est réservé à l'en-tête, aux onglets et aux fenêtres : les cartes n'en ont pas (fluidité sur petits téléphones).
    ====================================================================== */
 :root {
@@ -557,7 +557,6 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
   --tuile-bord: rgba(58, 131, 118, .22);
   --halo-1: rgba(58, 131, 118, .30); --halo-2: rgba(10, 50, 42, .16); --halo-3: rgba(124, 197, 181, .35);
   --barre: rgba(10, 50, 42, .82);
-  --chiffres: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
   --rayon: 20px;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
@@ -613,7 +612,7 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
 
   /* Tuiles de chiffres : grands nombres, fond teinté du vert du logo */
   .kpi { background: var(--tuile); border: 1px solid var(--tuile-bord); border-radius: 16px; padding: 12px 14px; box-shadow: var(--reflet); }
-  .kpi b { font-family: var(--chiffres); font-size: 1.55rem; font-weight: 600; letter-spacing: -.01em; line-height: 1.15; }
+  .kpi b { font-size: 1.5rem; font-weight: 700; letter-spacing: -.01em; line-height: 1.15; }
   .kpi .etiq { font-size: .68rem; letter-spacing: .09em; }
   .ma-vma .kpi { background: linear-gradient(155deg, var(--rouge-fond), transparent 140%); border-color: rgba(180, 35, 24, .18); }
   .ma-vma .kpi:first-child b { font-size: 2.3rem; }
