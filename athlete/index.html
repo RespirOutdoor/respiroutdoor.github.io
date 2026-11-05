@@ -494,9 +494,9 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
 .titre-groupe { margin: 18px 4px 10px; font-size: .95rem; color: var(--texte-2); }
 .proto h3 .famille-proto { margin-left: 8px; padding: 1px 8px; border: 1px solid var(--bord); border-radius: 99px; font-size: .72rem; font-weight: 600; color: var(--texte-2); vertical-align: 2px; white-space: nowrap; }
 /* Ma VMA (athlète) : carte rouge, VMA en grand sur toute la largeur */
-:root { --rouge: #B42318; --rouge-fond: #FDECEA; }
-:root[data-theme="dark"] { --rouge: #F4877C; --rouge-fond: #2E1715; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --rouge: #F4877C; --rouge-fond: #2E1715; } }
+:root { --rouge: #D80F28; --rouge-fond: #FFECEE; --rouge-bord: rgba(216, 15, 40, .28); --rouge-lueur: rgba(216, 15, 40, .18); } /* rouge électrique : 5,2:1 sur blanc, 4,6:1 sur le fond rosé */
+:root[data-theme="dark"] { --rouge: #FF4057; --rouge-fond: #2A0F15; --rouge-bord: rgba(255, 64, 87, .35); --rouge-lueur: rgba(255, 64, 87, .35); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --rouge: #FF4057; --rouge-fond: #2A0F15; --rouge-bord: rgba(255, 64, 87, .35); --rouge-lueur: rgba(255, 64, 87, .35); } }
 .ma-vma { border-left: 5px solid var(--rouge); }
 .ma-vma h2 { color: var(--rouge); }
 .ma-vma .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -615,9 +615,9 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
   .kpi { background: var(--tuile); border: 1px solid var(--tuile-bord); border-radius: 16px; padding: 12px 14px; box-shadow: var(--reflet); }
   .kpi b { font-size: 1.5rem; font-weight: 700; letter-spacing: -.01em; line-height: 1.15; }
   .kpi .etiq { font-size: .68rem; letter-spacing: .09em; }
-  .ma-vma .kpi { background: linear-gradient(155deg, var(--rouge-fond), transparent 140%); border-color: rgba(180, 35, 24, .18); }
+  .ma-vma .kpi { background: linear-gradient(155deg, var(--rouge-fond), transparent 140%); border-color: var(--rouge-bord); }
   .ma-vma .kpi:first-child b { font-size: 2.3rem; }
-  .kpi.rouge { background: linear-gradient(155deg, var(--rouge-fond), transparent 140%); border-color: rgba(180, 35, 24, .18); }
+  .kpi.rouge { background: linear-gradient(155deg, var(--rouge-fond), transparent 140%); border-color: var(--rouge-bord); }
 
   /* Tableaux : en-tête discret, lignes aérées */
   .tableau { border: 1px solid var(--verre-trait); border-radius: 14px; background: rgba(255, 255, 255, .02); }
@@ -661,6 +661,20 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
   .aide-bouton { bottom: calc(var(--nav-h) + 26px + env(safe-area-inset-bottom, 0px)); }
   #toast { bottom: calc(var(--nav-h) + 26px + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* Carte « Ma VMA » compacte : VMA à gauche, type et date du test empilés à droite ; rouge électrique avec une légère lueur */
+@media screen {
+  .ma-vma { border-left: 4px solid var(--rouge); padding: 14px; }
+  .ma-vma h2 { font-size: 1.05rem; margin: 0; }
+  .ma-vma .kpis { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: auto auto; gap: 8px; margin-top: 10px; }
+  .ma-vma .kpi { padding: 8px 12px; border-radius: 14px; }
+  .ma-vma .kpi:first-child { grid-column: 1; grid-row: 1 / span 2; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 0 22px -8px var(--rouge-lueur), var(--reflet); }
+  .ma-vma .kpi:first-child b { font-size: 1.75rem; white-space: nowrap; }
+  .ma-vma .kpi b { font-size: 1rem; line-height: 1.2; overflow-wrap: anywhere; }
+  .ma-vma .kpi .etiq { font-size: .62rem; }
+  .ma-vma p.muet { margin-top: 10px !important; font-size: .8rem; }
+}
+@media screen and (max-width: 360px) { .ma-vma .kpi:first-child b { font-size: 1.3rem; } .ma-vma .kpi { padding: 8px 10px; } }
 </style>
 </head>
 <body class="athlete">
