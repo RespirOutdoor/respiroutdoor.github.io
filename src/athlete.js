@@ -303,8 +303,10 @@
   function vueAccueil(m) {
     var a = A.athlete, aj = auj(), j = a.jours[aj] || {}, h = '';
     h += carteReactions() + carteDecalees();
-    var mots = [A.commun.motGlobal, a.motCoach].filter(function (x) { return C.texte(x); });
-    if (mots.length) h += '<section class="carte mot"><h3>💬 Le mot de ton coach</h3>' + mots.map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + '</section>';
+    // Mot à tous puis mot personnel, séparés par un espace et un trait fin
+    var motTous = C.texte(A.commun.motGlobal), motPerso = C.texte(a.motCoach);
+    if (motTous || motPerso) h += '<section class="carte mot"><h3>💬 Le mot de ton coach</h3>' + (motTous ? '<p>' + esc(A.commun.motGlobal) + '</p>' : '') +
+      (motPerso ? '<p' + (motTous ? ' class="mot-perso"' : '') + '>' + esc(a.motCoach) + '</p>' : '') + '</section>';
     // Séance d'hier pas encore saisie
     var hier = C.addDays(aj, -1), jh = a.jours[hier];
     if (jh && C.estPrevue(jh) && !C.aRetour(jh)) h += '<section class="alerte ligne"><span class="espace">Ta séance d\'hier (' + esc(jh.corps) + ') n\'est pas encore saisie.</span><button class="sec" data-act="pasFaite" data-date="' + hier + '">Pas réalisée</button><button data-act="saisir" data-date="' + hier + '">Saisir</button></section>';
