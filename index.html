@@ -705,6 +705,13 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
   body::after { content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px); background: #0A322A; z-index: 30; pointer-events: none; }
 }
 @media screen and (min-width: 900px) { nav.onglets { top: env(safe-area-inset-top, 0px); } }
+
+/* Fond général de la page (« canevas ») en vert sapin : c'est la couleur qu'iOS met sous la barre d'état et dans les rebonds de défilement.
+   Le fond de l'application (dégradé clair ou sombre) est dessiné par body::before, fixe, sur tout l'écran ; body reste transparent pour le laisser voir. */
+@media screen {
+  html { background: #0A322A; }
+  body { background: transparent; min-height: 100vh; min-height: 100dvh; }
+}
 </style>
 </head>
 <body class="coach">
@@ -3802,7 +3809,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v65</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v66</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';

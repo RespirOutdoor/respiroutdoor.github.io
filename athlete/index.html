@@ -705,6 +705,13 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
   body::after { content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px); background: #0A322A; z-index: 30; pointer-events: none; }
 }
 @media screen and (min-width: 900px) { nav.onglets { top: env(safe-area-inset-top, 0px); } }
+
+/* Fond général de la page (« canevas ») en vert sapin : c'est la couleur qu'iOS met sous la barre d'état et dans les rebonds de défilement.
+   Le fond de l'application (dégradé clair ou sombre) est dessiné par body::before, fixe, sur tout l'écran ; body reste transparent pour le laisser voir. */
+@media screen {
+  html { background: #0A322A; }
+  body { background: transparent; min-height: 100vh; min-height: 100dvh; }
+}
 </style>
 </head>
 <body class="athlete">
