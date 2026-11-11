@@ -768,6 +768,14 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
   .ma-vma .kpi + .kpi { border-left: 0; }
   .ma-vma .kpi .etiq, .ma-vma .kpi b, .ma-vma .vma-valeur .nb, .ma-vma .vma-valeur .unite { color: #C40F27; }
 }
+
+/* Ma VMA : rectangles Test et Date de même largeur, textes centrés ; une valeur trop longue est réduite par ajusterVMA (commun.js) */
+@media screen {
+  .ma-vma .kpis { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); }
+  .ma-vma .kpi, .ma-vma .kpi:first-child { align-items: center; text-align: center; padding-left: 8px; padding-right: 8px; }
+  .ma-vma .kpi b { display: block; width: 100%; overflow: hidden; text-align: center; }
+  .ma-vma .kpi b.vma-valeur { display: flex; justify-content: center; align-items: baseline; gap: 5px; }
+}
 </style>
 </head>
 <body class="coach">
@@ -3080,6 +3088,7 @@ var UI = (function () {
     main.innerHTML = h;
     brancher();
     function brancher() {
+      ajusterVMA(main);
       brancherRecords(main, a, modifiable, enregistrer);
       if (!modifiable) return;
       $$('[data-all="modifier"]', main).forEach(function (b) { b.onclick = modifierVMA; });
@@ -3096,6 +3105,17 @@ var UI = (function () {
       };
     }
   }
+
+  // Carte VMA : chaque valeur doit tenir dans son rectangle ; sinon sa taille diminue jusqu'à ce qu'elle tienne (date complète, nom de test long…)
+  function ajusterVMA(racine) {
+    $$('.ma-vma .kpi b', racine).forEach(function (b) {
+      var cibles = b.querySelectorAll('span').length ? [].slice.call(b.querySelectorAll('span')) : [b];
+      cibles.forEach(function (x) { x.style.fontSize = ''; });
+      for (var i = 0; i < 30 && b.scrollWidth > b.clientWidth + 1; i++)
+        cibles.forEach(function (x) { x.style.fontSize = (parseFloat(getComputedStyle(x).fontSize) * 0.94).toFixed(2) + 'px'; });
+    });
+  }
+  window.addEventListener('resize', function () { ajusterVMA(document); });
 
   // Fenêtre de modification (entraîneur) : VMA, test, chronos de base, pré-fatigue ; les calculs se mettent à jour à l'enregistrement
   function modifierVMA() {
@@ -3879,7 +3899,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v79</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v80</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';

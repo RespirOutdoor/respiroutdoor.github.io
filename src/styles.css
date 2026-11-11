@@ -752,3 +752,11 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
   .ma-vma .kpi + .kpi { border-left: 0; }
   .ma-vma .kpi .etiq, .ma-vma .kpi b, .ma-vma .vma-valeur .nb, .ma-vma .vma-valeur .unite { color: #C40F27; }
 }
+
+/* Ma VMA : rectangles Test et Date de même largeur, textes centrés ; une valeur trop longue est réduite par ajusterVMA (commun.js) */
+@media screen {
+  .ma-vma .kpis { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); }
+  .ma-vma .kpi, .ma-vma .kpi:first-child { align-items: center; text-align: center; padding-left: 8px; padding-right: 8px; }
+  .ma-vma .kpi b { display: block; width: 100%; overflow: hidden; text-align: center; }
+  .ma-vma .kpi b.vma-valeur { display: flex; justify-content: center; align-items: baseline; gap: 5px; }
+}

@@ -564,6 +564,7 @@ var UI = (function () {
     main.innerHTML = h;
     brancher();
     function brancher() {
+      ajusterVMA(main);
       brancherRecords(main, a, modifiable, enregistrer);
       if (!modifiable) return;
       $$('[data-all="modifier"]', main).forEach(function (b) { b.onclick = modifierVMA; });
@@ -580,6 +581,17 @@ var UI = (function () {
       };
     }
   }
+
+  // Carte VMA : chaque valeur doit tenir dans son rectangle ; sinon sa taille diminue jusqu'à ce qu'elle tienne (date complète, nom de test long…)
+  function ajusterVMA(racine) {
+    $$('.ma-vma .kpi b', racine).forEach(function (b) {
+      var cibles = b.querySelectorAll('span').length ? [].slice.call(b.querySelectorAll('span')) : [b];
+      cibles.forEach(function (x) { x.style.fontSize = ''; });
+      for (var i = 0; i < 30 && b.scrollWidth > b.clientWidth + 1; i++)
+        cibles.forEach(function (x) { x.style.fontSize = (parseFloat(getComputedStyle(x).fontSize) * 0.94).toFixed(2) + 'px'; });
+    });
+  }
+  window.addEventListener('resize', function () { ajusterVMA(document); });
 
   // Fenêtre de modification (entraîneur) : VMA, test, chronos de base, pré-fatigue ; les calculs se mettent à jour à l'enregistrement
   function modifierVMA() {

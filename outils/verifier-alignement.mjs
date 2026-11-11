@@ -41,7 +41,7 @@ jours[aj] = { corps: '45 MIN FOOTING', type: 'EF', eveil: '15', km: 8.4, dureeSe
 jours[j(1)] = { corps: '10x400M', type: 'VMA', eveil: '15', educ: '10', rac: '10' };
 jours[j(2)] = { corps: 'PROTOCOLE PRE-COMPET', type: 'PROTO' };
 jours[j(3)] = { corps: '10 KM ROUTE', type: 'COMP' };
-srv.appel({ action: 'coach.publier', cle: CLE, athlete: { id: 'DEMO_CAMILLE', prenom: 'Camille', nom: 'Demo', code: 'K7Q2XA', motCoach: 'Bonne semaine', vma: 17, debut: lundi, contratSemaines: 20, objectif: 'Objectif 10 km' }, jours });
+srv.appel({ action: 'coach.publier', cle: CLE, athlete: { id: 'DEMO_CAMILLE', prenom: 'Camille', nom: 'Demo', code: 'K7Q2XA', motCoach: 'Bonne semaine', vma: 19.91, test: { type: '1/2 COOPER', date: '01/11/24' }, debut: lundi, contratSemaines: 20, objectif: 'Objectif 10 km' }, jours });
 srv.appel({ action: 'coach.commun', cle: CLE, motGlobal: 'Semaine importante : on soigne la récup.', legende: null, protos: [] });
 srv.appel({ action: 'athlete.ecrire', code: 'K7Q2XA', texte: 'Bonjour Manu, tout va bien.' });
 srv.appel({ action: 'coach.ecrire', cle: CLE, id: 'DEMO_CAMILLE', texte: 'Parfait, continue comme ça.' });
@@ -71,10 +71,13 @@ async function auditer(p, app, vue, largeur) {
       return { g: r.left - ext, d: r.right + ext, h: r.top, b: r.bottom, nom: (e.className || e.tagName) + ' « ' + (e.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 30) + ' »' };
     };
     // Sur téléphone, une page trop large élargit la fenêtre : on compare à la largeur réelle de l'écran
-    return { blocs: blocs.map(etendue), debord: Math.max(document.documentElement.scrollWidth, window.innerWidth) > largeur + 1 };
+    // Carte VMA : chaque valeur (VMA, test, date) doit tenir dans son rectangle
+    const vma = [...main.querySelectorAll('.ma-vma .kpi')].filter(k => { const b = k.querySelector('b'), kr = k.getBoundingClientRect(), br = b.getBoundingClientRect(); return b.scrollWidth > b.clientWidth + 1 || br.right > kr.right + 0.5 || br.left < kr.left - 0.5; }).map(k => k.textContent.trim().replace(/\s+/g, ' '));
+    return { blocs: blocs.map(etendue), debord: Math.max(document.documentElement.scrollWidth, window.innerWidth) > largeur + 1, vma };
   }, largeur);
   if (process.env.CAPTURES) await p.screenshot({ path: `${process.env.CAPTURES}/${app}-${vue}-${largeur}.png`, fullPage: true });
   if (r.debord) problemes.push(`${app}/${vue} ${largeur}px : la page déborde en largeur`);
+  r.vma.forEach(t => problemes.push(`${app}/${vue} ${largeur}px : carte VMA, « ${t} » dépasse de son rectangle`));
   const b = r.blocs; if (!b.length) return;
   const mode = arr => { const c = {}; arr.forEach(v => { const k = Math.round(v); c[k] = (c[k] || 0) + 1; }); return +Object.keys(c).sort((x, y) => c[y] - c[x])[0]; };
   const G = mode(b.map(x => x.g)), D = mode(b.map(x => x.d));
