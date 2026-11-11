@@ -728,6 +728,18 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
 @media (pointer: coarse) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: max(16px, 1em) !important; }
 }
+
+/* Ma VMA coordonnée : mêmes marges dans les trois cases, étiquettes alignées en haut, valeurs alignées en bas ;
+   la VMA (plus grande) remplit sa case sans vide au centre */
+@media screen {
+  .ma-vma .kpi { padding: 10px 14px 12px; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; min-width: 0; }
+  .ma-vma .kpi .etiq { margin: 0; line-height: 1.2; }
+  .ma-vma .kpi b { line-height: 1.15; }
+  .ma-vma .kpi:first-child { justify-content: space-between; padding: 10px 14px 12px; }
+  .ma-vma .vma-valeur { align-items: baseline; }
+  .ma-vma .vma-valeur .nb { font-size: min(2.2rem, 23cqi); line-height: .95; }
+  .ma-vma .vma-valeur .unite { font-size: clamp(.75rem, 9cqi, .95rem); }
+}
 </style>
 </head>
 <body class="coach">
@@ -3839,7 +3851,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v71</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v73</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
