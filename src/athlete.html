@@ -28,18 +28,18 @@ __STYLES__
   <button type="button" data-v="legende"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Légende</button>
   <button type="button" data-v="protos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 20l6-12 4 7 3-4 5 9z"/></svg>Protos</button>
 </nav>
-<div id="ouverture" class="courte" aria-hidden="true">
-  <div class="ouv-logo"><img src="__LOGO_HD__" alt=""></div>
+<div id="ouverture" class="reflet" aria-hidden="true">
+  <div class="ouv-logo"><img src="__LOGO_BLANC__" alt=""><span class="ouv-reflet"></span></div>
 </div>
 <script>
-// Animation d'ouverture « Épure courte » (0,8 s) : logo dans son cartouche blanc, fondu sans zoom, puis l'application ;
+// Animation d'ouverture « Reflet » (2 s) : logo blanc sur vert sapin, un reflet de lumière glisse sur les lettres, puis l'application ;
 // touche l'écran pour la passer ; rien ne s'affiche si le téléphone demande de réduire les animations
 (function () {
   var o = document.getElementById('ouverture');
   function fin() { if (o.parentNode) o.parentNode.removeChild(o); }
   if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { fin(); return; }
   o.addEventListener('click', fin);
-  setTimeout(fin, 800);
+  setTimeout(fin, 2000);
 })();
 </script>
 <main id="contenu" tabindex="-1"></main>

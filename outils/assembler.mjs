@@ -1,7 +1,7 @@
 // Assemble les deux applications en fichiers uniques (sans dépendance) : node outils/assembler.mjs
 //  - index.html          : Respir Outdoor Coach (entraîneur)
 //  - athlete/index.html  : My RespirOutdoor (athlète)
-// Sources : src/ (core.js, commun.js, coach.js, athlete.js, styles.css, defauts.json, *.html) et icons/logo.png, icons/logo-hd.png.
+// Sources : src/ (core.js, commun.js, coach.js, athlete.js, styles.css, defauts.json, *.html) et icons/logo.png, icons/logo-hd.png, icons/logo-blanc.png.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -11,8 +11,10 @@ const lire = p => readFileSync(join(racine, p), 'utf8');
 const logo = 'data:image/png;base64,' + readFileSync(join(racine, 'icons', 'logo.png')).toString('base64');
 // Logo haute définition (découpé de icon-512.png, fond transparent) : animation d'ouverture de l'application athlète
 const logoHD = 'data:image/png;base64,' + readFileSync(join(racine, 'icons', 'logo-hd.png')).toString('base64');
+// Logo blanc à deux tons (tiré de logo-hd.png) : animation d'ouverture « Reflet » sur fond vert sapin
+const logoBlanc = 'data:image/png;base64,' + readFileSync(join(racine, 'icons', 'logo-blanc.png')).toString('base64');
 const defauts = JSON.stringify(JSON.parse(lire('src/defauts.json'))).replace(/<\//g, '<\\/');
-const commun = { __STYLES__: lire('src/styles.css').trim(), __CORE__: lire('src/core.js').trim(), __DEFAUTS__: defauts, __COMMUN__: lire('src/commun.js').trim(), __AIDE__: lire('src/aide.js').trim(), __LOGO__: logo, __LOGO_HD__: logoHD };
+const commun = { __STYLES__: lire('src/styles.css').trim(), __CORE__: lire('src/core.js').trim(), __DEFAUTS__: defauts, __COMMUN__: lire('src/commun.js').trim(), __AIDE__: lire('src/aide.js').trim(), __LOGO__: logo, __LOGO_HD__: logoHD, __LOGO_BLANC__: logoBlanc };
 
 // Version affichée dans l'application : celle du cache hors ligne (sw.js), changée à chaque mise à jour
 const version = dossier => (/VERSION = PREFIXE \+ '([^']+)'/.exec(lire(join(dossier, 'sw.js'))) || [])[1] || '?';

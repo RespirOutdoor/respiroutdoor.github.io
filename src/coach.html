@@ -31,18 +31,18 @@ __STYLES__
   <a href="#/protos" data-v="protos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 20l6-12 4 7 3-4 5 9z"/></svg>Protos</a>
   <a href="#/reglages" data-v="reglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Réglages</a>
 </nav>
-<div id="ouverture" aria-hidden="true">
-  <div class="ouv-logo"><img alt=""></div>
+<div id="ouverture" class="reflet" aria-hidden="true">
+  <div class="ouv-logo"><img src="__LOGO_BLANC__" alt=""><span class="ouv-reflet"></span></div>
 </div>
 <script>
-// Animation d'ouverture (2 s) : touche l'écran pour la passer
+// Animation d'ouverture « Reflet » (2 s) : logo blanc sur vert sapin, un reflet de lumière glisse sur les lettres, puis l'application ;
+// touche l'écran pour la passer ; rien ne s'affiche si le téléphone demande de réduire les animations
 (function () {
-  var o = document.getElementById('ouverture'), l = document.querySelector('header.app img');
-  if (l) o.querySelector('img').src = l.src;
-  var duree = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches ? 600 : 2000;
+  var o = document.getElementById('ouverture');
   function fin() { if (o.parentNode) o.parentNode.removeChild(o); }
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { fin(); return; }
   o.addEventListener('click', fin);
-  setTimeout(fin, duree);
+  setTimeout(fin, 2000);
 })();
 </script>
 <main id="contenu" tabindex="-1"></main>

@@ -285,6 +285,17 @@ ul.liste { margin: 0; padding-left: 18px; }
 #ouverture.courte .ouv-logo img { width: min(230px, 58vw); }
 @keyframes ouv-fondu { to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { #ouverture.courte { display: none; } }
+/* Athlète et coach : « Reflet » (2 s) : vert sapin profond, logo blanc à deux tons ; apparition 0,7 s, reflet 1 s, effacement 0,4 s à 1,6 s */
+#ouverture.reflet { background: radial-gradient(85% 60% at 50% 42%, #134A3E 0%, #0A322A 45%, #04100C 100%); animation: ouv-sortie .4s ease-in 1.6s forwards; }
+#ouverture.reflet::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(0, 0, 0, .35)); }
+#ouverture.reflet .ouv-logo { position: relative; z-index: 1; transform: none; animation: ouv-fondu .7s ease-out .1s forwards; }
+#ouverture.reflet .ouv-logo img { width: min(260px, 66vw); opacity: .72; animation: ouv-eclaire .5s ease-out 1.2s forwards; }
+#ouverture .ouv-reflet { position: absolute; inset: 0; opacity: 0; pointer-events: none;
+  background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, .95) 50%, transparent 65%); background-size: 300% 100%; background-position: 100% 0;
+  -webkit-mask: url(__LOGO_BLANC__) center / 100% 100% no-repeat; mask: url(__LOGO_BLANC__) center / 100% 100% no-repeat; animation: ouv-reflet 1s cubic-bezier(.4, 0, .2, 1) .55s forwards; }
+@keyframes ouv-eclaire { to { opacity: 1; } }
+@keyframes ouv-reflet { 0% { opacity: 1; background-position: 100% 0; } 100% { opacity: 1; background-position: 0% 0; } }
+@media (prefers-reduced-motion: reduce) { #ouverture.reflet { display: none; } }
 @media print { #ouverture { display: none; } }
 
 /* ---------- Harmonisation des cartes et tableaux ---------- */
