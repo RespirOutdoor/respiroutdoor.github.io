@@ -698,7 +698,15 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
   .ma-vma .kpi .etiq { font-size: .62rem; }
   .ma-vma p.muet { margin-top: 10px !important; font-size: .8rem; }
 }
-@media screen and (max-width: 360px) { .ma-vma .kpi:first-child b { font-size: 1.3rem; } .ma-vma .kpi { padding: 8px 10px; } }
+@media screen and (max-width: 360px) { .ma-vma .kpi { padding: 8px 10px; } }
+/* Case VMA : nombre et unité sur une ligne, taille réglée sur la largeur de la case (unités cqi) pour ne jamais déborder */
+@media screen {
+  .ma-vma .kpi:first-child { container-type: inline-size; padding: 10px 12px; gap: 4px; }
+  .ma-vma .kpi .etiq { margin-bottom: 2px; }
+  .ma-vma .vma-valeur { display: flex; align-items: baseline; gap: 5px; white-space: nowrap; color: var(--rouge); }
+  .ma-vma .vma-valeur .nb { font-size: min(1.75rem, 21cqi); line-height: 1.05; letter-spacing: -.01em; color: var(--rouge); }
+  .ma-vma .vma-valeur .unite { font-size: clamp(.7rem, 8.5cqi, .85rem); font-weight: 700; color: var(--rouge); opacity: .8; }
+}
 
 /* Barre d'état (encoche) : l'en-tête commence sous elle, et une bande vert sapin fixe la remplit quand la page défile */
 @media screen {
@@ -2979,8 +2987,10 @@ var UI = (function () {
     // Carte « VMA » rouge, identique pour l'athlète (« Ma VMA ») et l'entraîneur (« VMA de Hervé », bouton Modifier)
     var vals = [['VMA', C.isNum(vma) ? C.nombreFR(vma) + ' km/h' : ''], ['Type de test', (a.test || {}).type], ['Date du test', C.dateTest((a.test || {}).date)]];
     function cases(l) { return l.map(function (x) { return '<div class="kpi"><span class="etiq">' + x[0] + '</span><b>' + (C.texte(x[1]) ? esc(x[1]) : '—') + '</b></div>'; }).join(''); }
+    // VMA : nombre en grand, unité plus petite à côté (la taille s'adapte à la largeur de la case)
+    function caseVMA() { return '<div class="kpi"><span class="etiq">VMA</span><b class="vma-valeur">' + (C.isNum(vma) ? '<span class="nb">' + C.nombreFR(vma) + '</span><span class="unite">km/h</span>' : '—') + '</b></div>'; }
     var h = '<section class="carte ma-vma"><div class="ligne"><h2 class="espace" style="margin:0">' + (modifiable ? 'VMA' + (prenom(a) ? ' de ' + esc(prenom(a)) : '') : 'Ma VMA') + '</h2>' +
-      (modifiable ? '<button class="sec" data-all="modifier">Modifier</button>' : '') + '</div><div class="kpis valeurs">' + cases(vals) + '</div>' +
+      (modifiable ? '<button class="sec" data-all="modifier">Modifier</button>' : '') + '</div><div class="kpis valeurs">' + caseVMA() + cases(vals.slice(1)) + '</div>' +
       '<p class="muet petit" style="margin:12px 0 0">' + (modifiable ? 'Ton athlète voit la même carte dans son application (« Ma VMA »).' : 'Valeur fixée par ton entraîneur, d\'après ton meilleur test.') + '</p></section>';
     // Entraîneur : base de travail à allure spécifique (chronos de base) et pré-fatigue (servent aux allures spécifiques), modifiables dans la même fenêtre
     if (modifiable) h += '<section class="carte"><div class="ligne"><h3 class="espace" style="margin:0">Base de travail à allure spécifique</h3><button class="sec" data-all="modifier">Modifier</button></div><div class="kpis kpis2 valeurs">' +
@@ -3829,7 +3839,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v69</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v71</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';

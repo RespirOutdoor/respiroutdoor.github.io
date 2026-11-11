@@ -682,7 +682,15 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
   .ma-vma .kpi .etiq { font-size: .62rem; }
   .ma-vma p.muet { margin-top: 10px !important; font-size: .8rem; }
 }
-@media screen and (max-width: 360px) { .ma-vma .kpi:first-child b { font-size: 1.3rem; } .ma-vma .kpi { padding: 8px 10px; } }
+@media screen and (max-width: 360px) { .ma-vma .kpi { padding: 8px 10px; } }
+/* Case VMA : nombre et unité sur une ligne, taille réglée sur la largeur de la case (unités cqi) pour ne jamais déborder */
+@media screen {
+  .ma-vma .kpi:first-child { container-type: inline-size; padding: 10px 12px; gap: 4px; }
+  .ma-vma .kpi .etiq { margin-bottom: 2px; }
+  .ma-vma .vma-valeur { display: flex; align-items: baseline; gap: 5px; white-space: nowrap; color: var(--rouge); }
+  .ma-vma .vma-valeur .nb { font-size: min(1.75rem, 21cqi); line-height: 1.05; letter-spacing: -.01em; color: var(--rouge); }
+  .ma-vma .vma-valeur .unite { font-size: clamp(.7rem, 8.5cqi, .85rem); font-weight: 700; color: var(--rouge); opacity: .8; }
+}
 
 /* Barre d'état (encoche) : l'en-tête commence sous elle, et une bande vert sapin fixe la remplit quand la page défile */
 @media screen {

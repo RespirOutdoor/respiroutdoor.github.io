@@ -511,8 +511,10 @@ var UI = (function () {
     // Carte « VMA » rouge, identique pour l'athlète (« Ma VMA ») et l'entraîneur (« VMA de Hervé », bouton Modifier)
     var vals = [['VMA', C.isNum(vma) ? C.nombreFR(vma) + ' km/h' : ''], ['Type de test', (a.test || {}).type], ['Date du test', C.dateTest((a.test || {}).date)]];
     function cases(l) { return l.map(function (x) { return '<div class="kpi"><span class="etiq">' + x[0] + '</span><b>' + (C.texte(x[1]) ? esc(x[1]) : '—') + '</b></div>'; }).join(''); }
+    // VMA : nombre en grand, unité plus petite à côté (la taille s'adapte à la largeur de la case)
+    function caseVMA() { return '<div class="kpi"><span class="etiq">VMA</span><b class="vma-valeur">' + (C.isNum(vma) ? '<span class="nb">' + C.nombreFR(vma) + '</span><span class="unite">km/h</span>' : '—') + '</b></div>'; }
     var h = '<section class="carte ma-vma"><div class="ligne"><h2 class="espace" style="margin:0">' + (modifiable ? 'VMA' + (prenom(a) ? ' de ' + esc(prenom(a)) : '') : 'Ma VMA') + '</h2>' +
-      (modifiable ? '<button class="sec" data-all="modifier">Modifier</button>' : '') + '</div><div class="kpis valeurs">' + cases(vals) + '</div>' +
+      (modifiable ? '<button class="sec" data-all="modifier">Modifier</button>' : '') + '</div><div class="kpis valeurs">' + caseVMA() + cases(vals.slice(1)) + '</div>' +
       '<p class="muet petit" style="margin:12px 0 0">' + (modifiable ? 'Ton athlète voit la même carte dans son application (« Ma VMA »).' : 'Valeur fixée par ton entraîneur, d\'après ton meilleur test.') + '</p></section>';
     // Entraîneur : base de travail à allure spécifique (chronos de base) et pré-fatigue (servent aux allures spécifiques), modifiables dans la même fenêtre
     if (modifiable) h += '<section class="carte"><div class="ligne"><h3 class="espace" style="margin:0">Base de travail à allure spécifique</h3><button class="sec" data-all="modifier">Modifier</button></div><div class="kpis kpis2 valeurs">' +
