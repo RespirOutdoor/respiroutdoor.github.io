@@ -682,3 +682,10 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
   .ma-vma p.muet { margin-top: 10px !important; font-size: .8rem; }
 }
 @media screen and (max-width: 360px) { .ma-vma .kpi:first-child b { font-size: 1.3rem; } .ma-vma .kpi { padding: 8px 10px; } }
+
+/* Barre d'état (encoche) : l'en-tête commence sous elle, et une bande vert sapin fixe la remplit quand la page défile */
+@media screen {
+  header.app { padding-top: calc(10px + env(safe-area-inset-top, 0px)); }
+  body::after { content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px); background: #0A322A; z-index: 30; pointer-events: none; }
+}
+@media screen and (min-width: 900px) { nav.onglets { top: env(safe-area-inset-top, 0px); } }

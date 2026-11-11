@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0A322A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- iOS (écran d'accueil) : la page passe sous la barre d'état, en texte blanc ; l'en-tête et l'ouverture la remplissent en vert sapin -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="Espace entraîneur Respir Outdoor : plans de course à pied, suivi des athlètes, légende, allures et protocoles.">
 <meta name="apple-mobile-web-app-title" content="Respir Coach">
 <title>Respir Outdoor Coach</title>
@@ -694,6 +698,13 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
   .ma-vma p.muet { margin-top: 10px !important; font-size: .8rem; }
 }
 @media screen and (max-width: 360px) { .ma-vma .kpi:first-child b { font-size: 1.3rem; } .ma-vma .kpi { padding: 8px 10px; } }
+
+/* Barre d'état (encoche) : l'en-tête commence sous elle, et une bande vert sapin fixe la remplit quand la page défile */
+@media screen {
+  header.app { padding-top: calc(10px + env(safe-area-inset-top, 0px)); }
+  body::after { content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px); background: #0A322A; z-index: 30; pointer-events: none; }
+}
+@media screen and (min-width: 900px) { nav.onglets { top: env(safe-area-inset-top, 0px); } }
 </style>
 </head>
 <body class="coach">
@@ -3791,7 +3802,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v64</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v65</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
