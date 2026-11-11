@@ -277,7 +277,7 @@ ul.liste { margin: 0; padding-left: 18px; }
   #ouverture .ouv-onde { display: none; }
   #ouverture.souffle { animation: ouv-sortie .2s ease-in .4s forwards !important; }
 }
-/* Coach : « Épure courte » (0,8 s) : fond de l'application, logo dans son cartouche blanc ; apparition 0,3 s, pause 0,2 s, effacement 0,3 s */
+/* Athlète : « Épure courte » (0,8 s) : fond de l'application, logo dans son cartouche blanc ; apparition 0,3 s, pause 0,2 s, effacement 0,3 s */
 #ouverture.courte { background: radial-gradient(60% 45% at 8% 4%, var(--halo-1), transparent 70%), radial-gradient(55% 50% at 100% 35%, var(--halo-3), transparent 70%),
   radial-gradient(70% 55% at 30% 100%, var(--halo-2), transparent 70%), var(--fond); animation: ouv-sortie .3s ease-in .5s forwards; }
 #ouverture.courte .ouv-logo { transform: none; background: #FFFFFF; border-radius: 18px; padding: 10px 14px; box-shadow: 0 12px 30px -12px rgba(10, 50, 42, .55), inset 0 1px 0 #FFFFFF;
