@@ -714,6 +714,12 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
   html.haut-cache { --etat: var(--fond); }
   body { background: transparent; min-height: 100vh; min-height: 100dvh; }
 }
+
+/* iPhone : Safari zoome sur tout champ dont le texte fait moins de 16 px, et la page reste décalée ensuite.
+   Sur écran tactile, tous les champs ont donc au moins 16 px (le zoom manuel reste possible). */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: max(16px, 1em) !important; }
+}
 </style>
 </head>
 <body class="athlete">
