@@ -509,7 +509,7 @@ var UI = (function () {
     ctxAllures = { a: a, enregistrer: enregistrer, modifiable: modifiable, opts: opts || {} };
     var vma = a.vma, al = a.allures || {};
     // Carte « VMA » rouge, identique pour l'athlète (« Ma VMA ») et l'entraîneur (« VMA de Hervé », bouton Modifier)
-    var vals = [['VMA', C.isNum(vma) ? C.nombreFR(vma) + ' km/h' : ''], ['Type de test', (a.test || {}).type], ['Date du test', C.dateTest((a.test || {}).date)]];
+    var vals = [['VMA', C.isNum(vma) ? C.nombreFR(vma) + ' km/h' : ''], ['Test', (a.test || {}).type], ['Date', C.dateTest((a.test || {}).date)]];
     function cases(l) { return l.map(function (x) { return '<div class="kpi"><span class="etiq">' + x[0] + '</span><b>' + (C.texte(x[1]) ? esc(x[1]) : '—') + '</b></div>'; }).join(''); }
     // VMA : nombre en grand, unité plus petite à côté (la taille s'adapte à la largeur de la case)
     function caseVMA() { return '<div class="kpi"><span class="etiq">VMA</span><b class="vma-valeur">' + (C.isNum(vma) ? '<span class="nb">' + C.nombreFR(vma) + '</span><span class="unite">km/h</span>' : '—') + '</b></div>'; }

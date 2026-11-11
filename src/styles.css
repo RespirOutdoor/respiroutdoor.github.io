@@ -685,7 +685,7 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
 @media screen and (max-width: 360px) { .ma-vma .kpi { padding: 8px 10px; } }
 /* Case VMA : nombre et unité sur une ligne, taille réglée sur la largeur de la case (unités cqi) pour ne jamais déborder */
 @media screen {
-  .ma-vma .kpi:first-child { container-type: inline-size; padding: 10px 12px; gap: 4px; }
+  .ma-vma .kpi:first-child { padding: 10px 12px; gap: 4px; }
   .ma-vma .kpi .etiq { margin-bottom: 2px; }
   .ma-vma .vma-valeur { display: flex; align-items: baseline; gap: 5px; white-space: nowrap; color: var(--rouge); }
   .ma-vma .vma-valeur .nb { font-size: min(1.75rem, 21cqi); line-height: 1.05; letter-spacing: -.01em; color: var(--rouge); }
@@ -724,3 +724,18 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
   .ma-vma .vma-valeur .nb { font-size: min(2.2rem, 23cqi); line-height: .95; }
   .ma-vma .vma-valeur .unite { font-size: clamp(.75rem, 9cqi, .95rem); }
 }
+
+/* Ma VMA « premium » : un seul bandeau rose compact, trois colonnes séparées par un filet rouge,
+   tout en rouge (étiquettes adoucies), VMA dominante, type et date à la même taille */
+@media screen {
+  .ma-vma .kpis { container-type: inline-size; display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1.1fr) minmax(0, .85fr); grid-template-rows: auto; gap: 0; margin-top: 10px;
+    background: linear-gradient(155deg, var(--rouge-fond), transparent 160%); border: 1px solid var(--rouge-bord); border-radius: 14px; overflow: hidden; }
+  .ma-vma .kpi, .ma-vma .kpi:first-child { grid-column: auto; grid-row: auto; background: none; border: 0; border-radius: 0; box-shadow: none; padding: 10px 12px; gap: 4px; justify-content: space-between; }
+  .ma-vma .kpi + .kpi { border-left: 1px solid var(--rouge-bord); }
+  .ma-vma .kpi .etiq { color: var(--rouge); opacity: .72; font-size: .6rem; letter-spacing: .1em; }
+  .ma-vma .kpi b { color: var(--rouge); font-size: min(1rem, 4.6cqi); font-weight: 700; line-height: 1.2; white-space: nowrap; }
+  .ma-vma .vma-valeur .nb { font-size: min(1.85rem, 8.6cqi); line-height: 1; }
+  .ma-vma .vma-valeur .unite { font-size: min(.8rem, 3.6cqi); opacity: .85; }
+  .ma-vma .kpi:first-child { box-shadow: none; }
+}
+@media screen and (max-width: 360px) { .ma-vma .kpi, .ma-vma .kpi:first-child { padding: 9px 9px; }  }
