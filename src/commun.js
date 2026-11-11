@@ -704,3 +704,15 @@ var UI = (function () {
     vueLegende: vueLegende, vueAllures: vueAllures, htmlBarreRPE: htmlBarreRPE, brancherBarreRPE: brancherBarreRPE, vueProtos: vueProtos, appliquerTheme: appliquerTheme
   };
 })();
+
+// Barre d'état du téléphone : même couleur que l'élément affiché en haut de l'écran
+// (en-tête vert sapin ; une fois l'en-tête sorti de l'écran, fond de l'application clair ou sombre)
+(function () {
+  var h = document.querySelector('header.app'), meta = document.querySelector('meta[name="theme-color"]');
+  if (!h || !('IntersectionObserver' in window)) return;
+  new IntersectionObserver(function (e) {
+    var cache = !e[e.length - 1].isIntersecting, racine = document.documentElement;
+    racine.classList.toggle('haut-cache', cache);
+    if (meta) meta.setAttribute('content', cache ? (getComputedStyle(racine).getPropertyValue('--fond').trim() || '#0A322A') : '#0A322A');
+  }).observe(h);
+})();

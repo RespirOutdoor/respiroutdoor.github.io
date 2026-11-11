@@ -286,8 +286,8 @@ ul.liste { margin: 0; padding-left: 18px; }
 @keyframes ouv-fondu { to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { #ouverture.courte { display: none; } }
 /* Athlète et coach : « Reflet » (2 s) : vert sapin profond, logo blanc à deux tons ; apparition 0,7 s, reflet 1 s, effacement 0,4 s à 1,6 s */
-#ouverture.reflet { background: radial-gradient(85% 60% at 50% 42%, #134A3E 0%, #0A322A 45%, #04100C 100%); animation: ouv-sortie .4s ease-in 1.6s forwards; }
-#ouverture.reflet::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(0, 0, 0, .35)); }
+#ouverture.reflet { background: radial-gradient(70% 45% at 50% 48%, #155446 0%, rgba(21, 84, 70, 0) 100%), #0A322A; animation: ouv-sortie .4s ease-in 1.6s forwards; }
+#ouverture.reflet::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to bottom, transparent 55%, rgba(0, 0, 0, .28)); } /* haut uni = même vert que la barre d'état */
 #ouverture.reflet .ouv-logo { position: relative; z-index: 1; transform: none; animation: ouv-fondu .7s ease-out .1s forwards; }
 #ouverture.reflet .ouv-logo img { width: min(260px, 66vw); opacity: .72; animation: ouv-eclaire .5s ease-out 1.2s forwards; }
 #ouverture .ouv-reflet { position: absolute; inset: 0; opacity: 0; pointer-events: none;
@@ -599,11 +599,12 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
   body { background: var(--fond); padding-bottom: calc(var(--nav-h) + 22px + env(safe-area-inset-bottom)); }
   /* Fond : halos de vert fixes derrière tout le contenu */
   body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-    background: radial-gradient(60% 45% at 8% 4%, var(--halo-1), transparent 70%), radial-gradient(55% 50% at 100% 35%, var(--halo-3), transparent 70%),
+    /* bord supérieur exactement de la couleur du fond (= barre d'état quand l'en-tête est sorti de l'écran), puis les halos */
+    background: linear-gradient(to bottom, var(--fond) 0, transparent 90px), radial-gradient(60% 45% at 8% 4%, var(--halo-1), transparent 70%), radial-gradient(55% 50% at 100% 35%, var(--halo-3), transparent 70%),
       radial-gradient(70% 55% at 30% 100%, var(--halo-2), transparent 70%), var(--fond); }
 
   /* En-tête : verre sapin, coins arrondis en bas */
-  header.app { background: linear-gradient(135deg, rgba(10, 50, 42, .94), rgba(22, 82, 70, .9)); -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3);
+  header.app { background: linear-gradient(180deg, #0A322A 0%, #0E3B32 55%, #15493E 100%); -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3);
     border-radius: 0 0 24px 24px; box-shadow: 0 12px 30px -16px rgba(10, 50, 42, .7), inset 0 -1px 0 rgba(255, 255, 255, .06); padding: 10px 16px 12px; }
   header.app .logo { border-radius: 12px; box-shadow: 0 4px 14px rgba(0, 0, 0, .18), inset 0 1px 0 #fff; }
   header.app .statut { background: rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12); }
@@ -686,13 +687,14 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
 /* Barre d'état (encoche) : l'en-tête commence sous elle, et une bande vert sapin fixe la remplit quand la page défile */
 @media screen {
   header.app { padding-top: calc(10px + env(safe-area-inset-top, 0px)); }
-  body::after { content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px); background: #0A322A; z-index: 30; pointer-events: none; }
+  body::after { content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px); background: var(--etat, #0A322A); z-index: 30; pointer-events: none; }
 }
 @media screen and (min-width: 900px) { nav.onglets { top: env(safe-area-inset-top, 0px); } }
 
 /* Fond général de la page (« canevas ») en vert sapin : c'est la couleur qu'iOS met sous la barre d'état et dans les rebonds de défilement.
    Le fond de l'application (dégradé clair ou sombre) est dessiné par body::before, fixe, sur tout l'écran ; body reste transparent pour le laisser voir. */
 @media screen {
-  html { background: #0A322A; }
+  html { --etat: #0A322A; background: var(--etat); }
+  html.haut-cache { --etat: var(--fond); }
   body { background: transparent; min-height: 100vh; min-height: 100dvh; }
 }
