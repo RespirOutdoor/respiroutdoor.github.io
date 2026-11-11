@@ -1660,15 +1660,18 @@ var Core = (function () {
     if ((m = /^(\d{1,2})[\/.\-](\d{2}|\d{4})$/.exec(t)) && +m[1] >= 1 && +m[1] <= 12) return (m[2].length === 2 ? '20' + m[2] : m[2]) + '-' + pad2(m[1]) + '-01';
     return '';
   }
-  // VMA retenue = celle du test le plus récent du tableau « Évolution de la VMA » (s'il n'est pas plus ancien que le test affiché) ;
-  // renvoie le test appliqué, ou null si rien ne change
-  function appliquerDernierTest(a) {
-    var dernier = null;
-    (a.historiqueVMA || []).forEach(function (x) { var k = cleDateTest(x.date); if (k && isNum(x.vma) && (!dernier || k >= dernier.cle)) dernier = { cle: k, x: x }; });
-    if (!dernier) return null;
-    var test = a.test || {}, cleAct = cleDateTest(test.date);
-    if (cleAct && dernier.cle < cleAct) return null;
-    var x = dernier.x;
+  // VMA retenue = la plus haute du tableau « Évolution de la VMA » (à égalité, le test le plus récent), si elle dépasse celle de la carte
+  // ou l'égale avec un autre test ; renvoie le test appliqué, ou null si rien ne change
+  function appliquerMeilleurTest(a) {
+    var best = null;
+    (a.historiqueVMA || []).forEach(function (x) {
+      if (!isNum(x.vma)) return;
+      var k = cleDateTest(x.date);
+      if (!best || x.vma > best.x.vma || (x.vma === best.x.vma && k >= best.cle)) best = { cle: k, x: x };
+    });
+    if (!best) return null;
+    var x = best.x, test = a.test || {};
+    if (isNum(a.vma) && a.vma > x.vma) return null;
     if (a.vma === x.vma && texte(test.date) === texte(x.date) && (!texte(x.test) || texte(test.type) === texte(x.test))) return null;
     a.vma = x.vma;
     a.test = Object.assign({}, test, { date: texte(x.date) }, texte(x.test) ? { type: texte(x.test) } : {});
@@ -1779,10 +1782,10 @@ var Core = (function () {
         if (isNum(v)) hist.push({ test: texte(t), date: dateTest(d), vma: v });
       }
       a.historiqueVMA = hist;
-      var dt = appliquerDernierTest(a);
+      var dt = appliquerMeilleurTest(a);
       if (dt) {
         for (var q = rapport.length - 1; q >= 0; q--) if (/^VMA différente entre PLAN/.test(rapport[q])) rapport.splice(q, 1);
-        rapport.push('VMA du dernier test du tableau « Évolution de la VMA » (' + texte(dt.test) + ' ' + texte(dt.date) + ') : ' + nombreFR(dt.vma) + ' km/h');
+        rapport.push('VMA la plus haute du tableau « Évolution de la VMA » (' + texte(dt.test) + ' ' + texte(dt.date) + ') : ' + nombreFR(dt.vma) + ' km/h');
       }
     }
     // « base chrono » de chaque bloc ALLURE SPÉCIFIQUE : chrono = première durée avant le mot « distance » (après, c'est l'allure au kilo) ;
@@ -1996,11 +1999,13 @@ var Core = (function () {
   /* ---------- Autotests (valeurs de référence calculées à la main) ---------- */
   function near(a, b, eps) { return isNum(a) && Math.abs(a - b) <= (eps || 1e-9); }
   var TESTS = [
-    ['VMA : celle du test le plus récent (« 6/26 » après « 11/24 »), sauf s\'il est plus ancien que le test affiché', function () {
-      var a = { vma: 18, test: { type: '1/2 COOPER', date: '11/24' }, historiqueVMA: [{ test: '1/2 COOP', date: '11/24', vma: 18 }, { test: 'VAMEVAL', date: '6/26', vma: 19.8 }, { test: 'X', date: '', vma: 25 }] };
-      var x = appliquerDernierTest(a), b = { vma: 20, test: { date: '09/26' }, historiqueVMA: [{ test: 'T', date: '6/26', vma: 19 }] };
+    ['VMA retenue : la plus haute du tableau (19,8 du 6/26 et non 19,1 du 9/26), jamais en dessous de la carte', function () {
+      var a = { vma: 18, test: { type: '1/2 COOPER', date: '11/24' }, historiqueVMA: [{ test: '1/2 COOP', date: '11/24', vma: 18 }, { test: 'VAMEVAL', date: '6/26', vma: 19.8 }, { test: 'COOPER', date: '9/26', vma: 19.1 }] };
+      var x = appliquerMeilleurTest(a), b = { vma: 20.5, test: { date: '01/26' }, historiqueVMA: [{ test: 'T', date: '6/26', vma: 19 }] };
+      var c = { vma: 19, test: { type: 'A', date: '3/25' }, historiqueVMA: [{ test: 'A', date: '3/25', vma: 19 }, { test: 'B', date: '5/26', vma: 19 }] };
       return cleDateTest('6/26') === '2026-06-01' && cleDateTest('13/01/2025') === '2025-01-13' && cleDateTest(46320) === '2026-10-25' && cleDateTest('ESTIM') === '' &&
-        x.vma === 19.8 && a.vma === 19.8 && a.test.type === 'VAMEVAL' && a.test.date === '6/26' && appliquerDernierTest(a) === null && appliquerDernierTest(b) === null && b.vma === 20;
+        x.vma === 19.8 && a.vma === 19.8 && a.test.type === 'VAMEVAL' && a.test.date === '6/26' && appliquerMeilleurTest(a) === null && appliquerMeilleurTest(b) === null && b.vma === 20.5 &&
+        appliquerMeilleurTest(c).test === 'B' && c.test.date === '5/26';
     }],
     ['Fiche : CONTRAINTES et TERRAINS lus sur tout le bloc (7 lignes, colonnes jusqu\'au titre DISPOS)', function () {
       var L = [['CONTRAINTES', '', 'DISPOS', '', 'TERRAINS', '', ''], ['ENTR CROISE', 'VELO+CAP', 'L', true, '', '', ''], ['', 'HT+TAPIS', 'M', true, 'REPOS MAR AM = NATATION', '', ''],
@@ -2407,7 +2412,7 @@ var Core = (function () {
     trouverZone: trouverZone, reperesSeance: reperesSeance, normCode: normCode, chercherCode: chercherCode,
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, dateTest: dateTest, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
-    extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete, cleDateTest: cleDateTest, appliquerDernierTest: appliquerDernierTest, DISTANCES_RP: DISTANCES_RP, distanceRP: distanceRP, chronoTexte: chronoTexte, resultatValide: resultatValide, dateResultat: dateResultat, quandResultat: quandResultat, resultatsDistance: resultatsDistance, syntheseRP: syntheseRP, ligneRP: ligneRP, lignesRP: lignesRP, resultatsAthlete: resultatsAthlete, tousResultats: tousResultats,
+    extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete, cleDateTest: cleDateTest, appliquerMeilleurTest: appliquerMeilleurTest, DISTANCES_RP: DISTANCES_RP, distanceRP: distanceRP, chronoTexte: chronoTexte, resultatValide: resultatValide, dateResultat: dateResultat, quandResultat: quandResultat, resultatsDistance: resultatsDistance, syntheseRP: syntheseRP, ligneRP: ligneRP, lignesRP: lignesRP, resultatsAthlete: resultatsAthlete, tousResultats: tousResultats,
     lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerLegende: fusionnerLegende, codesAbsents: codesAbsents, absentsLegende: absentsLegende, retirerLegende: retirerLegende, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, estAutreOnglet: estAutreOnglet, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();
@@ -2931,7 +2936,7 @@ var UI = (function () {
     function cases(l) { return l.map(function (x) { return '<div class="kpi"><span class="etiq">' + x[0] + '</span><b>' + (C.texte(x[1]) ? esc(x[1]) : '—') + '</b></div>'; }).join(''); }
     var h = '<section class="carte ma-vma"><div class="ligne"><h2 class="espace" style="margin:0">' + (modifiable ? 'VMA' + (prenom(a) ? ' de ' + esc(prenom(a)) : '') : 'Ma VMA') + '</h2>' +
       (modifiable ? '<button class="sec" data-all="modifier">Modifier</button>' : '') + '</div><div class="kpis valeurs">' + cases(vals) + '</div>' +
-      '<p class="muet petit" style="margin:12px 0 0">' + (modifiable ? 'Ton athlète voit la même carte dans son application (« Ma VMA »).' : 'Valeur fixée par ton entraîneur, d\'après ton dernier test.') + '</p></section>';
+      '<p class="muet petit" style="margin:12px 0 0">' + (modifiable ? 'Ton athlète voit la même carte dans son application (« Ma VMA »).' : 'Valeur fixée par ton entraîneur, d\'après ton meilleur test.') + '</p></section>';
     // Entraîneur : base de travail à allure spécifique (chronos de base) et pré-fatigue (servent aux allures spécifiques), modifiables dans la même fenêtre
     if (modifiable) h += '<section class="carte"><div class="ligne"><h3 class="espace" style="margin:0">Base de travail à allure spécifique</h3><button class="sec" data-all="modifier">Modifier</button></div><div class="kpis kpis2 valeurs">' +
       cases([['Chrono 10 km', C.isNum(al.chrono10) ? C.formatDuree(al.chrono10) : ''], ['Chrono semi', C.isNum(al.chronoSemi) ? C.formatDuree(al.chronoSemi) : ''], ['Chrono marathon', C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : ''],
@@ -2989,8 +2994,8 @@ var UI = (function () {
         var d = new FormData(fh), v = C.parseNumberFR(d.get('v'));
         if (!(v > 5 && v < 30)) { toast('VMA entre 5 et 30 km/h'); return; }
         a.historiqueVMA = (a.historiqueVMA || []).concat([{ test: C.texte(d.get('t')), date: C.texte(d.get('d')), vma: v }]);
-        // Test le plus récent : il devient la VMA retenue (carte rouge, zones, allures)
-        var dt = C.appliquerDernierTest(a);
+        // VMA la plus haute du tableau : elle devient la VMA retenue (carte rouge, zones, allures)
+        var dt = C.appliquerMeilleurTest(a);
         if (dt) toast('VMA mise à jour : ' + C.nombreFR(dt.vma) + ' km/h (test du ' + dt.date + ')');
         enregistrer(a);
       };
@@ -3178,7 +3183,7 @@ var UI = (function () {
       var jours = {};
       Object.keys(x.jours || {}).forEach(function (d) { var j = C.nettoyerJour(x.jours[d]); if (Object.keys(j).length) jours[d] = j; });
       var a = Object.assign({}, x.fiche || {}, { id: x.id, prenom: x.prenom, nom: x.nom, code: x.code, motCoach: x.motCoach || '', jours: jours, suivi: x.suivi || {} });
-      if (C.appliquerDernierTest(a)) E.aPublier[a.id] = UI.maintenant(); // VMA du test le plus récent
+      if (C.appliquerMeilleurTest(a)) E.aPublier[a.id] = UI.maintenant(); // VMA la plus haute du tableau « Évolution de la VMA »
       E.athletes.push(a); n++;
     });
     var cm = r.commun || {};
@@ -3212,7 +3217,7 @@ var UI = (function () {
       });
     }
     res.suivi = a.suivi; res.planVu = majPlan;
-    if (C.appliquerDernierTest(res)) E.aPublier[res.id] = UI.maintenant(); // VMA du test le plus récent
+    if (C.appliquerMeilleurTest(res)) E.aPublier[res.id] = UI.maintenant(); // VMA la plus haute du tableau « Évolution de la VMA »
     E.athletes[E.athletes.indexOf(a)] = res;
     return true;
   }
@@ -3767,7 +3772,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v60</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v61</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
@@ -3990,8 +3995,8 @@ var UI = (function () {
       // Valeurs aberrantes d'un ancien import (ex. 8100 km) : refusées par le service, elles bloquaient la synchronisation
       var corrigees = [];
       E.athletes.forEach(function (a) {
-        // VMA retenue = test le plus récent du tableau « Évolution de la VMA » (athlètes importés avant cette règle)
-        if (C.appliquerDernierTest(a)) E.aPublier[a.id] = UI.maintenant();
+        // VMA retenue = la plus haute du tableau « Évolution de la VMA » (athlètes importés avant cette règle)
+        if (C.appliquerMeilleurTest(a)) E.aPublier[a.id] = UI.maintenant();
         var r = C.corrigerAthlete(a);
         if (r.length) { E.aPublier[a.id] = UI.maintenant(); corrigees.push(nomComplet(a) + ' (' + r.map(function (x) { return C.formatDateFR(x.date) + ' : ' + x.champ + ' = ' + x.valeur; }).slice(0, 3).join(', ') + (r.length > 3 ? '…' : '') + ')'); }
       });
@@ -4069,7 +4074,7 @@ var Aide = (function () {
     { id: 'pense-bete', q: 'Pense-bête sur un athlète', m: 'pense bete note notes memo privé prive secret rappel', r:
       '<p>Onglet <b>Plan</b>, carte <b>Pense-bête</b> sous la fiche : bouton <b>Écrire</b> ou <b>Modifier</b>. La note est chiffrée avec ta clé coach avant d\'être envoyée : tu la retrouves sur tous tes appareils, l\'athlète ne peut pas la lire. Si ta clé coach change, les anciens pense-bêtes deviennent illisibles.</p>' },
     { id: 'allures', q: 'VMA et allures', m: 'allure allures vma zone zones vitesse test chrono demi cooper calcul rp record records', r:
-      '<p>Onglet <b>Allures</b> : carte rouge « VMA » (la même que chez l\'athlète) et carte « Base de travail à allure spécifique » ; bouton <b>Modifier</b> pour changer la VMA, le test, les chronos de base (10 km, semi, marathon, 100 km) et la pré-fatigue. Les calculs se mettent à jour à l\'enregistrement. La VMA retenue est celle du <b>test le plus récent</b> du tableau « Évolution de la VMA » : ajouter un test plus récent (dans l\'application ou dans l\'onglet ALLURES) met à jour la carte, les zones et les allures. Les chronos de base sont repris des lignes « base chrono » de l\'onglet ALLURES à chaque import ; une case vide garde la valeur de l\'application. Les zones (% de VMA) se règlent dans <b>Modifier la fiche</b>. L\'athlète voit sa VMA (carte « Ma VMA »), les zones et les allures calculées, sans pouvoir les changer. </p><p>Carte <b>Records</b> : <b>Ajouter un résultat</b> (5 km, 10 km, semi, marathon, 100 km : chrono, date, course). Les records, la courbe d\'évolution, les gains et le % de VMA se calculent tout seuls ; l\'athlète les voit dans « Mes RP » après l\'envoi. L\'athlète peut aussi ajouter ses propres RP depuis son application : tu les vois après la synchronisation, marqués « Saisi par l\'athlète » (lui seul peut les modifier). Note aussi les courses qui ne battent pas le record : elles apparaissent sur la courbe. Bouton <b>Modifier</b> dans l\'historique pour corriger ou supprimer. Le tableau « RECORDS PERSONNELS » de l\'onglet ALLURES est repris à chaque import : record daté (colonne DATE) et meilleurs chronos par année (colonnes ANNEE 2024…).</p>', a: ['Ouvrir les allures', '#/allures'] },
+      '<p>Onglet <b>Allures</b> : carte rouge « VMA » (la même que chez l\'athlète) et carte « Base de travail à allure spécifique » ; bouton <b>Modifier</b> pour changer la VMA, le test, les chronos de base (10 km, semi, marathon, 100 km) et la pré-fatigue. Les calculs se mettent à jour à l\'enregistrement. La VMA retenue est <b>la plus haute</b> du tableau « Évolution de la VMA » : un test qui la dépasse (ajouté dans l\'application ou dans l\'onglet ALLURES) met à jour la carte, les zones et les allures ; un test moins bon reste dans l\'historique sans changer la VMA. Les chronos de base sont repris des lignes « base chrono » de l\'onglet ALLURES à chaque import ; une case vide garde la valeur de l\'application. Les zones (% de VMA) se règlent dans <b>Modifier la fiche</b>. L\'athlète voit sa VMA (carte « Ma VMA »), les zones et les allures calculées, sans pouvoir les changer. </p><p>Carte <b>Records</b> : <b>Ajouter un résultat</b> (5 km, 10 km, semi, marathon, 100 km : chrono, date, course). Les records, la courbe d\'évolution, les gains et le % de VMA se calculent tout seuls ; l\'athlète les voit dans « Mes RP » après l\'envoi. L\'athlète peut aussi ajouter ses propres RP depuis son application : tu les vois après la synchronisation, marqués « Saisi par l\'athlète » (lui seul peut les modifier). Note aussi les courses qui ne battent pas le record : elles apparaissent sur la courbe. Bouton <b>Modifier</b> dans l\'historique pour corriger ou supprimer. Le tableau « RECORDS PERSONNELS » de l\'onglet ALLURES est repris à chaque import : record daté (colonne DATE) et meilleurs chronos par année (colonnes ANNEE 2024…).</p>', a: ['Ouvrir les allures', '#/allures'] },
     { id: 'semaine', q: 'Copier une semaine, cycle et phase', m: 'copier semaine cycle phase dupliquer reproduire planif', r:
       '<p>Onglet <b>Plan</b>, sous la semaine affichée : <b>Cycle / phase</b> pour nommer la situation de la semaine, <b>Copier vers…</b> pour recopier la partie entraîneur de cette semaine sur une autre.</p>', a: ['Ouvrir le plan', '#/plan'] },
     { id: 'imprimer', q: 'Imprimer le plan', m: 'imprimer impression pdf papier feuille', r:

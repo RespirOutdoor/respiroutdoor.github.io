@@ -52,7 +52,7 @@
       var jours = {};
       Object.keys(x.jours || {}).forEach(function (d) { var j = C.nettoyerJour(x.jours[d]); if (Object.keys(j).length) jours[d] = j; });
       var a = Object.assign({}, x.fiche || {}, { id: x.id, prenom: x.prenom, nom: x.nom, code: x.code, motCoach: x.motCoach || '', jours: jours, suivi: x.suivi || {} });
-      if (C.appliquerDernierTest(a)) E.aPublier[a.id] = UI.maintenant(); // VMA du test le plus récent
+      if (C.appliquerMeilleurTest(a)) E.aPublier[a.id] = UI.maintenant(); // VMA la plus haute du tableau « Évolution de la VMA »
       E.athletes.push(a); n++;
     });
     var cm = r.commun || {};
@@ -86,7 +86,7 @@
       });
     }
     res.suivi = a.suivi; res.planVu = majPlan;
-    if (C.appliquerDernierTest(res)) E.aPublier[res.id] = UI.maintenant(); // VMA du test le plus récent
+    if (C.appliquerMeilleurTest(res)) E.aPublier[res.id] = UI.maintenant(); // VMA la plus haute du tableau « Évolution de la VMA »
     E.athletes[E.athletes.indexOf(a)] = res;
     return true;
   }
@@ -864,8 +864,8 @@
       // Valeurs aberrantes d'un ancien import (ex. 8100 km) : refusées par le service, elles bloquaient la synchronisation
       var corrigees = [];
       E.athletes.forEach(function (a) {
-        // VMA retenue = test le plus récent du tableau « Évolution de la VMA » (athlètes importés avant cette règle)
-        if (C.appliquerDernierTest(a)) E.aPublier[a.id] = UI.maintenant();
+        // VMA retenue = la plus haute du tableau « Évolution de la VMA » (athlètes importés avant cette règle)
+        if (C.appliquerMeilleurTest(a)) E.aPublier[a.id] = UI.maintenant();
         var r = C.corrigerAthlete(a);
         if (r.length) { E.aPublier[a.id] = UI.maintenant(); corrigees.push(nomComplet(a) + ' (' + r.map(function (x) { return C.formatDateFR(x.date) + ' : ' + x.champ + ' = ' + x.valeur; }).slice(0, 3).join(', ') + (r.length > 3 ? '…' : '') + ')'); }
       });

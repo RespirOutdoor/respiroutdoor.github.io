@@ -513,7 +513,7 @@ var UI = (function () {
     function cases(l) { return l.map(function (x) { return '<div class="kpi"><span class="etiq">' + x[0] + '</span><b>' + (C.texte(x[1]) ? esc(x[1]) : '—') + '</b></div>'; }).join(''); }
     var h = '<section class="carte ma-vma"><div class="ligne"><h2 class="espace" style="margin:0">' + (modifiable ? 'VMA' + (prenom(a) ? ' de ' + esc(prenom(a)) : '') : 'Ma VMA') + '</h2>' +
       (modifiable ? '<button class="sec" data-all="modifier">Modifier</button>' : '') + '</div><div class="kpis valeurs">' + cases(vals) + '</div>' +
-      '<p class="muet petit" style="margin:12px 0 0">' + (modifiable ? 'Ton athlète voit la même carte dans son application (« Ma VMA »).' : 'Valeur fixée par ton entraîneur, d\'après ton dernier test.') + '</p></section>';
+      '<p class="muet petit" style="margin:12px 0 0">' + (modifiable ? 'Ton athlète voit la même carte dans son application (« Ma VMA »).' : 'Valeur fixée par ton entraîneur, d\'après ton meilleur test.') + '</p></section>';
     // Entraîneur : base de travail à allure spécifique (chronos de base) et pré-fatigue (servent aux allures spécifiques), modifiables dans la même fenêtre
     if (modifiable) h += '<section class="carte"><div class="ligne"><h3 class="espace" style="margin:0">Base de travail à allure spécifique</h3><button class="sec" data-all="modifier">Modifier</button></div><div class="kpis kpis2 valeurs">' +
       cases([['Chrono 10 km', C.isNum(al.chrono10) ? C.formatDuree(al.chrono10) : ''], ['Chrono semi', C.isNum(al.chronoSemi) ? C.formatDuree(al.chronoSemi) : ''], ['Chrono marathon', C.isNum(al.chronoMarathon) ? C.formatDuree(al.chronoMarathon) : ''],
@@ -571,8 +571,8 @@ var UI = (function () {
         var d = new FormData(fh), v = C.parseNumberFR(d.get('v'));
         if (!(v > 5 && v < 30)) { toast('VMA entre 5 et 30 km/h'); return; }
         a.historiqueVMA = (a.historiqueVMA || []).concat([{ test: C.texte(d.get('t')), date: C.texte(d.get('d')), vma: v }]);
-        // Test le plus récent : il devient la VMA retenue (carte rouge, zones, allures)
-        var dt = C.appliquerDernierTest(a);
+        // VMA la plus haute du tableau : elle devient la VMA retenue (carte rouge, zones, allures)
+        var dt = C.appliquerMeilleurTest(a);
         if (dt) toast('VMA mise à jour : ' + C.nombreFR(dt.vma) + ' km/h (test du ' + dt.date + ')');
         enregistrer(a);
       };

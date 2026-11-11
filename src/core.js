@@ -944,15 +944,18 @@ var Core = (function () {
     if ((m = /^(\d{1,2})[\/.\-](\d{2}|\d{4})$/.exec(t)) && +m[1] >= 1 && +m[1] <= 12) return (m[2].length === 2 ? '20' + m[2] : m[2]) + '-' + pad2(m[1]) + '-01';
     return '';
   }
-  // VMA retenue = celle du test le plus récent du tableau « Évolution de la VMA » (s'il n'est pas plus ancien que le test affiché) ;
-  // renvoie le test appliqué, ou null si rien ne change
-  function appliquerDernierTest(a) {
-    var dernier = null;
-    (a.historiqueVMA || []).forEach(function (x) { var k = cleDateTest(x.date); if (k && isNum(x.vma) && (!dernier || k >= dernier.cle)) dernier = { cle: k, x: x }; });
-    if (!dernier) return null;
-    var test = a.test || {}, cleAct = cleDateTest(test.date);
-    if (cleAct && dernier.cle < cleAct) return null;
-    var x = dernier.x;
+  // VMA retenue = la plus haute du tableau « Évolution de la VMA » (à égalité, le test le plus récent), si elle dépasse celle de la carte
+  // ou l'égale avec un autre test ; renvoie le test appliqué, ou null si rien ne change
+  function appliquerMeilleurTest(a) {
+    var best = null;
+    (a.historiqueVMA || []).forEach(function (x) {
+      if (!isNum(x.vma)) return;
+      var k = cleDateTest(x.date);
+      if (!best || x.vma > best.x.vma || (x.vma === best.x.vma && k >= best.cle)) best = { cle: k, x: x };
+    });
+    if (!best) return null;
+    var x = best.x, test = a.test || {};
+    if (isNum(a.vma) && a.vma > x.vma) return null;
     if (a.vma === x.vma && texte(test.date) === texte(x.date) && (!texte(x.test) || texte(test.type) === texte(x.test))) return null;
     a.vma = x.vma;
     a.test = Object.assign({}, test, { date: texte(x.date) }, texte(x.test) ? { type: texte(x.test) } : {});
@@ -1063,10 +1066,10 @@ var Core = (function () {
         if (isNum(v)) hist.push({ test: texte(t), date: dateTest(d), vma: v });
       }
       a.historiqueVMA = hist;
-      var dt = appliquerDernierTest(a);
+      var dt = appliquerMeilleurTest(a);
       if (dt) {
         for (var q = rapport.length - 1; q >= 0; q--) if (/^VMA différente entre PLAN/.test(rapport[q])) rapport.splice(q, 1);
-        rapport.push('VMA du dernier test du tableau « Évolution de la VMA » (' + texte(dt.test) + ' ' + texte(dt.date) + ') : ' + nombreFR(dt.vma) + ' km/h');
+        rapport.push('VMA la plus haute du tableau « Évolution de la VMA » (' + texte(dt.test) + ' ' + texte(dt.date) + ') : ' + nombreFR(dt.vma) + ' km/h');
       }
     }
     // « base chrono » de chaque bloc ALLURE SPÉCIFIQUE : chrono = première durée avant le mot « distance » (après, c'est l'allure au kilo) ;
@@ -1280,11 +1283,13 @@ var Core = (function () {
   /* ---------- Autotests (valeurs de référence calculées à la main) ---------- */
   function near(a, b, eps) { return isNum(a) && Math.abs(a - b) <= (eps || 1e-9); }
   var TESTS = [
-    ['VMA : celle du test le plus récent (« 6/26 » après « 11/24 »), sauf s\'il est plus ancien que le test affiché', function () {
-      var a = { vma: 18, test: { type: '1/2 COOPER', date: '11/24' }, historiqueVMA: [{ test: '1/2 COOP', date: '11/24', vma: 18 }, { test: 'VAMEVAL', date: '6/26', vma: 19.8 }, { test: 'X', date: '', vma: 25 }] };
-      var x = appliquerDernierTest(a), b = { vma: 20, test: { date: '09/26' }, historiqueVMA: [{ test: 'T', date: '6/26', vma: 19 }] };
+    ['VMA retenue : la plus haute du tableau (19,8 du 6/26 et non 19,1 du 9/26), jamais en dessous de la carte', function () {
+      var a = { vma: 18, test: { type: '1/2 COOPER', date: '11/24' }, historiqueVMA: [{ test: '1/2 COOP', date: '11/24', vma: 18 }, { test: 'VAMEVAL', date: '6/26', vma: 19.8 }, { test: 'COOPER', date: '9/26', vma: 19.1 }] };
+      var x = appliquerMeilleurTest(a), b = { vma: 20.5, test: { date: '01/26' }, historiqueVMA: [{ test: 'T', date: '6/26', vma: 19 }] };
+      var c = { vma: 19, test: { type: 'A', date: '3/25' }, historiqueVMA: [{ test: 'A', date: '3/25', vma: 19 }, { test: 'B', date: '5/26', vma: 19 }] };
       return cleDateTest('6/26') === '2026-06-01' && cleDateTest('13/01/2025') === '2025-01-13' && cleDateTest(46320) === '2026-10-25' && cleDateTest('ESTIM') === '' &&
-        x.vma === 19.8 && a.vma === 19.8 && a.test.type === 'VAMEVAL' && a.test.date === '6/26' && appliquerDernierTest(a) === null && appliquerDernierTest(b) === null && b.vma === 20;
+        x.vma === 19.8 && a.vma === 19.8 && a.test.type === 'VAMEVAL' && a.test.date === '6/26' && appliquerMeilleurTest(a) === null && appliquerMeilleurTest(b) === null && b.vma === 20.5 &&
+        appliquerMeilleurTest(c).test === 'B' && c.test.date === '5/26';
     }],
     ['Fiche : CONTRAINTES et TERRAINS lus sur tout le bloc (7 lignes, colonnes jusqu\'au titre DISPOS)', function () {
       var L = [['CONTRAINTES', '', 'DISPOS', '', 'TERRAINS', '', ''], ['ENTR CROISE', 'VELO+CAP', 'L', true, '', '', ''], ['', 'HT+TAPIS', 'M', true, 'REPOS MAR AM = NATATION', '', ''],
@@ -1691,7 +1696,7 @@ var Core = (function () {
     trouverZone: trouverZone, reperesSeance: reperesSeance, normCode: normCode, chercherCode: chercherCode,
     estRepos: estRepos, aContenuCoach: aContenuCoach, aRetour: aRetour, bilanJours: bilanJours, joursSemaine: joursSemaine, prochaineCompet: prochaineCompet,
     regrouperVertical: regrouperVertical, nouvelAthlete: nouvelAthlete, nettoyerJour: nettoyerJour, idAthlete: idAthlete, fusionner: fusionner, contratDe: contratDe, dateTest: dateTest, ACTIVITES: ACTIVITES, activite: activite, noteActivite: noteActivite, estCourse: estCourse,
-    extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete, cleDateTest: cleDateTest, appliquerDernierTest: appliquerDernierTest, DISTANCES_RP: DISTANCES_RP, distanceRP: distanceRP, chronoTexte: chronoTexte, resultatValide: resultatValide, dateResultat: dateResultat, quandResultat: quandResultat, resultatsDistance: resultatsDistance, syntheseRP: syntheseRP, ligneRP: ligneRP, lignesRP: lignesRP, resultatsAthlete: resultatsAthlete, tousResultats: tousResultats,
+    extras: extras, avecExtras: avecExtras, terrain: terrain, notesPrincipales: notesPrincipales, seancesDuJour: seancesDuJour, corrigerAthlete: corrigerAthlete, cleDateTest: cleDateTest, appliquerMeilleurTest: appliquerMeilleurTest, DISTANCES_RP: DISTANCES_RP, distanceRP: distanceRP, chronoTexte: chronoTexte, resultatValide: resultatValide, dateResultat: dateResultat, quandResultat: quandResultat, resultatsDistance: resultatsDistance, syntheseRP: syntheseRP, ligneRP: ligneRP, lignesRP: lignesRP, resultatsAthlete: resultatsAthlete, tousResultats: tousResultats,
     lireXLSX: lireXLSX, importerClasseur: importerClasseur, importerBibliotheque: importerBibliotheque, fusionnerLegende: fusionnerLegende, codesAbsents: codesAbsents, absentsLegende: absentsLegende, retirerLegende: retirerLegende, fusionnerProtos: fusionnerProtos, reunirProtos: reunirProtos, protoPrevu: protoPrevu, ongletsPlan: ongletsPlan, estAutreOnglet: estAutreOnglet, ongletParDefaut: ongletParDefaut, versCSV: versCSV, TESTS: TESTS, runTests: runTests
   };
 })();
