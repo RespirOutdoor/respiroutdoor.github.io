@@ -571,6 +571,9 @@ var UI = (function () {
         var d = new FormData(fh), v = C.parseNumberFR(d.get('v'));
         if (!(v > 5 && v < 30)) { toast('VMA entre 5 et 30 km/h'); return; }
         a.historiqueVMA = (a.historiqueVMA || []).concat([{ test: C.texte(d.get('t')), date: C.texte(d.get('d')), vma: v }]);
+        // Test le plus récent : il devient la VMA retenue (carte rouge, zones, allures)
+        var dt = C.appliquerDernierTest(a);
+        if (dt) toast('VMA mise à jour : ' + C.nombreFR(dt.vma) + ' km/h (test du ' + dt.date + ')');
         enregistrer(a);
       };
     }

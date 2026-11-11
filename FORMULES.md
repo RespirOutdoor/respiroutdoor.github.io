@@ -41,6 +41,7 @@ Toutes reprennent les formules de l'onglet ALLURES ou PLAN du classeur de l'entr
 | Chronos de base (onglet ALLURES) | Dans chaque bloc « ALLURE SPECIFIQUE », ligne « base chrono » : chrono = première durée avant « distance » ; distance = nombre après « distance », sinon celle du titre du bloc ; 10 km, semi (21,1 ± 0,5), marathon, 100 km | convention de l'outil |
 | Allure spécifique 100 km | Allure = chrono de base / 100 ; temps = allure × distance (1 000 m → 75 000 m) ; pas de repère % VMA (aucune valeur dans le classeur) | calcul |
 | RP saisis par l'athlète | Ligne « [RP · 10 km · 38:20 · course] » dans les notes du jour de la course (envoyée comme une saisie, sans changement du script Google) ; ajoutés aux résultats de l'entraîneur, sans doublon (même distance, date et chrono) ; chacun ne modifie que ses propres saisies | convention de l'outil |
+| VMA retenue | Celle du test le plus récent du tableau « Évolution de la VMA » (dates « 6/26 » = juin 2026, « 13/01/2025 », date Excel), si ce test n'est pas plus ancien que celui de la carte ; sinon la VMA de la fiche | convention de l'outil |
 | Tableau VMA/PAL | Temps affichés en minutes:secondes, arrondis à la seconde | convention de l'outil |
 | Progression totale, dernier gain | Premier chrono − RP actuel (et en % du premier chrono) ; RP précédent − RP actuel | calcul |
 | Fusion des données | La partie entraîneur vient de l'entraîneur ; la partie athlète vient de l'athlète ; entre deux saisies, la plus récente (horodatage) gagne | convention de l'outil |
