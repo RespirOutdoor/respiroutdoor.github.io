@@ -3,6 +3,7 @@
   "short_name": "My RespirOutdoor",
   "description": "Ton plan d'entraînement course à pied, préparé par ton entraîneur Respir Outdoor.",
   "lang": "fr",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#0A322A",
   "theme_color": "#0A322A",
