@@ -135,7 +135,7 @@ legend { font-weight: 700; padding: 0 6px; }
 .jour.repos { background: var(--repos); }
 /* Contour du jour dessiné à l'intérieur : la carte garde la même largeur que les autres */
 .jour.auj { box-shadow: inset 0 0 0 2px var(--vert); }
-#contenu > div > .jour { margin-bottom: 14px; }
+#contenu > div > .jour, #contenu .accueil-a > .jour { margin-bottom: 14px; }
 .jour .tete { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .jour .date { font-weight: 700; min-width: 92px; }
 .jour .corps { font-weight: 700; font-size: 1.02rem; }
@@ -775,6 +775,21 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
   .ma-vma .kpi, .ma-vma .kpi:first-child { align-items: center; text-align: center; padding-left: 8px; padding-right: 8px; }
   .ma-vma .kpi b { display: block; width: 100%; overflow: hidden; text-align: center; }
   .ma-vma .kpi b.vma-valeur { display: flex; justify-content: center; align-items: baseline; gap: 5px; }
+}
+
+/* ---------- Athlète sur ordinateur (écran large) : deux colonnes ; téléphone et application coach inchangés ---------- */
+@media screen and (min-width: 1100px) {
+  body.athlete main { max-width: 1280px; padding-left: 24px; padding-right: 24px; }
+  /* Accueil : séance du jour à gauche, tableau de bord à droite */
+  body.athlete .accueil-grille { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 0 24px; align-items: start; }
+  body.athlete .accueil-b > .titre-section:first-child { margin-top: 0; }
+  body.athlete .accueil-a > .titre-section:first-child { margin-top: 0; }
+  /* Plan : fiche, semaine, bilan et graphique à gauche ; séances de la semaine à droite */
+  body.athlete .plan-grille { display: grid; grid-template-columns: minmax(340px, 400px) minmax(0, 1fr); gap: 0 24px; align-items: start; }
+  body.athlete .plan-grille > * { grid-column: 1; min-width: 0; }
+  body.athlete .plan-grille > section.jours { grid-column: 2; grid-row: 1 / span 20; }
+  body.athlete .plan-grille .kpis2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body.athlete .plan-grille .bilan { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>
 </head>

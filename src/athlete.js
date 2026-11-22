@@ -301,7 +301,7 @@
     };
   }
   function vueAccueil(m) {
-    var a = A.athlete, aj = auj(), j = a.jours[aj] || {}, h = '';
+    var a = A.athlete, aj = auj(), j = a.jours[aj] || {}, h = '<div class="accueil-grille"><div class="accueil-a">';
     h += carteReactions() + carteDecalees();
     // Mot à tous puis mot personnel, séparés par un espace et un trait fin
     var motTous = C.texte(A.commun.motGlobal), motPerso = C.texte(a.motCoach);
@@ -322,13 +322,13 @@
     var compet = C.prochaineCompet(a, aj);
     if (compet) h += '<section class="carte compet"><span class="jx">' + (compet.dans === 0 ? 'Jour J' : 'J-' + compet.dans) + '</span><div><b>' + esc(compet.jour.corps) + '</b><br><span class="muet">' + esc(UI.jourCourt(compet.date)) + '</span></div></section>';
     // Tableau de bord
-    h += '<h2 class="titre-section">Tableau de bord</h2>' + tableauBilan(a, aj);
+    h += '</div><div class="accueil-b"><h2 class="titre-section">Tableau de bord</h2>' + tableauBilan(a, aj);
     // Records
     var rec = C.records(a);
     h += '<section class="carte"><h3>Mes Stats</h3>' + (rec.length ? '<div class="tableau"><table><thead><tr><th>Record</th><th class="num">Valeur</th><th class="num">Date</th></tr></thead><tbody>' + rec.map(function (r) {
       return '<tr><td>' + esc(r.libelle) + '</td><td class="num"><b>' + esc(r.texte).replace(' sur ', '</b><span class="ecart">sur ') + (r.texte.indexOf(' sur ') >= 0 ? '</span>' : '</b>') + '</td><td class="num">' + (r.cle === 'semaine' ? '<span class="ecart">sem. du</span>' : '') + C.formatDateFR(r.date).slice(0, 5) + '</td></tr>';
     }).join('') + '</tbody></table></div><p class="muet petit">Calculés uniquement à partir de tes séances saisies. Les allures sont des allures moyennes de séance.</p>' : '<p class="muet">Tes records apparaîtront ici dès tes premières séances saisies.</p>') + '</section>';
-    h += carteChaussures(a);
+    h += carteChaussures(a) + '</div></div>';
     m.innerHTML = h;
   }
 
@@ -337,7 +337,7 @@
     var a = A.athlete, aj = auj();
     if (!a.debut) a.debut = C.weekStart(aj);
     if (semaineAffichee === null) semaineAffichee = Math.max(1, UI.semaineDe(a, aj));
-    m.innerHTML = UI.htmlFiche(a, aj, '') + UI.htmlSemaine(a, semaineAffichee, aj, { role: 'athlete' }) + UI.htmlEnsemble(a, semaineAffichee);
+    m.innerHTML = '<div class="plan-grille">' + UI.htmlFiche(a, aj, '') + UI.htmlSemaine(a, semaineAffichee, aj, { role: 'athlete' }) + UI.htmlEnsemble(a, semaineAffichee) + '</div>';
     UI.brancherGraph(a, semaineAffichee, function (n) { semaineAffichee = n; rendre(); window.scrollTo(0, 0); });
   }
 
