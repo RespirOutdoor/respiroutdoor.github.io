@@ -119,7 +119,7 @@ legend { font-weight: 700; padding: 0 6px; }
 .jour.repos { background: var(--repos); }
 /* Contour du jour dessiné à l'intérieur : la carte garde la même largeur que les autres */
 .jour.auj { box-shadow: inset 0 0 0 2px var(--vert); }
-#contenu > div > .jour, #contenu .accueil-a > .jour { margin-bottom: 14px; }
+#contenu > div > .jour { margin-bottom: 14px; }
 .jour .tete { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .jour .date { font-weight: 700; min-width: 92px; }
 .jour .corps { font-weight: 700; font-size: 1.02rem; }
@@ -764,14 +764,109 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
 /* ---------- Athlète sur ordinateur (écran large) : deux colonnes ; téléphone et application coach inchangés ---------- */
 @media screen and (min-width: 1100px) {
   body.athlete main { max-width: 1280px; padding-left: 24px; padding-right: 24px; }
-  /* Accueil : séance du jour à gauche, tableau de bord à droite */
-  body.athlete .accueil-grille { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 0 24px; align-items: start; }
-  body.athlete .accueil-b > .titre-section:first-child { margin-top: 0; }
-  body.athlete .accueil-a > .titre-section:first-child { margin-top: 0; }
   /* Plan : fiche, semaine, bilan et graphique à gauche ; séances de la semaine à droite */
   body.athlete .plan-grille { display: grid; grid-template-columns: minmax(340px, 400px) minmax(0, 1fr); gap: 0 24px; align-items: start; }
   body.athlete .plan-grille > * { grid-column: 1; min-width: 0; }
   body.athlete .plan-grille > section.jours { grid-column: 2; grid-row: 1 / span 20; }
   body.athlete .plan-grille .kpis2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   body.athlete .plan-grille .bilan { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ======================================================================
+   Athlète, Accueil « bento » : tuiles de tailles variées (bannière, semaine, chiffres, séance, compétition, messages)
+   Téléphone : une colonne, tuiles chiffrées par deux. Ordinateur (≥ 1100 px) : grille de 12 colonnes.
+   ====================================================================== */
+.bento { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.bento > * { grid-column: 1 / -1; min-width: 0; margin-bottom: 0 !important; }
+.bento > .b-tuile { grid-column: span 1; }
+.bento .b-jour-col > .titre-section:first-of-type { margin-top: 4px; }
+.bento .b-jour-col > * + *, .bento .b-cote > * + * { margin-top: 12px; }
+.bento .b-jour-col > .titre-section + * { margin-top: 0; }
+.bento .b-cote > .carte, .bento .b-jour-col > .carte, .bento .b-detail > .carte, .bento .b-chaussures > .carte { margin-bottom: 0; }
+/* Bannière : vert sapin, logo blanc en filigrane */
+.b-hero { position: relative; overflow: hidden; color: #FFFFFF; border: 0 !important; padding: 20px 18px !important;
+  background: url(__LOGO_BLANC__) right -40px bottom -18px / 260px auto no-repeat, linear-gradient(140deg, #0A322A 0%, #14513F 60%, #3A8376 130%) !important;
+  box-shadow: 0 16px 34px -16px rgba(10, 50, 42, .75), inset 0 1px 0 rgba(255, 255, 255, .12) !important; }
+.b-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(10, 50, 42, .9) 35%, rgba(10, 50, 42, .35)); pointer-events: none; }
+.b-hero-txt { position: relative; z-index: 1; display: grid; gap: 10px; max-width: 46rem; }
+.b-hero h2 { color: #FFFFFF; font-size: 1.6rem; margin: 0; letter-spacing: -.01em; }
+.b-sur { margin: 0; font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #A8DCCF; }
+.b-mot { background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .14); border-radius: 14px; padding: 10px 12px; }
+.b-mot-titre { display: block; font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #A8DCCF; margin-bottom: 4px; }
+.b-mot p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; color: #FFFFFF; }
+.b-mot p.mot-perso { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .18); }
+.b-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.b-hero .b-actions button:not(.sec) { background: #FFFFFF !important; color: #0A322A !important; border-color: #FFFFFF !important; box-shadow: 0 6px 16px -8px rgba(0, 0, 0, .5) !important; }
+.b-hero .b-actions button.sec { background: rgba(255, 255, 255, .1) !important; color: #FFFFFF !important; border-color: rgba(255, 255, 255, .35) !important; }
+/* Semaine en pastilles */
+.b-jours { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
+.b-jour { display: grid; justify-items: center; gap: 2px; min-height: 0; padding: 8px 0 6px !important; border-radius: 14px !important; background: var(--tuile) !important; border: 1px solid var(--tuile-bord) !important;
+  color: var(--texte) !important; box-shadow: none !important; font-weight: 600; }
+.b-jour .b-j { font-size: .68rem; color: var(--texte-2); letter-spacing: .04em; }
+.b-jour .b-n { font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.b-jour .b-pt { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: .68rem; font-weight: 800; color: #FFFFFF; }
+.b-jour.prevu .b-pt { background: transparent; border: 2px solid var(--fam, var(--vert)); }
+.b-jour.fait .b-pt { background: var(--fam, var(--vert)); }
+.b-jour.non .b-pt { background: #C2410C; }
+.b-jour.repos .b-pt { background: transparent; }
+.b-jour.auj { background: linear-gradient(180deg, #0A322A, #14513F) !important; border-color: #0A322A !important; color: #FFFFFF !important; }
+.b-jour.auj .b-j { color: #A8DCCF; }
+.b-legende { margin: 10px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.b-l { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; font-size: .55rem; font-weight: 800; color: #FFFFFF; }
+.b-l.fait { background: var(--vert); } .b-l.non { background: #C2410C; } .b-l.prevu { border: 2px solid var(--vert); margin-left: 6px; }
+.b-l.non { margin-left: 6px; }
+/* Tuiles chiffrées */
+.b-tuile { display: grid; align-content: start; gap: 6px; padding: 14px !important; min-height: 128px; }
+.b-tuile .etiq { font-size: .66rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--texte-2); }
+.b-val { font-size: 1.7rem; font-weight: 800; line-height: 1.05; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.b-val small { font-size: .8rem; font-weight: 700; margin-left: 4px; color: var(--texte-2); }
+.b-sous { display: block; font-size: .78rem; color: var(--texte-2); }
+.b-barres { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; align-items: end; height: 38px; margin-top: 2px; }
+.b-barres span { display: block; border-radius: 4px; background: var(--tuile-bord); }
+.b-barres span.auj { background: var(--vert); }
+.b-anneau { --p: 0; width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(closest-side, var(--carte) 74%, transparent 75% 100%), conic-gradient(var(--vert) calc(var(--p) * 1%), var(--tuile-bord) 0); }
+.b-anneau b { font-size: .95rem; font-variant-numeric: tabular-nums; }
+.b-vma { cursor: pointer; background: linear-gradient(150deg, #E3122E 0%, #B80C24 100%) !important; border: 0 !important; box-shadow: 0 14px 30px -14px rgba(184, 12, 36, .7), inset 0 1px 0 rgba(255, 255, 255, .25) !important; }
+.b-vma .etiq, .b-vma .b-sous { color: rgba(255, 255, 255, .85); }
+.b-vma .b-val, .b-vma .b-val small { color: #FFFFFF; }
+.b-vma:focus-visible { outline: 3px solid #0A322A; outline-offset: 2px; }
+/* Compétition et messages */
+.b-compet { background: linear-gradient(150deg, #1A1200 0%, #3A2A00 100%) !important; border: 0 !important; color: #FFFFFF; display: grid; gap: 10px; }
+.b-compet .etiq { font-size: .66rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: #F5D37A; }
+.b-compet-l { display: flex; gap: 12px; align-items: center; }
+.b-compet .jx { font-size: 1.3rem; font-weight: 800; background: var(--or-vif, #E0B12B); color: #1A1200; border-radius: 12px; padding: 8px 12px; white-space: nowrap; }
+.b-compet b { color: #FFFFFF; } .b-compet .b-sous { color: rgba(255, 255, 255, .7); }
+.b-msgs { list-style: none; margin: 10px 0 12px; padding: 0; display: grid; gap: 8px; }
+.b-msgs li { display: grid; gap: 2px; padding: 8px 10px; border-radius: 12px; background: var(--tuile); border: 1px solid var(--tuile-bord); }
+.b-msgs li.nonlu { border-color: var(--vert); }
+.b-qui { font-size: .7rem; font-weight: 700; color: var(--texte-2); text-transform: uppercase; letter-spacing: .06em; }
+.b-txt { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.b-quand { font-size: .72rem; color: var(--texte-2); }
+button.plein { width: 100%; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .b-anneau { background: radial-gradient(closest-side, #14211D 74%, transparent 75% 100%), conic-gradient(var(--vert) calc(var(--p) * 1%), var(--tuile-bord) 0); } }
+:root[data-theme="dark"] .b-anneau { background: radial-gradient(closest-side, #14211D 74%, transparent 75% 100%), conic-gradient(var(--vert) calc(var(--p) * 1%), var(--tuile-bord) 0); }
+
+/* Ordinateur : grille de 12 colonnes et barre de navigation verticale en pilule */
+@media screen and (min-width: 1100px) {
+  body.athlete .bento { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+  body.athlete .bento > .b-hero { grid-column: 1 / span 8; min-height: 230px; align-content: center; display: grid; }
+  body.athlete .bento > .b-semaine { grid-column: 9 / span 4; }
+  body.athlete .bento > .b-tuile { grid-column: span 3; }
+  body.athlete .bento > .b-jour-col { grid-column: 1 / span 8; }
+  body.athlete .bento > .b-cote { grid-column: 9 / span 4; }
+  body.athlete .bento > .b-detail { grid-column: 1 / span 7; }
+  body.athlete .bento > .b-stats { grid-column: 8 / span 5; }
+  body.athlete .bento > .b-chaussures { grid-column: 1 / span 12; }
+  body.athlete .b-hero h2 { font-size: 2.1rem; }
+  body.athlete .b-hero { background-size: 360px auto, auto !important; background-position: right -50px bottom -26px, 0 0 !important; }
+  body.athlete .b-val { font-size: 2rem; }
+  /* Navigation verticale (pilule vert sapin) à gauche */
+  body.athlete nav.onglets { position: fixed; top: 96px; left: 16px; right: auto; bottom: auto; width: 88px; height: auto; flex-direction: column; justify-content: flex-start;
+    gap: 4px; padding: 12px 8px; border-radius: 30px; border: 0; background: linear-gradient(180deg, #0A322A, #0E3B32) !important; box-shadow: 0 20px 40px -18px rgba(0, 0, 0, .6); z-index: 25; }
+  body.athlete nav.onglets button { flex: 0 0 auto !important; flex-direction: column !important; padding: 10px 4px !important; font-size: .7rem !important; gap: 4px !important; border-radius: 18px !important; margin: 0 !important; }
+  :root body.athlete nav.onglets button[aria-current="page"]:not(.sec):not(.discret):not(.danger) { box-shadow: none; background: rgba(124, 197, 181, .22) !important; margin: 0 !important; }
+  body.athlete nav.onglets .pastille { position: absolute; top: 4px; left: calc(50% + 8px); margin: 0; }
+  body.athlete nav.onglets button { position: relative; }
+  body.athlete main { padding-left: 128px; max-width: 1400px; }
 }

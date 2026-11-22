@@ -217,7 +217,7 @@
     // Vélo, natation, marche… : comptés à part, hors volume de course à pied
     if (cols.some(function (c) { return c.cur.autres || c.prec.autres; }))
       lignes.splice(4, 0, ['Autres activités', function (c) { return c.cur.autres + ec(c.cur.autres, c.prec.autres, String); }]);
-    return '<section class="carte"><div class="tableau"><table class="bilan-tab"><thead><tr><th></th>' +
+    return '<section class="carte"><h3>Tableau de bord</h3><div class="tableau"><table class="bilan-tab"><thead><tr><th></th>' +
       cols.map(function (c, i) {
         var sous = i === 0 ? C.formatDateFR(c.p.du).slice(0, 5) + '–' + C.formatDateFR(c.p.au).slice(0, 5) : i === 1 ? new Date(c.p.du + 'T12:00:00Z').toLocaleDateString('fr-FR', { month: 'long', timeZone: 'UTC' }) : c.p.du.slice(0, 4);
         return '<th class="num">' + c.titre + '<small>' + sous + '</small></th>';
@@ -300,17 +300,49 @@
       sauver().then(function () { toast('Paire enregistrée'); gererChaussures(); });
     };
   }
+  /* ---------- ACCUEIL : tableau de bord en tuiles (« bento ») ----------
+     Bannière (bonjour, mot du coach), semaine en pastilles, tuiles chiffrées (km, durée, plan suivi, VMA),
+     séance du jour, compétition, messages, puis tableau détaillé, stats et chaussures. */
+  function kmCourse(j) { return C.seancesDuJour(j).reduce(function (t, x) { return t + (x.code === 'course' && C.isNum(x.km) ? x.km : 0); }, 0); }
   function vueAccueil(m) {
-    var a = A.athlete, aj = auj(), j = a.jours[aj] || {}, h = '<div class="accueil-grille"><div class="accueil-a">';
-    h += carteReactions() + carteDecalees();
-    // Mot à tous puis mot personnel, séparés par un espace et un trait fin
+    var a = A.athlete, aj = auj(), j = a.jours[aj] || {}, lun = C.weekStart(aj), sem = UI.semaineDe(a, aj);
+    var bil = C.bilanPeriode(a, lun, C.addDays(lun, 6), aj);
+    var h = '<div class="bento">';
+
+    // Bannière : bonjour, objectif, mot du coach (à tous puis personnel), actions
     var motTous = C.texte(A.commun.motGlobal), motPerso = C.texte(a.motCoach);
-    if (motTous || motPerso) h += '<section class="carte mot"><h3>💬 Le mot de ton coach</h3>' + (motTous ? '<p>' + esc(A.commun.motGlobal) + '</p>' : '') +
-      (motPerso ? '<p' + (motTous ? ' class="mot-perso"' : '') + '>' + esc(a.motCoach) + '</p>' : '') + '</section>';
-    // Séance d'hier pas encore saisie
+    h += '<section class="carte b-hero"><div class="b-hero-txt"><p class="b-sur">' + (sem > 0 ? 'Semaine ' + sem + (a.contratSemaines ? ' / ' + a.contratSemaines : '') : 'Ton plan') + (C.texte(a.objectif) ? ' · ' + esc(a.objectif) : '') + '</p>' +
+      '<h2>Bonjour ' + esc(UI.prenom(a) || '') + ' !</h2>' +
+      (motTous || motPerso ? '<div class="b-mot"><span class="b-mot-titre">Le mot de ton coach</span>' + (motTous ? '<p>' + esc(A.commun.motGlobal) + '</p>' : '') + (motPerso ? '<p class="mot-perso">' + esc(a.motCoach) + '</p>' : '') + '</div>' : '') +
+      '<div class="b-actions"><button data-act="saisir" data-date="' + aj + '">' + (C.aRetour(j) ? 'Modifier ma séance' : 'Saisir ma séance') + '</button><button class="sec" data-act="allerJour" data-date="' + aj + '">Voir mon plan</button></div></div></section>';
+
+    // Semaine en pastilles : une par jour, couleur du type de séance, état (faite, pas réalisée, repos)
+    h += '<section class="carte b-semaine"><div class="ligne"><h3 class="espace" style="margin:0">' + (sem > 0 ? 'Semaine ' + sem : 'Cette semaine') + '</h3><span class="muet petit">' + C.formatDateFR(lun).slice(0, 5) + ' – ' + C.formatDateFR(C.addDays(lun, 6)).slice(0, 5) + '</span></div><div class="b-jours">' +
+      [0, 1, 2, 3, 4, 5, 6].map(function (k) {
+        var d = C.addDays(lun, k), x = a.jours[d] || {}, coul = UI.couleurFam(x.type);
+        var etat = C.nonRealisee(x) ? 'non' : C.aRetour(x) ? 'fait' : C.estRepos(x) || !C.aContenuCoach(x) ? 'repos' : 'prevu';
+        var titre = UI.jourCourt(d) + ' · ' + (C.aContenuCoach(x) ? C.texte(x.corps) : 'pas de séance') + ({ fait: ' · faite', non: ' · pas réalisée', repos: '', prevu: '' })[etat];
+        return '<button type="button" class="b-jour ' + etat + (d === aj ? ' auj' : '') + '" data-act="allerJour" data-date="' + d + '" title="' + esc(titre) + '" aria-label="' + esc(titre) + '"' + (coul ? ' style="--fam:' + coul + '"' : '') + '>' +
+          '<span class="b-j">' + C.JOURS[k].charAt(0) + '</span><span class="b-n">' + Number(d.slice(8)) + '</span><span class="b-pt" aria-hidden="true">' + (etat === 'fait' ? '✓' : etat === 'non' ? '✕' : '') + '</span></button>';
+      }).join('') + '</div>' +
+      '<p class="muet petit b-legende"><span class="b-l fait">✓</span> faite <span class="b-l non">✕</span> pas réalisée <span class="b-l prevu"></span> prévue</p></section>';
+
+    // Tuiles chiffrées de la semaine (course à pied)
+    var kms = [0, 1, 2, 3, 4, 5, 6].map(function (k) { return kmCourse(a.jours[C.addDays(lun, k)]); }), kmax = Math.max.apply(null, kms.concat([1]));
+    var pct = bil.prevuesADate ? Math.round(bil.prevuesFaites / bil.prevuesADate * 100) : null;
+    h += '<section class="carte b-tuile b-km"><span class="etiq">Volume semaine</span><b class="b-val">' + C.nombreFR(bil.km, 1) + '<small>km</small></b>' +
+      '<div class="b-barres" aria-hidden="true">' + kms.map(function (v, k) { return '<span class="' + (C.addDays(lun, k) === aj ? 'auj' : '') + '" style="height:' + Math.max(4, Math.round(v / kmax * 100)) + '%"></span>'; }).join('') + '</div></section>';
+    h += '<section class="carte b-tuile"><span class="etiq">Durée</span><b class="b-val">' + (bil.dureeSec ? C.formatDuree(bil.dureeSec) : '0:00:00') + '</b>' +
+      '<span class="b-sous">D+ ' + Math.round(bil.dplus) + ' m · ' + bil.seances + ' séance' + (bil.seances > 1 ? 's' : '') + (bil.autres ? ' · ' + bil.autres + ' autre' + (bil.autres > 1 ? 's' : '') + ' activité' + (bil.autres > 1 ? 's' : '') : '') + '</span></section>';
+    h += '<section class="carte b-tuile b-suivi"><span class="etiq">Plan suivi</span><div class="b-anneau" style="--p:' + (pct || 0) + '"><b>' + (pct === null ? '—' : pct + '%') + '</b></div>' +
+      '<span class="b-sous">' + (bil.prevuesADate ? bil.prevuesFaites + ' / ' + bil.prevuesADate + ' séances prévues' : 'Aucune séance prévue à ce jour') + '</span></section>';
+    h += '<section class="carte b-tuile b-vma" role="button" tabindex="0" data-act="ouvrirAllures"><span class="etiq">Ma VMA</span><b class="b-val">' + (C.isNum(a.vma) ? C.nombreFR(a.vma) + '<small>km/h</small>' : '—') + '</b>' +
+      '<span class="b-sous">Voir mes allures →</span></section>';
+
+    // Séance du jour (avec les alertes qui la concernent)
+    h += '<div class="b-jour-col">' + carteReactions() + carteDecalees();
     var hier = C.addDays(aj, -1), jh = a.jours[hier];
     if (jh && C.estPrevue(jh) && !C.aRetour(jh)) h += '<section class="alerte ligne"><span class="espace">Ta séance d\'hier (' + esc(jh.corps) + ') n\'est pas encore saisie.</span><button class="sec" data-act="pasFaite" data-date="' + hier + '">Pas réalisée</button><button data-act="saisir" data-date="' + hier + '">Saisir</button></section>';
-    // Séance du jour
     h += '<h2 class="titre-section">Aujourd\'hui</h2>';
     if (C.estPrevue(j) || C.aRetour(j)) h += UI.carteJour(a, aj, j, aj, { role: 'athlete' });
     else {
@@ -319,17 +351,28 @@
         (p ? '<p class="muet" style="margin:6px 0 0">Prochaine séance : ' + esc(UI.jourCourt(p)) + ' · ' + esc(a.jours[p].corps) + '</p>' : '') +
         '<div class="ligne" style="justify-content:flex-end"><button class="discret" data-act="saisir" data-date="' + aj + '">J\'ai couru quand même</button></div></section>';
     }
+    h += '</div>';
+
+    // Colonne de droite : compétition, messages
+    h += '<div class="b-cote">';
     var compet = C.prochaineCompet(a, aj);
-    if (compet) h += '<section class="carte compet"><span class="jx">' + (compet.dans === 0 ? 'Jour J' : 'J-' + compet.dans) + '</span><div><b>' + esc(compet.jour.corps) + '</b><br><span class="muet">' + esc(UI.jourCourt(compet.date)) + '</span></div></section>';
-    // Tableau de bord
-    h += '</div><div class="accueil-b"><h2 class="titre-section">Tableau de bord</h2>' + tableauBilan(a, aj);
-    // Records
+    if (compet) h += '<section class="carte b-compet"><span class="etiq">Prochaine compétition</span><div class="b-compet-l"><span class="jx">' + (compet.dans === 0 ? 'Jour J' : 'J-' + compet.dans) + '</span><div><b>' + esc(compet.jour.corps) + '</b><span class="b-sous">' + esc(UI.jourCourt(compet.date)) + '</span></div></div></section>';
+    var msgs = (A.messages || []).slice().sort(function (x, y) { return String(y.envoye).localeCompare(String(x.envoye)); }).slice(0, 3), nl = nonLus();
+    h += '<section class="carte b-msg"><div class="ligne"><h3 class="espace" style="margin:0">Messages' + (nl ? ' <span class="pastille">' + nl + '</span>' : '') + '</h3><button class="discret" data-act="ouvrirMessages">Tout voir</button></div>' +
+      (msgs.length ? '<ul class="b-msgs">' + msgs.map(function (x) {
+        return '<li class="' + (x.de === 'coach' && !x.lu ? 'nonlu' : '') + '"><span class="b-qui">' + (x.de === 'coach' ? 'Ton coach' : 'Toi') + '</span><span class="b-txt">' + esc(x.texte) + '</span><span class="b-quand">' + heureMsg(x.envoye) + '</span></li>';
+      }).join('') + '</ul>' : '<p class="muet petit" style="margin:10px 0 0">Aucun message pour le moment.</p>') +
+      '<button class="sec plein" data-act="ouvrirMessages">Écrire à mon coach</button></section>';
+    h += '</div>';
+
+    // Détail : tableau semaine / mois / année, records, chaussures
+    h += '<div class="b-detail">' + tableauBilan(a, aj) + '</div>';
     var rec = C.records(a);
-    h += '<section class="carte"><h3>Mes Stats</h3>' + (rec.length ? '<div class="tableau"><table><thead><tr><th>Record</th><th class="num">Valeur</th><th class="num">Date</th></tr></thead><tbody>' + rec.map(function (r) {
+    h += '<section class="carte b-stats"><h3>Mes Stats</h3>' + (rec.length ? '<div class="tableau"><table><thead><tr><th>Record</th><th class="num">Valeur</th><th class="num">Date</th></tr></thead><tbody>' + rec.map(function (r) {
       return '<tr><td>' + esc(r.libelle) + '</td><td class="num"><b>' + esc(r.texte).replace(' sur ', '</b><span class="ecart">sur ') + (r.texte.indexOf(' sur ') >= 0 ? '</span>' : '</b>') + '</td><td class="num">' + (r.cle === 'semaine' ? '<span class="ecart">sem. du</span>' : '') + C.formatDateFR(r.date).slice(0, 5) + '</td></tr>';
     }).join('') + '</tbody></table></div><p class="muet petit">Calculés uniquement à partir de tes séances saisies. Les allures sont des allures moyennes de séance.</p>' : '<p class="muet">Tes records apparaîtront ici dès tes premières séances saisies.</p>') + '</section>';
-    h += carteChaussures(a) + '</div></div>';
-    m.innerHTML = h;
+    h += '<div class="b-chaussures">' + carteChaussures(a) + '</div>';
+    m.innerHTML = h + '</div>';
   }
 
   /* ---------- PLAN ---------- */
@@ -576,6 +619,9 @@
     else if (act === 'imprimer') window.print();
     else if (act === 'chaussures') gererChaussures();
     else if (act === 'reactionsVues') marquerReactionsVues();
+    else if (act === 'allerJour') { semaineAffichee = Math.max(UI.semaineMin(a), UI.semaineDe(a, b.dataset.date)); vue = 'plan'; rendre(); var cible = document.getElementById('j-' + b.dataset.date); if (cible) cible.scrollIntoView({ block: 'center' }); else window.scrollTo(0, 0); }
+    else if (act === 'ouvrirAllures') { vue = 'allures'; rendre(); window.scrollTo(0, 0); }
+    else if (act === 'ouvrirMessages') { vue = 'messages'; rendre(); window.scrollTo(0, 0); }
   });
   $('#statutSync').addEventListener('click', function () { synchroniser(true); });
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') synchroniser(false); });

@@ -81,9 +81,16 @@ async function auditer(p, app, vue, largeur) {
   const b = r.blocs; if (!b.length) return;
   const mode = arr => { const c = {}; arr.forEach(v => { const k = Math.round(v); c[k] = (c[k] || 0) + 1; }); return +Object.keys(c).sort((x, y) => c[y] - c[x])[0]; };
   const G = mode(b.map(x => x.g)), D = mode(b.map(x => x.d));
-  b.forEach(x => { if (Math.abs(x.g - G) > 1 || Math.abs(x.d - D) > 1) problemes.push(`${app}/${vue} ${largeur}px : ${x.nom} bords ${Math.round(x.g)}–${Math.round(x.d)} au lieu de ${G}–${D}`); });
-  const tri = b.slice().sort((x, y) => x.h - y.h);
-  for (let i = 1; i < tri.length; i++) { const e = tri[i].h - tri[i - 1].b; if (e < 8) problemes.push(`${app}/${vue} ${largeur}px : ${tri[i - 1].nom} et ${tri[i].nom} séparées de ${Math.round(e)} px`); }
+  // Rangées : cartes côte à côte (tuiles d'une grille) ; une rangée occupe toute la largeur, ses cartes sont espacées d'au moins 8 px
+  const tri = b.slice().sort((x, y) => x.h - y.h || x.g - y.g), rangees = [];
+  tri.forEach(x => { const r = rangees[rangees.length - 1]; if (r && x.h < Math.min(...r.map(y => y.b)) - 1 && r.every(y => x.g >= y.d - 1 || x.d <= y.g + 1)) r.push(x); else rangees.push([x]); });
+  rangees.forEach(r => {
+    const g = Math.min(...r.map(x => x.g)), d = Math.max(...r.map(x => x.d)), nom = r.map(x => x.nom).join(' + ');
+    if (Math.abs(g - G) > 1 || Math.abs(d - D) > 1) problemes.push(`${app}/${vue} ${largeur}px : ${nom} bords ${Math.round(g)}–${Math.round(d)} au lieu de ${G}–${D}`);
+    const h = r.slice().sort((x, y) => x.g - y.g);
+    for (let i = 1; i < h.length; i++) { const e = h[i].g - h[i - 1].d; if (e < 8) problemes.push(`${app}/${vue} ${largeur}px : ${h[i - 1].nom} et ${h[i].nom} côte à côte, séparées de ${Math.round(e)} px`); }
+  });
+  for (let i = 1; i < rangees.length; i++) { const e = Math.min(...rangees[i].map(x => x.h)) - Math.max(...rangees[i - 1].map(x => x.b)); if (e < 8) problemes.push(`${app}/${vue} ${largeur}px : ${rangees[i - 1].map(x => x.nom).join(' + ')} et ${rangees[i].map(x => x.nom).join(' + ')} séparées de ${Math.round(e)} px`); }
 }
 
 for (const largeur of [390, 320]) {
