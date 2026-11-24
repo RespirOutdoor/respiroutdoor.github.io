@@ -794,7 +794,7 @@ form.saisie .champs { align-items: end; } /* cases alignées même si un libell�
    ====================================================================== */
 .bento { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .bento > * { grid-column: 1 / -1; min-width: 0; margin-bottom: 0 !important; }
-.bento > .b-tuile { grid-column: span 1; }
+.bento > .b-tuile { grid-column: span 1; align-self: stretch; } /* tuiles d'une même rangée : même hauteur */
 .bento .b-jour-col > .titre-section:first-of-type { margin-top: 4px; }
 .bento .b-jour-col > * + *, .bento .b-cote > * + * { margin-top: 12px; }
 .bento .b-jour-col > .titre-section + * { margin-top: 0; }

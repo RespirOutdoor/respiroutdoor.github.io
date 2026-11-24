@@ -89,6 +89,8 @@ async function auditer(p, app, vue, largeur) {
     if (Math.abs(g - G) > 1 || Math.abs(d - D) > 1) problemes.push(`${app}/${vue} ${largeur}px : ${nom} bords ${Math.round(g)}–${Math.round(d)} au lieu de ${G}–${D}`);
     const h = r.slice().sort((x, y) => x.g - y.g);
     for (let i = 1; i < h.length; i++) { const e = h[i].g - h[i - 1].d; if (e < 8) problemes.push(`${app}/${vue} ${largeur}px : ${h[i - 1].nom} et ${h[i].nom} côte à côte, séparées de ${Math.round(e)} px`); }
+    // Cartes côte à côte : même hauteur (une case plus courte que sa voisine se voit)
+    if (h.length > 1) { const hs = h.map(x => x.b - x.h); if (Math.max(...hs) - Math.min(...hs) > 1) problemes.push(`${app}/${vue} ${largeur}px : ${nom} de hauteurs différentes (${hs.map(Math.round).join(' / ')} px)`); }
   });
   for (let i = 1; i < rangees.length; i++) { const e = Math.min(...rangees[i].map(x => x.h)) - Math.max(...rangees[i - 1].map(x => x.b)); if (e < 8) problemes.push(`${app}/${vue} ${largeur}px : ${rangees[i - 1].map(x => x.nom).join(' + ')} et ${rangees[i].map(x => x.nom).join(' + ')} séparées de ${Math.round(e)} px`); }
 }
