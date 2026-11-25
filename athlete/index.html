@@ -163,7 +163,7 @@ th { background: var(--vert-clair); color: var(--sapin); font-weight: 700; posit
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 tr.cour td { background: var(--vert-clair); }
 tbody tr.cliquable { cursor: pointer; }
-tbody tr.cliquable:hover td { background: var(--vert-clair); }
+@media (hover: hover) and (pointer: fine) { tbody tr.cliquable:hover td { background: var(--vert-clair); } } /* au toucher, le survol resterait collé */
 
 /* Graphique */
 .graph { position: relative; }
@@ -908,6 +908,26 @@ button.plein { width: 100%; }
   body.athlete nav.onglets button { position: relative; }
   body.athlete main { padding-left: 128px; max-width: 1400px; }
 }
+
+/* ======================================================================
+   Athlète sur téléphone : comportements d'application installée (skill mobile-native)
+   ====================================================================== */
+/* Pas de flash gris/bleu au toucher (chaque bouton a son propre retour à l'appui, ci-dessous) */
+body.athlete { -webkit-tap-highlight-color: transparent; }
+/* Toucher immédiat : pas d'attente du double-tap */
+body.athlete :is(button, a, [role="button"], summary, label.choix, select) { touch-action: manipulation; }
+/* Un appui long sur un bouton ne sélectionne pas son texte (le texte des cartes reste copiable) */
+body.athlete :is(button, [role="button"], summary, nav.onglets, .puce) { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* Retour visuel dès que le doigt touche (et non au relâchement) */
+body.athlete :is(button, [role="button"]) { transition: transform 120ms cubic-bezier(.2, .8, .2, 1), filter 120ms; }
+body.athlete :is(button, [role="button"]):active:not(:disabled) { transform: scale(.97); filter: brightness(.94); }
+body.athlete nav.onglets button:active { transform: scale(.94); }
+/* Fenêtres : hauteur réellement visible (la barre d'adresse ne coupe plus le bas) et défilement qui n'entraîne pas la page */
+body.athlete dialog { max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overscroll-behavior: contain; }
+body.athlete :is(.messagerie .fil, .aide-panneau, .tableau) { overscroll-behavior: contain; }
+body.athlete .aide-panneau { height: min(560px, calc(100dvh - var(--nav-h) - 110px)); }
+@media (min-width: 900px) { body.athlete .aide-panneau { height: min(600px, calc(100dvh - 120px)); } }
+@media (prefers-reduced-motion: reduce) { body.athlete :is(button, [role="button"]):active { transform: none; } }
 </style>
 </head>
 <body class="athlete">
