@@ -3,8 +3,8 @@
 // Autres fichiers (icônes, manifeste) : réponse depuis le cache, mise à jour en arrière-plan.
 // Aucune donnée d'athlète n'est mise en cache ici : elles restent dans IndexedDB et le tableur de l'entraîneur.
 var PREFIXE = 'respir-outdoor-';
-var VERSION = PREFIXE + 'v82';
-var FICHIERS = ['./', './index.html', './manifest.json', './config.json', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+var VERSION = PREFIXE + 'v83';
+var FICHIERS = ['./', './index.html', './manifest.json', './config.json', './icons/icon-sapin-192.png', './icons/icon-sapin-512.png', './icons/icon-sapin-maskable-192.png', './icons/icon-sapin-maskable-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {
   // « reload » : copie prise sur le serveur, pas dans le cache HTTP du navigateur (GitHub Pages autorise quelques minutes de cache)
