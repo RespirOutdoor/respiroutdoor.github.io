@@ -891,6 +891,15 @@ button.plein { width: 100%; }
   body.athlete nav.onglets .pastille { position: absolute; top: 4px; left: calc(50% + 8px); margin: 0; }
   body.athlete nav.onglets button { position: relative; }
   body.athlete main { padding-left: 128px; max-width: 1400px; }
+  /* La barre d'onglets suit le contenu (centré) au lieu de rester collée au bord gauche des grands écrans */
+  body.athlete nav.onglets { left: max(16px, calc((100vw - 1400px) / 2 + 16px)); }
+  /* Rangées du tableau de bord : cartes voisines de même hauteur, contenu réparti */
+  body.athlete .bento > :is(.b-semaine, .b-detail, .b-stats) { align-self: stretch; }
+  body.athlete .bento > .b-semaine { display: flex; flex-direction: column; justify-content: space-between; }
+  body.athlete .bento > .b-semaine .b-jours { flex: 1; align-items: stretch; }
+  body.athlete .bento > .b-semaine .b-jour { align-content: center; }
+  body.athlete .bento > .b-detail { display: flex; flex-direction: column; }
+  body.athlete .bento > .b-detail > .carte { flex: 1; }
 }
 
 /* ======================================================================
@@ -923,6 +932,17 @@ body.athlete #toast.sort { opacity: 0; transform: translate(-50%, 6px); transiti
 /* Séance qui vient de passer à « faite » : la pastille du jour se remplit (une seule fois, après la fermeture de la fenêtre) */
 body.athlete .b-jour.vient .b-pt { animation: pt-fait 280ms var(--ease-out) 120ms both; }
 @keyframes pt-fait { from { opacity: 0; transform: scale(.9); } }
+/* Messages sur téléphone : le fil défile avec la page et la zone d'écriture reste visible juste au-dessus des onglets ;
+   pendant la frappe elle reprend sa place normale (le clavier la montre) et la barre d'onglets se cache */
+@media screen and (max-width: 899px) {
+  body.athlete .messagerie .fil { max-height: none; overflow: visible; }
+  body.athlete .messagerie .envoi { position: sticky; z-index: 5; bottom: calc(var(--nav-h) + 18px + env(safe-area-inset-bottom, 0px));
+    margin: 10px -8px 0; padding: 10px 8px; border-top: 0; border-radius: 20px; background: var(--verre-uni);
+    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: 0 10px 26px -12px rgba(0, 0, 0, .5); }
+  body.athlete .messagerie .envoi textarea { resize: none; }
+  body.athlete .messagerie .envoi:focus-within { position: relative; bottom: auto; }
+  body.athlete:has(.envoi textarea:focus) nav.onglets, body.athlete:has(.envoi textarea:focus) .aide-bouton { display: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   body.athlete :is(button, [role="button"]):active { transform: none; }
   body.athlete .b-jour.vient .b-pt { animation-name: fen-fond; }

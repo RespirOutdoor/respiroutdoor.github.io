@@ -50,7 +50,8 @@ const SERVICE = 'https://script.google.com/macros/s/TEST/exec';
 const nav = await chromium.launch();
 const problemes = [];
 async function contexte(largeur) {
-  const ctx = await nav.newContext({ viewport: { width: largeur, height: 844 }, deviceScaleFactor: process.env.CAPTURES ? 2 : 1, isMobile: true, hasTouch: true, timezoneId: 'Europe/Paris', colorScheme: process.env.CAPTURES ? (process.env.THEME || 'dark') : 'light' });
+  const pc = largeur >= 1100;
+  const ctx = await nav.newContext({ viewport: { width: largeur, height: pc ? 900 : 844 }, deviceScaleFactor: process.env.CAPTURES ? 2 : 1, isMobile: !pc, hasTouch: !pc, timezoneId: 'Europe/Paris', colorScheme: process.env.CAPTURES ? (process.env.THEME || 'dark') : 'light' });
   await ctx.route('**/config.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ service: SERVICE }) }));
   await ctx.route(SERVICE, async r => r.fulfill({ contentType: 'application/json', body: JSON.stringify(srv.appel(JSON.parse(r.request().postData() || '{}'))) }));
   return ctx;
@@ -114,6 +115,24 @@ for (const largeur of [390, 320]) {
   }
   await cc.close();
 }
+// Ordinateur (écran courant et grand écran) : application athlète, tableau de bord en tuiles
+for (const largeur of [1440, 1920]) {
+  const ca = await contexte(largeur), a = await ca.newPage();
+  await a.goto(BASE + 'athlete/#RespirOutdoor-Camille-Demo-K7Q2XA'); await a.waitForSelector('h2.titre-section'); await a.waitForTimeout(5600);
+  for (const v of ['accueil', 'plan', 'messages', 'allures', 'legende', 'protos']) {
+    await a.evaluate(v => document.querySelector(`nav.onglets button[data-v="${v}"]`).click(), v); await a.waitForTimeout(500);
+    // Rangées de la grille du tableau de bord (les colonnes de gauche et de droite sont des piles indépendantes)
+    const rg = await a.evaluate(() => { const g = document.querySelector('#contenu .bento'); if (!g) return { debord: document.documentElement.scrollWidth > innerWidth + 1, rangs: [] };
+      const m = {}; [...g.children].filter(e => !/b-jour-col|b-cote/.test(e.className)).forEach(e => { const r = e.getBoundingClientRect(), k = Math.round(r.top); (m[k] = m[k] || []).push({ h: r.height, nom: e.className }); });
+      return { debord: document.documentElement.scrollWidth > innerWidth + 1, rangs: Object.values(m).filter(x => x.length > 1) }; });
+    if (rg.debord) problemes.push(`athlète/${v} ${largeur}px : la page déborde en largeur`);
+    rg.rangs.forEach(r => { const hs = r.map(x => x.h); if (Math.max(...hs) - Math.min(...hs) > 1) problemes.push(`athlète/${v} ${largeur}px : ${r.map(x => x.nom).join(' + ')} de hauteurs différentes (${hs.map(Math.round).join(' / ')} px)`); });
+    // La barre d'onglets ne doit ni chevaucher le contenu ni en être éloignée
+    const r = await a.evaluate(() => { const n = document.querySelector('nav.onglets').getBoundingClientRect(), c = [...document.querySelectorAll('#contenu .carte, #contenu h2')].filter(e => e.offsetParent).map(e => e.getBoundingClientRect().left); return { navD: n.right, contenuG: Math.min(...c) }; });
+    const e = r.contenuG - r.navD; if (e < 12 || e > 48) problemes.push(`athlète/${v} ${largeur}px : barre d'onglets à ${Math.round(e)} px du contenu (attendu 12 à 48 px)`);
+  }
+  await ca.close();
+}
 await nav.close(); http.close();
 if (problemes.length) { console.log(problemes.length + ' problème(s) de mise en page :'); problemes.forEach(x => console.log(' - ' + x)); process.exit(1); }
-console.log('Mise en page : cartes alignées et espacées dans toutes les vues (390 et 320 px)');
+console.log('Mise en page : cartes alignées et espacées dans toutes les vues (téléphone 390 et 320 px, ordinateur 1440 et 1920 px)');

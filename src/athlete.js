@@ -175,12 +175,17 @@
       return '<div class="bulle ' + (m.de === 'athlete' ? 'moi' : 'lui') + '"><div class="txt">' + esc(m.texte) + '</div><div class="quand">' + heureMsg(m.envoye) + (m.de === 'athlete' && m.lu ? ' · lu' : '') + '</div></div>';
     }).join('') : '<p class="muet" style="text-align:center">Pas encore de message. Écris à ton entraîneur ici : il le verra dans son application.</p>';
     fil.scrollTop = fil.scrollHeight;
+    // Téléphone : le fil défile avec la page (zone d'écriture fixée au-dessus des onglets) ; on se place sur le dernier message
+    // à l'ouverture, après un envoi, ou à l'arrivée d'un message si on était déjà en bas
+    var bas = document.documentElement.scrollHeight - window.innerHeight - window.scrollY < 160;
+    if (fil.scrollHeight <= fil.clientHeight + 1 && (dessinerFil.enBas || bas)) setTimeout(function () { window.scrollTo(0, document.documentElement.scrollHeight); }, 0);
+    if ((A.messages || []).length) dessinerFil.enBas = false;
   }
   function vueMessages(m) {
     if (A.messagerie === 'indispo') { m.innerHTML = '<section class="carte"><h2>Messages</h2><p class="muet">La messagerie sera disponible dès que ton entraîneur aura mis à jour son service Google.</p></section>'; return; }
     m.innerHTML = '<section class="carte messagerie"><h2>Messages avec ton entraîneur</h2><div id="fil" class="fil" aria-live="polite"></div>' +
       '<form id="fMsg" class="envoi"><label class="sr" for="msgTexte">Ton message</label><textarea id="msgTexte" maxlength="2000" rows="2" placeholder="Écris ton message…"></textarea><button>Envoyer</button></form></section>';
-    dessinerFil();
+    dessinerFil.enBas = true; dessinerFil();
     if (nonLus() || !A.messagesConnus) chargerMessages(true);
     $('#fMsg').onsubmit = function (ev) {
       ev.preventDefault();
@@ -188,7 +193,7 @@
       if (!texte) return;
       btn.disabled = true;
       UI.appelService(config.service, { action: 'athlete.ecrire', code: A.code, texte: texte }).then(function (r) {
-        A.messages = (A.messages || []).concat([r.message]); t.value = ''; dessinerFil(); sauver();
+        A.messages = (A.messages || []).concat([r.message]); t.value = ''; dessinerFil.enBas = true; dessinerFil(); sauver();
       }, function (e) { toast(/action inconnue/.test(e.message) ? 'Messagerie pas encore disponible' : 'Message non envoyé : vérifie ta connexion'); })
         .then(function () { btn.disabled = false; });
     };
