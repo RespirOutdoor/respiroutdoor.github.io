@@ -920,8 +920,12 @@ body.athlete dialog[open]::backdrop { animation: fen-fond 240ms var(--ease-out);
 body.athlete #toast { animation: toast-entree 260ms var(--ease-out); }
 body.athlete #toast.sort { opacity: 0; transform: translate(-50%, 6px); transition: opacity 160ms ease-in, transform 160ms ease-in; }
 @keyframes toast-entree { from { opacity: 0; transform: translate(-50%, 10px) scale(.97); } }
+/* Séance qui vient de passer à « faite » : la pastille du jour se remplit (une seule fois, après la fermeture de la fenêtre) */
+body.athlete .b-jour.vient .b-pt { animation: pt-fait 280ms var(--ease-out) 120ms both; }
+@keyframes pt-fait { from { opacity: 0; transform: scale(.9); } }
 @media (prefers-reduced-motion: reduce) {
   body.athlete :is(button, [role="button"]):active { transform: none; }
+  body.athlete .b-jour.vient .b-pt { animation-name: fen-fond; }
   body.athlete dialog[open] { animation-name: fen-fond; }
   body.athlete #toast { animation-name: fen-fond; }
   body.athlete #toast.sort { transform: translateX(-50%); }

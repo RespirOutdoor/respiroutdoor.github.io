@@ -307,6 +307,7 @@
   function vueAccueil(m) {
     var a = A.athlete, aj = auj(), j = a.jours[aj] || {}, lun = C.weekStart(aj), sem = UI.semaineDe(a, aj);
     var bil = C.bilanPeriode(a, lun, C.addDays(lun, 6), aj);
+    var vient = vientDeFaire && Date.now() - vientDeFaire.t < 400 ? Math.max(1, Date.now() - vientDeFaire.t) : 0;
     var h = '<div class="bento">';
 
     // Bannière : bonjour, objectif, mot du coach (à tous puis personnel), actions
@@ -322,8 +323,8 @@
         var d = C.addDays(lun, k), x = a.jours[d] || {}, coul = UI.couleurFam(x.type);
         var etat = C.nonRealisee(x) ? 'non' : C.aRetour(x) ? 'fait' : C.estRepos(x) || !C.aContenuCoach(x) ? 'repos' : 'prevu';
         var titre = UI.jourCourt(d) + ' · ' + (C.aContenuCoach(x) ? C.texte(x.corps) : 'pas de séance') + ({ fait: ' · faite', non: ' · pas réalisée', repos: '', prevu: '' })[etat];
-        return '<button type="button" class="b-jour ' + etat + (d === aj ? ' auj' : '') + '" data-act="allerJour" data-date="' + d + '" title="' + esc(titre) + '" aria-label="' + esc(titre) + '"' + (coul ? ' style="--fam:' + coul + '"' : '') + '>' +
-          '<span class="b-j">' + C.JOURS[k].charAt(0) + '</span><span class="b-n">' + Number(d.slice(8)) + '</span><span class="b-pt" aria-hidden="true">' + (etat === 'fait' ? '✓' : etat === 'non' ? '✕' : '') + '</span></button>';
+        return '<button type="button" class="b-jour ' + etat + (d === aj ? ' auj' : '') + (vient && d === vientDeFaire.date && etat === 'fait' ? ' vient' : '') + '" data-act="allerJour" data-date="' + d + '" title="' + esc(titre) + '" aria-label="' + esc(titre) + '"' + (coul ? ' style="--fam:' + coul + '"' : '') + '>' +
+          '<span class="b-j">' + C.JOURS[k].charAt(0) + '</span><span class="b-n">' + Number(d.slice(8)) + '</span><span class="b-pt" aria-hidden="true"' + (vient && d === vientDeFaire.date ? ' style="animation-delay:' + (120 - vient) + 'ms"' : '') + '>' + (etat === 'fait' ? '✓' : etat === 'non' ? '✕' : '') + '</span></button>';
       }).join('') + '</div>' +
       '<p class="muet petit b-legende"><span class="b-l fait">✓</span> faite <span class="b-l non">✕</span> pas réalisée <span class="b-l prevu"></span> prévue</p></section>';
 
@@ -578,14 +579,18 @@
   }
   // extras : nouvelle liste des activités en plus du jour ; sans elle, celles déjà enregistrées sont gardées
   // ter : terrain de la séance (sans lui, celui déjà enregistré est gardé)
+  var vientDeFaire = null;
   function enregistrer(date, j, message, extras, ter) {
     var a = A.athlete;
     j.notes = C.avecExtras(j.notes, extras || C.extras(a.jours[date]), ter !== undefined ? ter : C.terrain(a.jours[date]), C.lignesRP(a.jours[date]));
     j.majA = UI.maintenant();
     var n = C.nettoyerJour(j);
+    // La pastille du jour s'anime une seule fois quand la séance passe à « faite » (si l'écran se redessine pendant
+    // l'animation, elle reprend là où elle en était au lieu de recommencer)
+    vientDeFaire = !C.aRetour(a.jours[date] || {}) && C.aRetour(n) ? { date: date, t: Date.now() } : null;
     a.jours[date] = n;
     A.enAttente[date] = true;
-    sauver().then(function () { toast(message || 'Séance enregistrée 👏'); rendre(); synchroniser(false); });
+    sauver().then(function () { toast(message || 'Séance enregistrée 👏'); if (vientDeFaire) vientDeFaire.t = Date.now(); rendre(); synchroniser(false); });
   }
 
   // RP de l'athlète : ligne « [RP · …] » dans les notes du jour de la course, envoyée comme une saisie (le coach la voit)
