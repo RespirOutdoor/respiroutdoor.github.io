@@ -296,6 +296,28 @@ ul.liste { margin: 0; padding-left: 18px; }
 @keyframes ouv-eclaire { to { opacity: 1; } }
 @keyframes ouv-reflet { 0% { opacity: 1; background-position: 100% 0; } 100% { opacity: 1; background-position: 0% 0; } }
 @media (prefers-reduced-motion: reduce) { #ouverture.reflet { display: none; } }
+/* Athlète : « Battement » (5 s) : ligne de cardio néon, logo qui pulse, « My RespiR », bonjour personnalisé, fondu à 4 s */
+#ouverture.battement { background: radial-gradient(70% 45% at 50% 46%, #155446 0%, rgba(21, 84, 70, 0) 100%), #0A322A; animation: ouv-sortie .7s ease-in 4.03s forwards; }
+#ouverture.battement::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to bottom, transparent 55%, rgba(0, 0, 0, .28)); }
+#ouverture.battement .ouv-centre { position: relative; z-index: 1; width: 100%; display: flex; flex-direction: column; align-items: center; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+#ouverture.battement .ouv-logo { opacity: 0; transform: none; animation: ouv-fondu .34s ease-out .5s forwards, ouv-bat1 .37s ease-in-out .64s, ouv-bat2 .4s ease-in-out 1.04s; }
+#ouverture.battement .ouv-logo img { width: min(300px, 70vw); }
+#ouverture.battement .ouv-ecg { width: 100%; height: min(90px, 22vw); margin-top: -4px; overflow: visible; }
+#ouverture.battement .ouv-ecg path { fill: none; stroke: #D6FFF5; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke;
+  stroke-dasharray: .38 1; stroke-dashoffset: .38; filter: drop-shadow(0 0 4px #5EF2CF) drop-shadow(0 0 14px #5EF2CF);
+  animation: ouv-ecg 1.93s cubic-bezier(.65, 0, .35, 1) forwards, ouv-sortie .42s ease-in 1.93s forwards; }
+#ouverture.battement p { margin: 0; text-align: center; color: #FFFFFF; opacity: 0; }
+#ouverture.battement .ouv-myr { font-size: min(36px, 9vw); letter-spacing: -.01em; margin-top: 4px; animation: ouv-monte .75s cubic-bezier(.2, .7, .2, 1) 1.85s forwards; }
+#ouverture.battement .ouv-myr span { font-weight: 300; color: #7CC5B5; }
+#ouverture.battement .ouv-myr b { font-weight: 800; }
+#ouverture.battement .ouv-bonjour { margin-top: 10px; font-size: min(19px, 4.8vw); font-weight: 600; color: rgba(255, 255, 255, .88); animation: ouv-monte .75s cubic-bezier(.2, .7, .2, 1) 2.43s forwards; }
+#ouverture.battement .ouv-pret { margin-top: 6px; font-size: min(15px, 3.9vw); font-weight: 500; color: rgba(255, 255, 255, .72); animation: ouv-fondu .67s ease-out 2.94s forwards; }
+#ouverture.battement .ouv-pret span { color: #FF4D6A; }
+@keyframes ouv-ecg { to { stroke-dashoffset: -1; } }
+@keyframes ouv-bat1 { 50% { transform: scale(1.07); } }
+@keyframes ouv-bat2 { 50% { transform: scale(1.05); } }
+@keyframes ouv-monte { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { #ouverture.battement { display: none; } }
 @media print { #ouverture { display: none; } }
 
 /* ---------- Harmonisation des cartes et tableaux ---------- */
