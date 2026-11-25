@@ -16,7 +16,7 @@ var UI = (function () {
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function $(sel, el) { return (el || document).querySelector(sel); }
   function $$(sel, el) { return Array.prototype.slice.call((el || document).querySelectorAll(sel)); }
-  function toast(t) { var x = $('#toast'); x.textContent = t; x.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(function () { x.style.display = 'none'; }, 3500); }
+  function toast(t) { var x = $('#toast'); x.textContent = t; x.classList.remove('sort'); x.style.display = 'block'; clearTimeout(toast.t); clearTimeout(toast.u); toast.t = setTimeout(function () { x.classList.add('sort'); toast.u = setTimeout(function () { x.style.display = 'none'; x.classList.remove('sort'); }, 170); }, 3500); }
   function auj() { return C.todayParis(); }
   function maintenant() { return new Date().toISOString(); }
   function nomComplet(a) { return [a.prenom, a.nom].filter(Boolean).join(' ') || 'Athlète sans nom'; }

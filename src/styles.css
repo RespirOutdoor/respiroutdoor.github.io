@@ -903,7 +903,8 @@ body.athlete :is(button, a, [role="button"], summary, label.choix, select) { tou
 /* Un appui long sur un bouton ne sélectionne pas son texte (le texte des cartes reste copiable) */
 body.athlete :is(button, [role="button"], summary, nav.onglets, .puce) { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 /* Retour visuel dès que le doigt touche (et non au relâchement) */
-body.athlete :is(button, [role="button"]) { transition: transform 120ms cubic-bezier(.2, .8, .2, 1), filter 120ms; }
+body.athlete { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); }
+body.athlete :is(button, [role="button"]) { transition: transform 160ms var(--ease-out), filter 160ms var(--ease-out); }
 body.athlete :is(button, [role="button"]):active:not(:disabled) { transform: scale(.97); filter: brightness(.94); }
 body.athlete nav.onglets button:active { transform: scale(.94); }
 /* Fenêtres : hauteur réellement visible (la barre d'adresse ne coupe plus le bas) et défilement qui n'entraîne pas la page */
@@ -911,4 +912,17 @@ body.athlete dialog { max-height: calc(100vh - 32px); max-height: calc(100dvh - 
 body.athlete :is(.messagerie .fil, .aide-panneau, .tableau) { overscroll-behavior: contain; }
 body.athlete .aide-panneau { height: min(560px, calc(100dvh - var(--nav-h) - 110px)); }
 @media (min-width: 900px) { body.athlete .aide-panneau { height: min(600px, calc(100dvh - 120px)); } }
-@media (prefers-reduced-motion: reduce) { body.athlete :is(button, [role="button"]):active { transform: none; } }
+/* Finition : fenêtres et messages courts apparaissent en douceur (jamais depuis rien : .96 + fondu), fermeture rapide */
+body.athlete dialog[open] { animation: fen-entree 240ms var(--ease-out); transform-origin: center; }
+body.athlete dialog[open]::backdrop { animation: fen-fond 240ms var(--ease-out); }
+@keyframes fen-entree { from { opacity: 0; transform: translateY(6px) scale(.96); } }
+@keyframes fen-fond { from { opacity: 0; } }
+body.athlete #toast { animation: toast-entree 260ms var(--ease-out); }
+body.athlete #toast.sort { opacity: 0; transform: translate(-50%, 6px); transition: opacity 160ms ease-in, transform 160ms ease-in; }
+@keyframes toast-entree { from { opacity: 0; transform: translate(-50%, 10px) scale(.97); } }
+@media (prefers-reduced-motion: reduce) {
+  body.athlete :is(button, [role="button"]):active { transform: none; }
+  body.athlete dialog[open] { animation-name: fen-fond; }
+  body.athlete #toast { animation-name: fen-fond; }
+  body.athlete #toast.sort { transform: translateX(-50%); }
+}

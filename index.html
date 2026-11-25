@@ -919,7 +919,8 @@ body.athlete :is(button, a, [role="button"], summary, label.choix, select) { tou
 /* Un appui long sur un bouton ne sélectionne pas son texte (le texte des cartes reste copiable) */
 body.athlete :is(button, [role="button"], summary, nav.onglets, .puce) { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 /* Retour visuel dès que le doigt touche (et non au relâchement) */
-body.athlete :is(button, [role="button"]) { transition: transform 120ms cubic-bezier(.2, .8, .2, 1), filter 120ms; }
+body.athlete { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); }
+body.athlete :is(button, [role="button"]) { transition: transform 160ms var(--ease-out), filter 160ms var(--ease-out); }
 body.athlete :is(button, [role="button"]):active:not(:disabled) { transform: scale(.97); filter: brightness(.94); }
 body.athlete nav.onglets button:active { transform: scale(.94); }
 /* Fenêtres : hauteur réellement visible (la barre d'adresse ne coupe plus le bas) et défilement qui n'entraîne pas la page */
@@ -927,7 +928,20 @@ body.athlete dialog { max-height: calc(100vh - 32px); max-height: calc(100dvh - 
 body.athlete :is(.messagerie .fil, .aide-panneau, .tableau) { overscroll-behavior: contain; }
 body.athlete .aide-panneau { height: min(560px, calc(100dvh - var(--nav-h) - 110px)); }
 @media (min-width: 900px) { body.athlete .aide-panneau { height: min(600px, calc(100dvh - 120px)); } }
-@media (prefers-reduced-motion: reduce) { body.athlete :is(button, [role="button"]):active { transform: none; } }
+/* Finition : fenêtres et messages courts apparaissent en douceur (jamais depuis rien : .96 + fondu), fermeture rapide */
+body.athlete dialog[open] { animation: fen-entree 240ms var(--ease-out); transform-origin: center; }
+body.athlete dialog[open]::backdrop { animation: fen-fond 240ms var(--ease-out); }
+@keyframes fen-entree { from { opacity: 0; transform: translateY(6px) scale(.96); } }
+@keyframes fen-fond { from { opacity: 0; } }
+body.athlete #toast { animation: toast-entree 260ms var(--ease-out); }
+body.athlete #toast.sort { opacity: 0; transform: translate(-50%, 6px); transition: opacity 160ms ease-in, transform 160ms ease-in; }
+@keyframes toast-entree { from { opacity: 0; transform: translate(-50%, 10px) scale(.97); } }
+@media (prefers-reduced-motion: reduce) {
+  body.athlete :is(button, [role="button"]):active { transform: none; }
+  body.athlete dialog[open] { animation-name: fen-fond; }
+  body.athlete #toast { animation-name: fen-fond; }
+  body.athlete #toast.sort { transform: translateX(-50%); }
+}
 </style>
 </head>
 <body class="coach">
@@ -2692,7 +2706,7 @@ var UI = (function () {
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function $(sel, el) { return (el || document).querySelector(sel); }
   function $$(sel, el) { return Array.prototype.slice.call((el || document).querySelectorAll(sel)); }
-  function toast(t) { var x = $('#toast'); x.textContent = t; x.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(function () { x.style.display = 'none'; }, 3500); }
+  function toast(t) { var x = $('#toast'); x.textContent = t; x.classList.remove('sort'); x.style.display = 'block'; clearTimeout(toast.t); clearTimeout(toast.u); toast.t = setTimeout(function () { x.classList.add('sort'); toast.u = setTimeout(function () { x.style.display = 'none'; x.classList.remove('sort'); }, 170); }, 3500); }
   function auj() { return C.todayParis(); }
   function maintenant() { return new Date().toISOString(); }
   function nomComplet(a) { return [a.prenom, a.nom].filter(Boolean).join(' ') || 'Athlète sans nom'; }
@@ -4051,7 +4065,7 @@ var UI = (function () {
       '<button class="sec" data-act="exportCsv"' + (a ? '' : ' disabled') + '>Plan en CSV (Excel)</button>' +
       '<button class="sec" data-act="sauvegarde">Sauvegarde complète (.json)</button><button class="sec" data-act="restaurer">Restaurer une sauvegarde</button></div>' +
       '<p class="muet petit">La sauvegarde contient tous les athlètes, la légende, les protos et les réglages (sauf la clé entraîneur).</p></section>' +
-      '<p class="muet petit" style="text-align:center">Version de l\'application : v83</p>';
+      '<p class="muet petit" style="text-align:center">Version de l\'application : v84</p>';
     h += '<section class="carte"><h2>Athlètes</h2><div class="ligne"><button class="sec" data-act="nouvelAthlete">Créer un athlète</button>' +
       (a ? '<button class="danger" data-act="supprAthlete">Supprimer ' + esc(nomComplet(a)) + '</button>' : '') + '</div></section>';
     h += '<section class="carte"><h2>Affichage</h2><label>Thème<select id="theme"><option value="">Selon l\'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label></section>';
